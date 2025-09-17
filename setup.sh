@@ -9,51 +9,24 @@ dpkg --configure -a
 apt --fix-broken install -y
 apt install --fix-missing -y
 
+pkg install termux-api termux-gui-package tur-repo -y
+pkg install wget aria2c zip unzip -y
 termux-setup-storage
 
-pkg install 
-
-apksigner
-android-tools
-aapt2
-
-sudo tsu tudo
-
-bat
-zoxide 
-
-zsh zsh-completions
-antibody
-
+pkg install git zsh zsh-completions -y
 chsh -s zsh
+git clone https://github.com/Sohil876/Termux-zsh.git && cd Termux-zsh && bash setup.sh
 
-micro
-mc yazi ranger lf fm 
-abduco cfm
-clifm
-cfm
-termux-api
-termux-gui-package
-binutils-libs
-binutils-bin
-binutils-is-llvm
+pkg install android-tools aapt2 apksigner -y
+pkg install bat zoxide ripgrep-all -y
+pkg install micro mc -y
+#binutils-libs
+#binutils-bin
+#binutils-is-llvm
+#pkgtop
 
-wget aria2c
-zip unzip
+pkg install libheif libwebp optipng pngquant jpegoptim gifsicle gifski imagemagick -y
+#graphicsmagick go-findimagedupes cavif-rs
 
-ripgrep-all
+apt clean && apt autoclean && apt-get -y autoremove --purge
 
-pkgtop
-
-libheif libwebp 
-optipng pngquant jpegoptim
-graphicsmagick imagemagick
-go-findimagedupes cavif-rs
-gifsicle gifski
-
-
-tur-repo
-
-apt clean
-apt autoclean && 
-apt-get -y autoremove --purge
