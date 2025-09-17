@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/bash
 
 pkg up -y
 pkg upgrade -y
@@ -20,8 +20,12 @@ aapt2
 sudo tsu tudo
 
 bat
-zoxide zsh zsh-completions
-antibody/stable
+zoxide 
+
+zsh zsh-completions
+antibody
+
+chsh -s zsh
 
 micro
 mc yazi ranger lf fm 
