@@ -1,4 +1,6 @@
 
+source "${HOME}/navita.sh"
+
 if command -v zoxide &>/dev/null &&
   export _ZO_FZF_OPTS=--no-mouse -0 -1 --cycle +m --inline-info"
   eval "$(_ZO_DOCTOR=0 zoxide init bash)"
