@@ -37,3 +37,6 @@ apt clean && apt autoclean && apt-get -y autoremove --purge
 
 curl -fsSL https://raw.githubusercontent.com/ashish0kumar/fzfm/main/fzfm -o ~/.local/bin/fzfm
 chmod +x ~/.local/bin/fzfm
+
+curl https://raw.githubusercontent.com/CodesOfRishi/navita/main/navita.sh --output navita.sh
+
