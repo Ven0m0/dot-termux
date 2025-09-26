@@ -47,6 +47,6 @@ export VISUAL=micro
 
 alias mkdir='mkdir -p'
 
-
+alias zshrc='${=EDITOR} ~/.zshrc'
 mcd () { mkdir -p -- "$1" && cd "$1"; }
 
