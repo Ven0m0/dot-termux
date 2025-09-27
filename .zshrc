@@ -8,6 +8,21 @@ typeset p10k_instant_prompt_file="${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-p
   #source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 #fi
 
+function zcompile-many() {
+  local f; for f; do zcompile -R -- "$f".zwc "$f"; done
+}
+
+if [[ ! -e ~/zsh-defer ]]; then
+  git clone --depth=1 https://github.com/romkatv/zsh-defer.git ~/zsh-defer
+  zcompile-many ~/zsh-defer/zsh-defer.plugin.zsh
+fi
+
+
+if [[ ! -e ~/zsh-autosuggestions ]]; then
+  git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git ~/zsh-autosuggestions
+  zcompile-many ~/zsh-autosuggestions/{zsh-autosuggestions.zsh,src/**/*.zsh}
+fi
+
 #Allow more system resources and open files to the shell
 #Hopefully fix vim open files leaks
 ulimit -n 10240
