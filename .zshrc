@@ -4,6 +4,10 @@
 typeset p10k_instant_prompt_file="${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 [[ -r "$p10k_instant_prompt_file" ]] && source "$p10k_instant_prompt_file"
 
+#if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  #source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+#fi
+
 #Allow more system resources and open files to the shell
 #Hopefully fix vim open files leaks
 ulimit -n 10240
