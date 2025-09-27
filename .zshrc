@@ -1,11 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
+# Enable Powerlevel10k instant prompt (optimized)
+typeset p10k_instant_prompt_file="${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+[[ -r "$p10k_instant_prompt_file" ]] && source "$p10k_instant_prompt_file"
+
+#Allow more system resources and open files to the shell
+#Hopefully fix vim open files leaks
+ulimit -n 10240
 
 # Basic auto/tab complete:
 autoload -U compinit
@@ -23,9 +24,9 @@ MAGIC_ENTER_GIT_COMMAND='git status -u .'
 MAGIC_ENTER_OTHER_COMMAND='ls -lh .'
 
 [[ -z "${plugins[*]}" ]] && plugins=(
-git fzf aliases colored-man-pages colorize command-not-found eza debian common-aliases alias-finder frontend-search
-git-extras gitfast history man python rust shrink-path ssh ssh-agent thefuck themes tldr universalarchive zoxide zsh-interactive-cd
-zsh-navigation-tools extract gnu-utils magic-enter
+git fzf aliases colored-man-pages colorize command-not-found eza debian common-aliases frontend-search
+git-extras gitfast history man shrink-path ssh ssh-agent thefuck themes zoxide zsh-interactive-cd
+zsh-navigation-tools zsh-autopair
 )
 # starship
 source $ZSH/oh-my-zsh.sh
