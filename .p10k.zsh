@@ -46,25 +46,13 @@
   local cyan='#9AEDFE'
   local white='#F1F1F0'
 
+  POWERLEVEL9K_MODE=ascii
+
   # Left prompt segments.
-  typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(
-    context                   # user@host
-    dir                       # current directory
-    vcs                       # git status
-    command_execution_time    # previous command duration
-    virtualenv                # python virtual environment
-    status                    # exit code
-    prompt_char               # prompt symbol
-  )
+  typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir prompt_char)
 
   # Right prompt segments.
-  typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(
-    # command_execution_time  # previous command duration
-    # virtualenv              # python virtual environment
-    # context                 # user@host
-    # time                    # current time
-    background_jobs 
-  )
+  typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(time status)
 
   # Basic style options that define the overall prompt look.
   typeset -g POWERLEVEL9K_BACKGROUND=                            # transparent background
@@ -163,7 +151,7 @@
   #   - always:   Trim down prompt when accepting a command line.
   #   - same-dir: Trim down prompt when accepting a command line unless this is the first command
   #               typed after changing current working directory.
-  typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=off
+  typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=same-dir
 
   # Instant prompt mode.
   #
@@ -175,7 +163,7 @@
   #   - verbose: Enable instant prompt and print a warning when detecting console output during
   #              zsh initialization. Choose this if you've never tried instant prompt, haven't
   #              seen the warning, or if you are unsure what this all means.
-  typeset -g POWERLEVEL9K_INSTANT_PROMPT=verbose
+  typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 
   # Hot reload allows you to change POWERLEVEL9K options after Powerlevel10k has been initialized.
   # For example, you can type POWERLEVEL9K_BACKGROUND=red and see your prompt turn red. Hot reload
