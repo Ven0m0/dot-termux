@@ -42,7 +42,7 @@ MAGIC_ENTER_OTHER_COMMAND='ls -lh .'
 
 [[ -z "${plugins[*]}" ]] && plugins=(
 fzf aliases colored-man-pages colorize eza man shrink-path ssh ssh-agent thefuck themes zoxide zsh-interactive-cd
-zsh-navigation-tools zsh-autopair fast-syntax-highlighting
+zsh-navigation-tools zsh-autopair fast-syntax-highlighting zsh-autosuggestions
 )
 # starship
 source $ZSH/oh-my-zsh.sh
