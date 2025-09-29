@@ -23,6 +23,10 @@ termux-reload-settings
 
 git clone https://github.com/Sohil876/Termux-zsh.git && cd Termux-zsh && bash setup.sh
 
+git clone https://github.com/zdharma-continuum/fast-syntax-highlighting.git \
+  ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting
+
+
 fc-cache -vf
 
 #pkg install -y android-tools aapt2 apksigner -y
@@ -46,4 +50,6 @@ curl -fsSL https://raw.githubusercontent.com/ashish0kumar/fzfm/main/fzfm -o "${H
 chmod +x ~/.local/bin/fzfm
 
 curl https://raw.githubusercontent.com/CodesOfRishi/navita/main/navita.sh -o "${HOME}/navita.sh"
+
+
 
