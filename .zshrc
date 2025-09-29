@@ -1,12 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # Enable Powerlevel10k instant prompt (optimized)
-typeset p10k_instant_prompt_file="${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-[[ -r "$p10k_instant_prompt_file" ]] && source "$p10k_instant_prompt_file"
+#typeset p10k_instant_prompt_file="${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+#[[ -r "$p10k_instant_prompt_file" ]] && source "$p10k_instant_prompt_file"
 
-#if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  #source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-#fi
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
 
 function zcompile-many() {
   local f; for f; do zcompile -R -- "$f".zwc "$f"; done
@@ -23,9 +23,7 @@ if [[ ! -e ~/zsh-autosuggestions ]]; then
   zcompile-many ~/zsh-autosuggestions/{zsh-autosuggestions.zsh,src/**/*.zsh}
 fi
 
-#Allow more system resources and open files to the shell
-#Hopefully fix vim open files leaks
-ulimit -n 10240
+#ulimit -n 10240
 
 # Basic auto/tab complete:
 autoload -U compinit
@@ -43,9 +41,8 @@ MAGIC_ENTER_GIT_COMMAND='git status -u .'
 MAGIC_ENTER_OTHER_COMMAND='ls -lh .'
 
 [[ -z "${plugins[*]}" ]] && plugins=(
-git fzf aliases colored-man-pages colorize command-not-found eza debian common-aliases frontend-search
-git-extras gitfast history man shrink-path ssh ssh-agent thefuck themes zoxide zsh-interactive-cd
-zsh-navigation-tools zsh-autopair
+fzf aliases colored-man-pages colorize eza man shrink-path ssh ssh-agent thefuck themes zoxide zsh-interactive-cd
+zsh-navigation-tools zsh-autopair fast-syntax-highlighting
 )
 # starship
 source $ZSH/oh-my-zsh.sh
