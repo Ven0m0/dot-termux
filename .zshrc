@@ -25,6 +25,35 @@ fi
 
 #ulimit -n 10240
 
+bindkey -e                                        # emacs key bindings
+bindkey ' ' magic-space
+bindkey '^U' backward-kill-line                   # ctrl + U
+bindkey '^[[3~' delete-char                       # delete
+bindkey '^[[1;5C' forward-word                    # ctrl + ->
+bindkey '^[[1;5D' backward-word                   # ctrl + <-
+bindkey '^[[5~' beginning-of-buffer-or-history    # page up
+bindkey '^[[6~' end-of-buffer-or-history          # page down
+bindkey '^[[H' beginning-of-line                  # home
+bindkey '^[[F' end-of-line                        # end
+bindkey '^[[Z' undo          
+setopt glob_dots magic_equal_subst rm_star_silent rc_quotes glob_star_short
+setopt interactivecomments # allow comments in interactive mode
+setopt magicequalsubst     # enable filename expansion for arguments of the form ‘anything=expression’
+setopt nonomatch           # hide error message if there is no match for the pattern
+setopt notify              # report the status of background jobs immediately
+setopt numericglobsort     # sort filenames numerically when it makes sense
+setopt promptsubst         # enable command substitution in prompt
+setopt MENU_COMPLETE        # Automatically highlight first element of completion menu
+setopt AUTO_LIST            # Automatically list choices on ambiguous completion.
+setopt COMPLETE_IN_WORD     # Complete from both ends of a word
+
+zstyle ':completion:*:*:*:*:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # case insensitive tab completion
+#MUCH FASTER
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "$HOME/.config/zsh/.zcompcache"
+
+
 # Basic auto/tab complete:
 autoload -U compinit
 zstyle ':completion:*' menu select
