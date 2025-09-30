@@ -1,8 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+cd ~
+bell-character=vibrate
+export LD_PRELOAD=${PREFIX}/lib/libtermux-exec.so
+termux-setup-storage
+
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
-termux-setup-storage
+if [ping -c 1 google.com] then
+  echo "It appears you have a working internet connection"
+else
+    echo "It appears you don't have a working internet connection"
+    exit 1
+fi
 
 pkg up -y
 pkg upgrade -y
@@ -20,6 +30,14 @@ pkg install -y fzf
 
 zsh zsh-completions -y
 chsh -s zsh
+
+# build cache
+adb shell "content call --uri content://settings/config --method LIST_config"
+adb shell "content call --uri content://settings/config --method LIST_config | tr , '\n' | grep activity_manager/"
+adb shell "content call --uri content://settings/config --method GET_config --arg 'activity_manager/max_cached_processes'"
+adb shell "content call --uri content://settings/config --method PUT_config --arg 'activity_manager/max_cached_processes' --extra 'value:s:64'"
+adb shell "content call --uri content://settings/config --method DELETE_config --arg 'activity_manager/max_cached_processes'"
+
 
 termux-reload-settings
 
