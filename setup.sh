@@ -52,4 +52,7 @@ chmod +x ~/.local/bin/fzfm
 curl https://raw.githubusercontent.com/CodesOfRishi/navita/main/navita.sh -o "${HOME}/navita.sh"
 
 
+git clone https://github.com/felipefacundes/fzffm.git
+chmod +x fzffm/fzffm
+ln -s fzffm/fzffm $(pwd)/fzffm
 
