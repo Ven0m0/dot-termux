@@ -1,5 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+
 termux-setup-storage
 
 pkg up -y
@@ -21,11 +23,10 @@ chsh -s zsh
 
 termux-reload-settings
 
-git clone https://github.com/Sohil876/Termux-zsh.git && cd Termux-zsh && bash setup.sh
+# git clone https://github.com/Sohil876/Termux-zsh.git && cd Termux-zsh && bash setup.sh
 
-git clone https://github.com/zdharma-continuum/fast-syntax-highlighting.git \
-  ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting
-
+git clone https://github.com/zdharma-continuum/fast-syntax-highlighting.git ${ZSH_CUSTOM}/plugins/fast-syntax-highlighting
+git clone https://github.com/babarot/enhancd.git ${ZSH_CUSTOM}/plugins/enhancd
 
 fc-cache -vf
 
