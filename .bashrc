@@ -195,7 +195,34 @@ trim() {
 }
 
 alias pip='python -m pip' py3='python3' py='python'
-
+#============ Bindings (readline) ============
+bind 'set completion-query-items 250'
+bind 'set page-completions off'
+bind 'set show-all-if-ambiguous on'
+bind 'set show-all-if-unmodified on'
+bind 'set menu-complete-display-prefix on'
+bind "set completion-ignore-case on"
+bind "set completion-map-case on"
+bind 'set mark-directories on'
+bind "set mark-symlinked-directories on"
+bind "set bell-style none"
+bind 'set skip-completed-text on'
+bind 'set colored-stats on'
+bind 'set colored-completion-prefix on'
+bind 'set expand-tilde on'
+bind '"Space": magic-space'
+bind '"\C-o": kill-whole-line'
+bind '"\C-a": beginning-of-line'
+bind '"\C-e": end-of-line'
+bind '"\e[1;5D": backward-word'
+bind '"\e[1;5C": forward-word'
+# prefixes the line with sudo , if Alt+s is pressed
+#bind '"\ee": "\C-asudo \C-e"'
+#bind '"\es":"\C-asudo "'
+# https://wiki.archlinux.org/title/Bash
+run-help(){ help "$READLINE_LINE" 2>/dev/null || command man "$READLINE_LINE"; }
+bind -m vi-insert -x '"\eh": run-help'
+bind -m emacs -x     '"\eh": run-help'
 #============ Prompt 2 ============
 configure_prompt(){
   command -v starship &>/dev/null && { eval "$(LC_ALL=C starship init bash)"; return; }
