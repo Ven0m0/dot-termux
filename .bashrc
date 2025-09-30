@@ -226,21 +226,60 @@ bind -m emacs -x     '"\eh": run-help'
 #============ Prompt 2 ============
 configure_prompt(){
   command -v starship &>/dev/null && { eval "$(LC_ALL=C starship init bash)"; return; }
-  local MGN='\[\e[35m\]' BLU='\[\e[34m\]' YLW='\[\e[33m\]' BLD='\[\e[1m\]' UND='\[\e[4m\]' \
+  local MGN='\[\e[35m\]' BLU='\[\e[34m\]' YLW='\[\e[33m\]' BLD='\[\e[1m\]' UND='\[\e[4m\]' GRN='\[\e[32m\]' \
         CYN='\[\e[36m\]' DEF='\[\e[0m\]' RED='\[\e[31m\]'  PNK='\[\e[38;5;205m\]' USERN HOSTL
   USERN="${MGN}\u${DEF}"; [[ $EUID -eq 0 ]] && USERN="${RED}\u${DEF}"
   HOSTL="${BLU}\h${DEF}"; [[ -n $SSH_CONNECTION ]] && HOSTL="${YLW}\h${DEF}"
-  PS1="[${USERN}@${HOSTL}${UND}|${DEF}${CYN}\w${DEF}]>${PNK}\A${DEF}|\$? ${BLD}\$${DEF} "
+  exstat(){ [[ $? == 0 ]] && echo -e '${GRN}:)${DEF}' || echo -e '${RED}D:${DEF}'; }
+  PS1="[${USERN}@${HOSTL}${UND}|${DEF}${CYN}\w${DEF}]>${PNK}\A${DEF}|\exstat ${BLD}\$${DEF} "
   PS2='> '
-  if command -v __git_ps1 &>/dev/null && [[ $PROMPT_COMMAND != *git_ps1* ]]; then
+  if command -v __git_ps1 &>/dev/null && [[ ${PROMPT_COMMAND:-} != *git_ps1* ]]; then
     export GIT_PS1_OMITSPARSESTATE=1 GIT_PS1_HIDE_IF_PWD_IGNORED=1
     unset GIT_PS1_SHOWDIRTYSTATE GIT_PS1_SHOWSTASHSTATE GIT_PS1_SHOWUPSTREAM GIT_PS1_SHOWUNTRACKEDFILES
     PROMPT_COMMAND="LC_ALL=C __git_ps1 2>/dev/null; ${PROMPT_COMMAND:-}"
   fi
-  if command -v mommy &>/dev/null && [[ ${PROMPT_COMMAND:-} != *mommy* ]]; then
+  # Only add if not in stealth mode and not already present in PROMPT_COMMAND
+  if command -v mommy &>/dev/null && [[ "${stealth:-0}" -ne 1 ]] && [[ ${PROMPT_COMMAND:-} != *mommy* ]]; then
     PROMPT_COMMAND="LC_ALL=C mommy -1 -s \$?; ${PROMPT_COMMAND:-}" # mommy https://github.com/fwdekker/mommy
     # PROMPT_COMMAND="LC_ALL=C mommy \$?; ${PROMPT_COMMAND:-}" # Shell-mommy https://github.com/sleepymincy/mommy
   fi
 }
 configure_prompt
 #============ End ============
+dedupe_path(){
+  local IFS=: dir s; declare -A seen
+  for dir in $PATH; do
+    [[ -n $dir && -z ${seen[$dir]} ]] && seen[$dir]=1 && s="${s:+$s:}$dir"
+  done
+  [[ -n $s ]] && export PATH="$s"
+  command -v systemctl &>/dev/null && command systemctl --user import-environment PATH &>/dev/null
+}
+dedupe_path
+#============ Fetch ============
+if [[ $SHLVL -ge 3; ! $BASH_SUBSHELL -ge 1 ]]; then
+  if [[ "${stealth:-0}" -eq 1 ]]; then
+    has fastfetch && fetch='fastfetch --ds-force-drm --thread --detect-version false'
+  else
+    if has hyfetch; then
+      fetch='hyfetch -b fastfetch -m rgb -p transgender'
+    elif has fastfetch; then
+      fetch='fastfetch --ds-force-drm --thread --detect-version false'
+    elif has vnfetch; then
+      fetch='vnfetch'
+    elif has vnfetch.sh; then
+      fetch='vnfetch.sh'
+    else
+      fetch='curl -sf https://raw.githubusercontent.com/Ven0m0/Linux-OS/refs/heads/main/Cachyos/Scripts/shell-tools/vnfetch.sh | bash'
+    fi
+    LC_ALL=C eval "$fetch"
+  fi
+fi
+#============ Jumping ============
+if command -v zoxide &>/dev/null; then
+  export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go" 
+  export _ZO_FZF_OPTS="--cycle -0 -1 --inline-info --no-multi --no-sort \
+    --preview 'eza --no-quotes --color=always --color-scale-mode=fixed --group-directories-first --oneline {2..}'"
+  [[ ! -r "${HOME}/.config/bash/zoxide.bash" ]] && zoxide init bash >| "${HOME}/.config/bash/zoxide.sh"
+  ifsource "${HOME}/.config/bash/zoxide.sh" && eval "$(zoxide init bash)"
+fi
+unset -f ifsource prependpath LC_ALL
