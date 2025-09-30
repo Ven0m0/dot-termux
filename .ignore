@@ -1,0 +1,5 @@
+# ~/.config/fd/ignore
+
+.local/share/flatpak/
+*.html
+*.ts
