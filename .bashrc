@@ -1,16 +1,64 @@
+# ~/.bashrc
+# https://www.gnu.org/software/bash/manual/bash.html
+[[ $- != *i* ]] && return
+#============ Helpers ============
+# Check for command
+has(){ [[ -x $(command -v -- "$1" >/dev/null) ]]; }
+#hconv(){ printf '%s\n' "${1/#\~\//${HOME}/}"; }
+# Safely source file if it exists ( ~ -> $HOME )
+ifsource(){ [[ -r "${1/#\~\//${HOME}/}" ]] && . "${1/#\~\//${HOME}/}" 2>/dev/null; }
+# Safely prepend only if not already in PATH ( ~ -> $HOME )
+prependpath(){ [[ -d "${1/#\~\//${HOME}/}" ]] && [[ ":$PATH:" != *":${1/#\~\//${HOME}/}:"* ]] && PATH="${1/#\~\//${HOME}/}${PATH:+:$PATH}"; }
+#============ Sourcing ============
+dot=("$HOME"/.{bash_aliases,bash_functions,bash_completions,bash.d/cht.sh,config/bash/cht.sh})
+for p in "${dot[@]}"; do ifsource "$p"; done; unset p dot
 
+[[ -r "${HOME}/.inputrc" ]] && export INPUTRC="${HOME}/.inputrc"
+
+#============ Env ============
+prependpath "${HOME}/.local/bin"
+prependpath "${HOME}/.bin"
+prependpath "${HOME}/bin"
+#============ History / Prompt basics ============
+# PS1='[\u@\h|\w] \$' # bash-prompt-generator.org
+# https://github.com/glabka/configs/blob/master/home/.bashrc
+HISTSIZE=1000
+HISTFILESIZE=2000
+HISTCONTROL="erasedups:ignoreboth:autoshare"
+HISTIGNORE="&:[bf]g:clear:cls:exit:history:bash:fish:?:??"
+export HISTTIMEFORMAT="%F %T " IGNOREEOF=100
+HISTFILE="${HOME}/.bash_history"
+PROMPT_DIRTRIM=2 
+PROMPT_COMMAND="history -a"
+#============ Core ============
+CDPATH=".:${HOME}:/"
+ulimit -c 0 # disable core dumps
+export FIGNORE="argo.lock" IFS="${IFS:-$' \t\n'}"
+shopt -s histappend cmdhist checkwinsize dirspell cdable_vars cdspell \
+         autocd cdable_vars hostcomplete no_empty_cmd_completion globstar nullglob
+# shopt -s force_fignore execfail varredir_close
+# Disable Ctrl-s, Ctrl-q
+set -o noclobber
+bind -r '\C-s'
+stty -ixon -ixoff -ixany
+set +H
+#============
+# Editor selection: prefer micro, fallback to nano
+command -v micro &>/dev/null && EDITOR=micro; export ${EDITOR:=nano}
+export MICRO_TRUECOLOR=1
+export VISUAL="$EDITOR" VIEWER="$EDITOR" GIT_EDITOR="$EDITOR" SYSTEMD_EDITOR="$EDITOR" FCEDIT="$EDITOR" SUDO_EDITOR="$EDITOR"
+# https://wiki.archlinux.org/title/Locale
+export LANG=C.UTF-8 LC_COLLATE=C.UTF-8 LC_CTYPE=C.UTF-8 MEASUREMENT.UTF-8
+export LC_MEASUREMENT=C TZ='Europe/Berlin' TIME_STYLE='+%d-%m %H:%M'
+unset LC_ALL POSIXLY_CORRECT
+jobs="$(nproc)"
+
+#=======
 source "${HOME}/navita.sh"
 
 if command -v zoxide &>/dev/null &&
   export _ZO_FZF_OPTS="--no-mouse -0 -1 --cycle +m --inline-info"
-  eval "$(_ZO_DOCTOR=0 zoxide init bash)"
-fi
-
-LC_COLLATE=C.UTF-8
-LC_CTYPE=C.UTF-8
-
-# Common use
-alias grep='grep --color=auto -s'
+  eval "$(_ZO_DOCTOR=0 zoxide init baLC_CTYPE=rep Common uautolias grep='grep --color=auto -s'
 alias fgrep='\grep --color=auto -sF'
 alias egrep='\grep --color=auto -sE'
 if has eza; then
