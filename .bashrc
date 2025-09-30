@@ -15,6 +15,8 @@ for p in "${dot[@]}"; do ifsource "$p"; done; unset p dot
 
 [[ -r "${HOME}/.inputrc" ]] && export INPUTRC="${HOME}/.inputrc"
 
+ifsource "${HOME}/navita.sh"
+
 #============ Env ============
 prependpath "${HOME}/.local/bin"
 prependpath "${HOME}/.bin"
@@ -54,13 +56,55 @@ unset LC_ALL POSIXLY_CORRECT
 jobs="$(nproc)"
 
 #=======
-source "${HOME}/navita.sh"
+
+
+export PAGER=bat BATPIPE=color BAT_STYLE=auto LESSQUIET=1
+export LESSCHARSET='utf-8' LESSHISTFILE=-
+
+if has vivid; then
+  export LS_COLORS="$(vivid generate molokai)"
+elif has dircolors; then
+  eval "$(dircolors -b)" &>/dev/null
+else
+  . <(curl -sfL https://raw.githubusercontent.com/trapd00r/LS_COLORS/refs/heads/master/lscolors.sh)
+fi
+: "${CLICOLOR:=$(tput colors)}"
+export CLICOLOR SYSTEMD_COLORS=1
+
+export CURL_HOME="$HOME" WGETRC="${HOME}/.wgetrc" GPG_TTY="$(tty)
+
+# Cheat.sh 
+export CHTSH_CURL_OPTIONS="-sfLZ4 --compressed -m 5 --connect-timeout 3"
+cht(){
+  # join all arguments with '/', so “topic sub topic” → “topic/sub/topic”
+  local query="${*// /\/}"
+  if ! LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/${query}"; then
+    LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/:help"
+  fi
+}
+
+export PYTHONOPTIMIZE=2 PYTHONUTF8=1 PYTHONNODEBUGRANGES=1 PYTHON_JIT=1 PYENV_VIRTUALENV_DISABLE_PROMPT=1 \
+  PYTHONSTARTUP="{$HOME}/.pythonstartup" PYTHON_COLORS=1
+unset PYTHONDONTWRITEBYTECODE
+
+if has uv; then
+  export UV_COMPILE_BYTECODE=1 UV_LINK_MODE=hardlink
+fi
+
+export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
+
+gclone(){ LC_ALL=C command git clone --progress --filter=blob:none --depth 1 "$@" && command cd "$1"; ls -A; }
+alias redo='sudo $(fc -ln -1)'
+alias pip='python -m pip' py3='python3' py='python'
+
+touchf(){ command mkdir -p -- "$(dirname -- "$1")" && command touch -- "$1"; }
+
+
 
 if command -v zoxide &>/dev/null &&
   export _ZO_FZF_OPTS="--no-mouse -0 -1 --cycle +m --inline-info"
-  eval "$(_ZO_DOCTOR=0 zoxide init baLC_CTYPE=rep Common uautolias grep='grep --color=auto -s'
-alias fgrep='\grep --color=auto -sF'
-alias egrep='\grep --color=auto -sE'
+  eval "$(_ZO_DOCTOR=0 zoxide init bash)"
+
 if has eza; then
   alias ls='eza -F --color=auto --group-directories-first --icons=auto'
   alias la='eza -AF --color=auto --group-directories-first --icons=auto'
@@ -72,7 +116,7 @@ else
   alias ll='ls --color=auto --group-directories-first -ABhLgGo'
   alias lt='ls --color=auto --group-directories-first -ABhLgGo'
 fi
-alias nano='nano -/'
+alias nano='nano -/' mi=micro
 
 
 # Change directory aliases
