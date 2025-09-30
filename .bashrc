@@ -73,7 +73,8 @@ export CLICOLOR SYSTEMD_COLORS=1
 
 export CURL_HOME="$HOME" WGETRC="${HOME}/.wgetrc" GPG_TTY="$(tty)
 
-# Cheat.sh 
+# Cheat.sh
+export CHEAT_USE_FZF=true
 export CHTSH_CURL_OPTIONS="-sfLZ4 --compressed -m 5 --connect-timeout 3"
 cht(){
   # join all arguments with '/', so “topic sub topic” → “topic/sub/topic”
