@@ -30,3 +30,9 @@ Simplify
 ```bash
 pkg update && pkg install --only-upgrade apt bash coreutils openssl -y; curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/refs/heads/main/Termux/Simplify.sh" && bash "$HOME/.Simplify.sh"
 ```
+
+
+curl -fsSL lure.sh/install | bash
+
+
+eval "$(curl https://get.x-cmd.com)"
