@@ -35,10 +35,9 @@ PROMPT_COMMAND="history -a"
 #============ Core ============
 CDPATH=".:${HOME}:/"
 ulimit -c 0 # disable core dumps
-export FIGNORE="argo.lock" IFS="${IFS:-$' \t\n'}"
+export FIGNORE="argo.lock"#
 shopt -s histappend cmdhist checkwinsize dirspell cdable_vars cdspell \
          autocd cdable_vars hostcomplete no_empty_cmd_completion globstar nullglob
-# shopt -s force_fignore execfail varredir_close
 # Disable Ctrl-s, Ctrl-q
 set -o noclobber
 bind -r '\C-s'
@@ -50,14 +49,11 @@ command -v micro &>/dev/null && EDITOR=micro; export ${EDITOR:=nano}
 export MICRO_TRUECOLOR=1
 export VISUAL="$EDITOR" VIEWER="$EDITOR" GIT_EDITOR="$EDITOR" SYSTEMD_EDITOR="$EDITOR" FCEDIT="$EDITOR" SUDO_EDITOR="$EDITOR"
 # https://wiki.archlinux.org/title/Locale
-export LANG=C.UTF-8 LC_COLLATE=C.UTF-8 LC_CTYPE=C.UTF-8 MEASUREMENT.UTF-8
-export LC_MEASUREMENT=C TZ='Europe/Berlin' TIME_STYLE='+%d-%m %H:%M'
+#export LANG=C.UTF-8 LC_COLLATE=C.UTF-8 LC_CTYPE=C.UTF-8 MEASUREMENT.UTF-8
+#export LC_MEASUREMENT=C TZ='Europe/Berlin' TIME_STYLE='+%d-%m %H:%M'
 unset LC_ALL POSIXLY_CORRECT
-jobs="$(nproc)"
 
 #=======
-
-
 export PAGER=bat BATPIPE=color BAT_STYLE=auto LESSQUIET=1
 export LESSCHARSET='utf-8' LESSHISTFILE=-
 
@@ -65,13 +61,11 @@ if has vivid; then
   export LS_COLORS="$(vivid generate molokai)"
 elif has dircolors; then
   eval "$(dircolors -b)" &>/dev/null
-else
-  . <(curl -sfL https://raw.githubusercontent.com/trapd00r/LS_COLORS/refs/heads/master/lscolors.sh)
 fi
 : "${CLICOLOR:=$(tput colors)}"
 export CLICOLOR SYSTEMD_COLORS=1
 
-export CURL_HOME="$HOME" WGETRC="${HOME}/.wgetrc" GPG_TTY="$(tty)
+export CURL_HOME="$HOME" WGETRC="${HOME}/.wgetrc"
 
 # Cheat.sh
 export CHEAT_USE_FZF=true
@@ -95,16 +89,9 @@ fi
 export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
 
 gclone(){ LC_ALL=C command git clone --progress --filter=blob:none --depth 1 "$@" && command cd "$1"; ls -A; }
-alias redo='sudo $(fc -ln -1)'
 alias pip='python -m pip' py3='python3' py='python'
 
 touchf(){ command mkdir -p -- "$(dirname -- "$1")" && command touch -- "$1"; }
-
-
-
-if command -v zoxide &>/dev/null &&
-  export _ZO_FZF_OPTS="--no-mouse -0 -1 --cycle +m --inline-info"
-  eval "$(_ZO_DOCTOR=0 zoxide init bash)"
 
 if has eza; then
   alias ls='eza -F --color=auto --group-directories-first --icons=auto'
@@ -253,28 +240,9 @@ dedupe_path(){
     [[ -n $dir && -z ${seen[$dir]} ]] && seen[$dir]=1 && s="${s:+$s:}$dir"
   done
   [[ -n $s ]] && export PATH="$s"
-  command -v systemctl &>/dev/null && command systemctl --user import-environment PATH &>/dev/null
 }
 dedupe_path
-#============ Fetch ============
-if [[ $SHLVL -ge 3; ! $BASH_SUBSHELL -ge 1 ]]; then
-  if [[ "${stealth:-0}" -eq 1 ]]; then
-    has fastfetch && fetch='fastfetch --ds-force-drm --thread --detect-version false'
-  else
-    if has hyfetch; then
-      fetch='hyfetch -b fastfetch -m rgb -p transgender'
-    elif has fastfetch; then
-      fetch='fastfetch --ds-force-drm --thread --detect-version false'
-    elif has vnfetch; then
-      fetch='vnfetch'
-    elif has vnfetch.sh; then
-      fetch='vnfetch.sh'
-    else
-      fetch='curl -sf https://raw.githubusercontent.com/Ven0m0/Linux-OS/refs/heads/main/Cachyos/Scripts/shell-tools/vnfetch.sh | bash'
-    fi
-    LC_ALL=C eval "$fetch"
-  fi
-fi
+#===
 #============ Jumping ============
 if command -v zoxide &>/dev/null; then
   export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go" 
@@ -283,4 +251,8 @@ if command -v zoxide &>/dev/null; then
   [[ ! -r "${HOME}/.config/bash/zoxide.bash" ]] && zoxide init bash >| "${HOME}/.config/bash/zoxide.sh"
   ifsource "${HOME}/.config/bash/zoxide.sh" && eval "$(zoxide init bash)"
 fi
+
+#curl -fsSL lure.sh/install | bash
+
+#eval "$(curl https://get.x-cmd.com)"
 unset -f ifsource prependpath LC_ALL
