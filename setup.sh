@@ -196,7 +196,7 @@ EOF
   # This uses your existing Powerlevel10k configuration
   cp "$HOME/ven0m0/dot-termux/dot-termux-cd950e11a07ea96431b97ac9c43e848779ae1818/.p10k.zsh" "$HOME/.p10k.zsh"
   echo "Copied .p10k.zsh"
-  fc-cache -fv
+
   # --- Other Dotfiles ---
   mkdir -p "$HOME/.config/fd"
   cp "$HOME/ven0m0/dot-termux/dot-termux-cd950e11a07ea96431b97ac9c43e848779ae1818/.nanorc" "$HOME/.nanorc"
