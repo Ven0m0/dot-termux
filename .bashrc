@@ -128,15 +128,16 @@ alias 666='chmod -R 666'
 alias 755='chmod -R 755'
 alias 777='chmod -R 777'
 
-# Color for manpages in less makes manpages a little easier to read
-export LESS_TERMCAP_mb=$'\E[01;31m'
-export LESS_TERMCAP_md=$'\E[01;31m'
-export LESS_TERMCAP_me=$'\E[0m'
-export LESS_TERMCAP_se=$'\E[0m'
-export LESS_TERMCAP_so=$'\E[01;44;33m'
-export LESS_TERMCAP_ue=$'\E[0m'
-export LESS_TERMCAP_us=$'\E[01;32m'
-
+# https://github.com/Bash-it/bash-it/blob/master/plugins/available/man.plugin.bash
+: "${LESS:=}"
+: "${LESS_TERMCAP_mb:=$'\e[1;32m'}"
+: "${LESS_TERMCAP_md:=$'\e[1;32m'}"
+: "${LESS_TERMCAP_me:=$'\e[0m'}"
+: "${LESS_TERMCAP_se:=$'\e[0m'}"
+: "${LESS_TERMCAP_so:=$'\e[01;33m'}"
+: "${LESS_TERMCAP_ue:=$'\e[0m'}"
+: "${LESS_TERMCAP_us:=$'\e[1;4;31m'}"
+export "${!LESS_TERMCAP@}"
 
 # Search command line history
 alias h="history | grep "
@@ -204,6 +205,9 @@ bind '"\C-a": beginning-of-line'
 bind '"\C-e": end-of-line'
 bind '"\e[1;5D": backward-word'
 bind '"\e[1;5C": forward-word'
+# https://github.com/Bash-it/bash-it/blob/master/plugins/available/history-substring-search.plugin.bash
+bind '"\e[A":history-substring-search-backward'
+bind '"\e[B":history-substring-search-forward'
 # prefixes the line with sudo , if Alt+s is pressed
 #bind '"\ee": "\C-asudo \C-e"'
 #bind '"\es":"\C-asudo "'
