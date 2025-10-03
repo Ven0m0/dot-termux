@@ -38,3 +38,8 @@ curl -sL https://github.com/Xisrr1/Revancify-Xisr/raw/refs/heads/main/install.sh
 curl -fsSL lure.sh/install | bash
 
 eval "$(curl https://get.x-cmd.com)"
+
+fix
+```bash
+curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
+```
