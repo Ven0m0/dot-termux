@@ -22,7 +22,7 @@ curl -s https://raw.githubusercontent.com/nohajc/termux-adb/master/install.sh | 
 curl -sf https://raw.githubusercontent.com/Ven0m0/dot-termux/refs/heads/main/bin/opt-img.sh -O
 ```
 ```bash
-fd -e jpg -e jpeg -e png -e webp . | ./optimize-images.sh
+fd -e jpg -e jpeg -e png -e webp ${1:-.} | ~/bin/opt-im.sh
 ```
 
 
