@@ -33,7 +33,9 @@ Scripts
 https://github.com/kitikonti/script-image-optimizer/blob/main/optimize-images.sh
 
 ```
-
+```
+cargo install --git https://github.com/Blobfolio/flaca.git --bin flaca
+```
 
 
 - https://github.com/AvinashReddy3108/LITMux
