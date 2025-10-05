@@ -25,3 +25,11 @@ git clone https://github.com/zsh-users/zsh-autosuggestions.git "${ZSH_CUSTOM:-${
 ```sh
 git clone https://github.com/zdharma-continuum/fast-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting
 ```
+
+
+
+Scripts
+```bash
+https://github.com/kitikonti/script-image-optimizer/blob/main/optimize-images.sh
+
+```
