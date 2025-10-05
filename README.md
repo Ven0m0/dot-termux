@@ -39,6 +39,7 @@ curl -fsSL lure.sh/install | bash
 
 eval "$(curl https://get.x-cmd.com)"
 
+curl -fsSL https://soar.qaidvoid.dev/install.sh | sh
 fix
 ```bash
 curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
