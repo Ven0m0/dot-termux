@@ -1,222 +1,196 @@
 # =============================================================================
-# ~/.zshrc - v2 Optimized for Termux
-# =============================================================================
-# Focus: Maximum speed, powerful completions, and a rich toolset for
-# development and system management on Termux.
+# ~/.zshrc - Optimized for Termux with Zinit
 # =============================================================================
 
-# Sourced from .zshenv for reliability in Termux
-setopt no_global_rcs
-export SHELL_SESSIONS_DISABLE=1
+# Basic ZSH Settings
+setopt auto_cd auto_pushd pushd_ignore_dups extended_glob glob_dots
+setopt no_beep numeric_glob_sort rc_quotes autoparamslash interactive_comments
+unsetopt flow_control
+
+# Performance optimization
 skip_global_compinit=1
+setopt no_global_rcs
+SHELL_SESSIONS_DISABLE=1
 
-# Defer the Zsh compiler for a faster startup
-zmodload zsh/zcompiler
-autoload -Uz zrecompile
-zrecompile -q -p -i
+# History settings
+HISTSIZE=10000
+SAVEHIST=10000
+HISTFILE=~/.zsh_history
+setopt share_history extended_history hist_ignore_all_dups hist_ignore_space
 
 # =============================================================================
-# ZINIT PLUGIN MANAGER
+# ZINIT SETUP - ULTRA FAST PLUGIN MANAGER
 # =============================================================================
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit"
 if [[ ! -f $ZINIT_HOME/zinit.git/zinit.zsh ]]; then
+    command mkdir -p "$ZINIT_HOME"
     command git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME/zinit.git"
 fi
 source "$ZINIT_HOME/zinit.git/zinit.zsh"
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
 
-# Load Turbo mode for a significant speedup
+# Enable Turbo mode for speed
 zinit light-mode for \
     zdharma-continuum/z-a-rust \
     zdharma-continuum/z-a-bin-gem-node
 
 # =============================================================================
-# CORE CONFIG & ENVIRONMENT
+# ENVIRONMENT VARIABLES
 # =============================================================================
 
 export EDITOR='micro'
 export VISUAL="$EDITOR"
 export PAGER='bat'
+export LANG='C.UTF-8' LC_ALL='C.UTF-8'
+export TERM="xterm-256color"
+export BAT_THEME="Dracula"
 
-# Prepend local bin paths if they exist
+# Path setup
 [[ -d "${HOME}/.local/bin" ]] && export PATH="${HOME}/.local/bin:${PATH}"
 [[ -d "${HOME}/.bin" ]] && export PATH="${HOME}/.bin:${PATH}"
 [[ -d "${HOME}/bin" ]] && export PATH="${HOME}/bin:${PATH}"
 
-export LANG='C.UTF-8' LC_ALL='C.UTF-8'
-export TERM="xterm-256color"
-
 # =============================================================================
-# ATUIN - REVOLUTIONIZED SHELL HISTORY
-# =============================================================================
-# Replaces default history with a searchable, syncable SQLite database.
-# =============================================================================
-zinit ice as'program' from'gh-r'
-zinit light atuinsh/atuin
-eval "$(atuin init zsh)"
-
-# =============================================================================
-# SHELL OPTIONS (setopt)
-# =============================================================================
-setopt auto_cd auto_pushd pushd_ignore_dups auto_remove_slash
-setopt extended_glob glob_dots no_beep numeric_glob_sort rc_quotes
-unsetopt flow_control
-
-# =============================================================================
-# ZINIT PLUGINS & TOOLS
+# PLUGINS - PRIORITIZED BY STARTUP IMPACT
 # =============================================================================
 
-# --- Powerlevel10k Prompt ---
-zinit ice lucid wait'0' blockf atpull'zinit creinstall -q .'
+# --- Essential Fast Loading Plugins ---
+zinit wait lucid light-mode for \
+    atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
+        zdharma-continuum/fast-syntax-highlighting \
+    atload"!_zsh_autosuggest_start" \
+        zsh-users/zsh-autosuggestions \
+    blockf atpull'zinit creinstall -q .' \
+        zsh-users/zsh-completions
+
+# --- Powerlevel10k Prompt (loads instantly) ---
+zinit ice depth=1
 zinit light romkatv/powerlevel10k
 
-# --- FZF (Core fuzzy-finder) ---
-zinit ice lucid wait'0'
-zinit light junegunn/fzf
+# --- Utilities (deferred loading) ---
+zinit wait lucid for \
+    zsh-users/zsh-history-substring-search \
+    hl2b/zsh-autopair
 
-# --- FZF Tab Completions (!! GAME CHANGER !!) ---
-zinit ice lucid wait'0'
-zinit light Aloxaf/fzf-tab
+# --- Rust-powered CLI tools ---
+zinit wait'1' lucid from'gh-r' as'program' for \
+    Canop/broot \
+    bootandy/dust
 
-# --- Syntax Highlighting (Fast) ---
-zinit ice lucid wait'0'
-zinit light zdharma-continuum/fast-syntax-highlighting
+# --- Atuin History Manager (enhanced history search) ---
+zinit wait'1' lucid from'gh-r' as'program' for \
+    atuinsh/atuin
+if command -v atuin >/dev/null 2>&1; then
+    eval "$(atuin init zsh --disable-up-arrow)"
+fi
 
-# --- Auto Suggestions ---
-zinit ice lucid wait'0' atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay"
-zinit light zsh-users/zsh-autosuggestions
-
-# --- History Substring Search ---
-zinit ice lucid wait'0'
-zinit light zsh-users/zsh-history-substring-search
-
-# --- Zoxide (Smarter `cd`) ---
-zinit ice lucid wait'0'
-zinit light ajeetdsouza/zoxide
-
-# --- Auto-pair ---
-zinit ice lucid wait'0'
-zinit light hl2b/zsh-autopair
-
-# --- Zsh Completions ---
-zinit ice lucid wait'0'
-zinit light zsh-users/zsh-completions
-
-# --- Additional Binaries (Rust Tools) ---
-zinit ice as'program' from'gh-r'
-zinit light Canop/broot # `br` to navigate dirs
-zinit ice as'program' from'gh-r'
-zinit light bootandy/dust # `dust` as a better `du`
+# --- Zoxide (smarter cd command) ---
+zinit wait'0' lucid as'program' from'gh-r' for \
+    ajeetdsouza/zoxide
+if command -v zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init zsh)"
+fi
 
 # =============================================================================
-# COMPLETION SYSTEM
+# COMPLETIONS & KEYBINDINGS
 # =============================================================================
+
+# Setup completions
 autoload -Uz compinit
 compinit -C -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
 
+# Completion styles
 zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
 zstyle ':completion:*:*:*:*:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath'
 
-# =============================================================================
-# KEYBINDINGS
-# =============================================================================
-bindkey -e # Emacs keybindings
-
-# Standard navigation
+# Keybindings
+bindkey -e # Emacs mode
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
 bindkey '^[[H' beginning-of-line
 bindkey '^[[F' end-of-line
 bindkey '^[[3~' delete-char
 bindkey '^[[1;5C' forward-word
 bindkey '^[[1;5D' backward-word
 
-# History substring search on arrow keys
-bindkey '^[[A' history-substring-search-up
-bindkey '^[[B' history-substring-search-down
-
 # =============================================================================
 # ALIASES & FUNCTIONS
 # =============================================================================
 
-# --- Aliases ---
+# --- Navigation ---
 alias ...='cd ../..'
 alias ..='cd ..'
 alias bd='cd "$OLDPWD"'
+
+# --- File listings ---
 alias ls='eza --icons -F --color=auto --group-directories-first'
 alias la='eza -a --icons -F --color=auto --group-directories-first'
 alias ll='eza -al --icons -F --color=auto --group-directories-first --git'
 alias lt='eza --tree --level=3 --icons -F --color=auto'
-alias gclone='command git clone --filter=blob:none --depth 1'
+
+# --- Git ---
+alias gst='git status'
+alias gco='git checkout'
+alias gpl='git pull'
+alias gps='git push'
+alias gclone='git clone --filter=blob:none --depth 1'
 
 # --- Termux ---
 alias reload='termux-reload-settings'
 alias battery='termux-battery-status'
+alias clipboard='termux-clipboard-get'
+alias copy='termux-clipboard-set'
+alias share='termux-share'
+alias notify='termux-notification'
 
-# --- Revanced Builder ---
-build-revanced() {
-  for tool in java curl; do
-    if ! command -v "$tool" &>/dev/null; then
-      echo "Error: '${tool}' is not installed. Please install it first."
-      return 1
-    fi
-  done
-
-  local YT_VERSION="19.25.35" # <-- IMPORTANT: Update to the version recommended by ReVanced
-  local BUILD_DIR="$HOME/revanced-build"
-  
-  echo ">>> Setting up build environment in ${BUILD_DIR}..."
-  mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR" || return
-
-  echo ">>> Downloading latest ReVanced tools..."
-  local dl_cmd="curl -# -L -o"
-  $dl_cmd rvx-cli.jar "https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli.jar"
-  $dl_cmd rvx-patches.jar "https://github.com/inotia00/revanced-patches/releases/latest/download/revanced-patches.jar"
-  $dl_cmd rvx-integrations.apk "https://github.com/inotia00/revanced-integrations/releases/latest/download/revanced-integrations.apk"
-  
-  local APK_FILE="youtube-v${YT_VERSION}.apk"
-  if [[ ! -f "$APK_FILE" ]]; then
-    echo "!!! YouTube APK not found."
-    echo "!!! Please download it to ${BUILD_DIR} and name it ${APK_FILE}"
-    return 1
+# --- Quick Revancify/Simplify launchers ---
+revancify() {
+  if [[ ! -d "$HOME/revancify" ]]; then
+    echo "Installing Revancify..."
+    curl -sL https://github.com/decipher3114/Revancify/raw/main/install.sh | bash
+  else
+    cd "$HOME/revancify" && bash revancify.sh
   fi
-  
-  echo ">>> Starting patch process..."
-  java -jar rvx-cli.jar patch \
-    --patch-bundle rvx-patches.jar \
-    --merge-apk rvx-integrations.apk \
-    --out "revanced-yt-${YT_VERSION}.apk" \
-    --exclude "GmsCore support" \
-    --include "Custom branding" \
-    --include "Amoled" \
-    "$APK_FILE"
-
-  echo ">>> Build complete! Find your APK in ${BUILD_DIR}"
 }
 
-# --- Phone/Termux Cleaning ---
+simplify() {
+  if [[ ! -f "$HOME/.Simplify.sh" ]]; then
+    echo "Installing Simplify..."
+    pkg update && pkg install --only-upgrade apt bash coreutils openssl -y
+    curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh"
+  fi
+  bash "$HOME/.Simplify.sh"
+}
+
+# --- Utility functions ---
+# Search and edit file with fzf
+fe() {
+  local IFS=$'\n' line files=()
+  while IFS='' read -r line; do files+=("$line"); done < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
+  [[ -n "${files[0]}" ]] && ${EDITOR:-micro} "${files[@]}"
+}
+
+# cd with fzf
+fcd() {
+  local dir
+  dir=$(find "${1:-.}" -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir" || return
+}
+
+# --- System maintenance ---
 termux-clean() {
-    echo "🧹 Cleaning Termux..."
-    apt clean && apt autoclean && apt-get -y autoremove --purge
-    find ~ -type d -empty -delete
-    echo "✅ Termux cleanup complete."
-}
-
-phone-clean-cache() {
-    if [[ $(id -u) -eq 0 ]]; then
-        echo "🧹 Clearing all app caches (requires root)..."
-        pm trim-caches 999G
-        echo "✅ App caches trimmed."
-    else
-        echo "🛑 Root access is required to clear all app caches."
-    fi
+  echo "🧹 Cleaning Termux..."
+  apt clean && apt autoclean && apt-get -y autoremove --purge
+  find ~ -type d -empty -delete 2>/dev/null || true
+  echo "✅ Termux cleanup complete."
 }
 
 # =============================================================================
-# PROMPT - POWERLEVEL10K
+# POWERLEVEL10K CONFIGURATION
 # =============================================================================
-# To customize, run `p10k configure` or edit ~/.p10k.zsh.
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
