@@ -6,7 +6,7 @@ echo "🚀 Setting up optimized Termux environment..."
 
 # 1. Update packages and install essentials
 pkg update -y && pkg upgrade -y
-pkg install -y git curl zsh
+pkg install -y git curl zsh zsh-completions bash-completion
 
 # 2. Clone repository with configurations
 REPO="https://github.com/Ven0m0/dot-termux.git"
