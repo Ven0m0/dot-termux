@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/env bash
 
 # ANSI Color Codes
 RED='\033[0;31m'
