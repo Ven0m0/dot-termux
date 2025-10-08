@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # Termux Fast Setup Script - Sets up optimized environment with Zinit and tools
 set -e
 LC_ALL=C
