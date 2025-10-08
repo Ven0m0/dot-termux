@@ -53,17 +53,25 @@ main() {
   check_internet
   print_step "Setting up Termux storage..."
   termux-setup-storage
-
+  termux-change-repo
+  
   # 2. Update and Upgrade Packages
   print_step "Updating and upgrading all packages..."
   pkg update -y && pkg upgrade -y
+  apt dist-upgrade -y & apt full-upgrade -y
+  dpkg --configure -a
+  apt --fix-broken install -y && apt install --fix-missing -y
 
   # 3. Install All Essential Packages
   print_step "Installing essential packages..."
   pkg install -y \
-    zsh git curl wget eza bat fzf micro ripgrep \
+    zsh git curl wget eza bat fzf micro \
     zoxide atuin broot dust termux-api openjdk-17 \
-    nano man figlet ncurses-utils build-essential
+    nano man figlet ncurses-utils build-essential \
+    bash-completion zsh-completions aria2 android-tools \
+    ripgrep ripgrep-all libwebp optipng pngquant jpegoptim \
+    gifsicle gifski aapt2 pkgtop parallel fd sd fclones \
+    apksigner yazi
 
   # 4. Set Zsh as Default Shell
   print_step "Setting Zsh as the default shell..."
