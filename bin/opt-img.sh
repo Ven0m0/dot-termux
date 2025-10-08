@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/env bash
 #
 # Image optimization script for Termux using repo-only packages.
 # Processes JPEG, PNG, and WebP files.
