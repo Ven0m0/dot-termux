@@ -106,7 +106,14 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
 zstyle ':completion:*:*:*:*:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' list-colors "$\{(s.:.)LS_COLORS}"
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath'
+
+# Enable fish style features
+# ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+# bindkey '^ ' autosuggest-toggle
+
+export KEYTIMEOUT=1
 
 # Keybindings
 bindkey -e # Emacs mode
@@ -148,13 +155,20 @@ alias copy='termux-clipboard-set'
 alias share='termux-share'
 alias notify='termux-notification'
 
+alias bash='SHELL=bash bash'
+alias zsh='SHELL=zsh zsh'
+alias fish='SHELL=fish fish'
+
+alias e="\$EDITOR"
+alias r='\bat -p'
+
 # --- Quick Revancify/Simplify launchers ---
 revancify() {
   if [[ ! -d "$HOME/revancify" ]]; then
     echo "Installing Revancify..."
-    curl -sL https://github.com/decipher3114/Revancify/raw/main/install.sh | bash
+    curl -sL https://github.com/Xisrr1/Revancify-Xisr/main/install.sh | bash
   else
-    cd "$HOME/revancify" && bash revancify.sh
+    bash "$PREFIX/bin/xisr"
   fi
 }
 
@@ -184,8 +198,10 @@ fcd() {
 # --- System maintenance ---
 termux-clean() {
   echo "🧹 Cleaning Termux..."
+  pkg clean && pkg autoclean
   apt clean && apt autoclean && apt-get -y autoremove --purge
   find ~ -type d -empty -delete 2>/dev/null || true
+  find ~ -type f -name "*.log" -delete 2>/dev/null || true
   echo "✅ Termux cleanup complete."
 }
 
