@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/env bash
 #
 # Quick media optimization script for Termux.
 # - Images: rimage (lossy), oxipng (lossless)
