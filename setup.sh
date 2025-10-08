@@ -1,5 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 set -euo pipefail # Strict mode for better error handling
+LC_ALL=C
 
 # --- Configuration ---
 REPO_URL="https://github.com/ven0m0/dot-termux.git"
@@ -106,17 +107,6 @@ main() {
   else
     log "Zinit is already installed."
   fi
-  
-  # 8. Setup ReVanced Building Environment
-  print_step "Setting up ReVanced building environment..."
-  mkdir -p "$HOME/revanced"
-  
-  # 9. Final Instructions
-  print_step "🚀 Setup Complete! 🚀"
-  echo "Please restart Termux for all changes to take effect."
-  echo "After restarting, your prompt should be ready."
-  echo "To update your dotfiles in the future, just run \`cd ~/dot-termux && git pull\`."
-  echo "To build ReVanced apps, use the \`build-revanced\` function."
   
   # Log completion time
   log "Setup completed successfully at $(date +'%Y-%m-%d %H:%M:%S')"
