@@ -2,29 +2,30 @@
 # ~/.zshrc - Optimized for Termux with Zinit
 # =============================================================================
 
-# Enable Zsh compiler for faster startup
+# Enable Zsh compiler for faster startup (Arch Wiki recommended)
 zmodload zsh/zcompiler
 autoload -Uz zrecompile
 
-# Recompile zsh files if needed
-zrecompile -q -p -i "$HOME/.zshrc"
-zrecompile -q -p -i "$HOME/.zshenv"
-zrecompile -q -p -i "$HOME/.zprofile"
+# Only recompile if needed (check modification time)
+for file in "$HOME/.zshrc" "$HOME/.zshenv" "$HOME/.zprofile"; do
+  if [[ -f "$file" && ( ! -f "${file}.zwc" || "$file" -nt "${file}.zwc" ) ]]; then
+    zrecompile -q -p "$file"
+  fi
+done
 
-# Basic ZSH Settings
-setopt auto_cd auto_pushd pushd_ignore_dups extended_glob glob_dots
-setopt no_beep numeric_glob_sort rc_quotes autoparamslash interactive_comments
-unsetopt flow_control
+# Basic ZSH Settings (Arch Wiki optimized)
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS EXTENDED_GLOB GLOB_DOTS NO_BEEP
+setopt NUMERIC_GLOB_SORT RC_QUOTES AUTOPARAMSLASH INTERACTIVE_COMMENTS
+unsetopt FLOW_CONTROL NOMATCH
 
-setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS INC_APPEND_HISTORY EXTENDED_HISTORY HIST_IGNORE_DUPS HIST_FIND_NO_DUPS appendhistory
-setopt PROMPT_SUBST auto_remove_slash
-setopt HIST_EXPIRE_DUPS_FIRST HIST_REDUCE_BLANKS HIST_SAVE_NO_DUPS
+# History optimization (from Arch Wiki)
+setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS INC_APPEND_HISTORY EXTENDED_HISTORY
+setopt HIST_REDUCE_BLANKS HIST_SAVE_NO_DUPS SHARE_HISTORY HIST_IGNORE_SPACE
+setopt HIST_VERIFY HIST_EXPIRE_DUPS_FIRST
 
 stty -ixon -ixoff -ixany
 ENABLE_CORRECTION="true"
 DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Performance optimization
 skip_global_compinit=1
 setopt no_global_rcs
 SHELL_SESSIONS_DISABLE=1
@@ -36,7 +37,6 @@ HISTFILE=~/.zsh_history
 HISTTIMEFORMAT="%F %T "
 HISTIGNORE="&:[bf]g:clear:cls:exit:history:bash:fish:?:??"
 HISTCONTROL="erasedups:ignoreboth"
-setopt share_history extended_history hist_ignore_all_dups hist_ignore_space
 
 # =============================================================================
 # ZINIT SETUP - ULTRA FAST PLUGIN MANAGER
@@ -66,15 +66,15 @@ export VISUAL="$EDITOR"
 export PAGER='bat'
 export LANG='C.UTF-8' LC_ALL='C.UTF-8'
 export TERM="xterm-256color"
-TZ='Europe/Berlin'
-TIME_STYLE='+%d-%m %H:%M'
+export TZ='Europe/Berlin'
+export TIME_STYLE='+%d-%m %H:%M'
 export CLICOLOR=1 MICRO_TRUECOLOR=1
 
 # Path setup
-[[ -d "${HOME}/.local/bin" ]] && export PATH="${HOME}/.local/bin:${PATH}"
-[[ -d "${HOME}/.bin" ]] && export PATH="${HOME}/.bin:${PATH}"
-[[ -d "${HOME}/bin" ]] && export PATH="${HOME}/bin:${PATH}"
+typeset -U path
+path=("$HOME/.local/bin" "$HOME/.bin" "$HOME/bin" $path)
 
+# Less/Man colors
 : "${LESS_TERMCAP_mb:=$'\e[1;32m'}"
 : "${LESS_TERMCAP_md:=$'\e[1;32m'}"
 : "${LESS_TERMCAP_me:=$'\e[0m'}"
@@ -86,18 +86,27 @@ export "${!LESS_TERMCAP@}"
 export LESSHISTFILE=- LESSCHARSET=utf-8
 export BAT_STYLE=auto LESSQUIET=1
 
-if command -v vivid >/dev/null 2&>1; then
+# Better colors with vivid (Arch Wiki recommendation)
+if (( $+commands[vivid] )); then
   export LS_COLORS="$(vivid generate molokai)"
-elif command -v dircolors >/dev/null 2&>1; then
+elif (( $+commands[dircolors] )); then
   eval "$(dircolors -b)" &>/dev/null
 fi
+
+# Man improvements
 export MANPAGER="sh -c 'col -bx | bat -lman -ps --squeeze-limit 0'" MANROFFOPT="-c"
 
+# Python optimizations
 export PYTHONOPTIMIZE=2 PYTHON_JIT=1 PYENV_VIRTUALENV_DISABLE_PROMPT=1 PYTHON_COLORS=1 UV_COMPILE_BYTECODE=1
+
+# Other environmental optimizations
 export ZSTD_NBTHREADS=0 ELECTRON_OZONE_PLATFORM_HINT=auto _JAVA_AWT_WM_NONREPARENTING=1
 
+# FZF configuration
+export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border --info=inline"
 export FZF_DEFAULT_COMMAND='fd -tf -gH -c always -strip-cwd-prefix -E ".git"'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_ALT_C_COMMAND="fd -td -gH -c always"
 
 # =============================================================================
 # PLUGINS - PRIORITIZED BY STARTUP IMPACT
@@ -121,18 +130,6 @@ zinit wait lucid for \
     zsh-users/zsh-history-substring-search \
     hl2b/zsh-autopair
 
-# --- Rust-powered CLI tools ---
-zinit wait'1' lucid from'gh-r' as'program' for \
-    Canop/broot \
-    bootandy/dust
-
-# --- Atuin History Manager (enhanced history search) ---
-zinit wait'1' lucid from'gh-r' as'program' for \
-    atuinsh/atuin
-if command -v atuin >/dev/null 2>&1; then
-    eval "$(atuin init zsh --disable-up-arrow)"
-fi
-
 # --- Zoxide (smarter cd command) ---
 zinit wait'0' lucid as'program' from'gh-r' for \
     ajeetdsouza/zoxide
@@ -148,12 +145,12 @@ zinit light Aloxaf/fzf-tab
 # COMPLETIONS & KEYBINDINGS
 # =============================================================================
 
-# Setup completions - faster with cache
+# Setup completions with caching (Arch Wiki recommendation)
 autoload -Uz compinit
 if [[ -n ${ZDOTDIR:-${HOME}}/.zcompdump(#qN.mh+24) ]]; then
-  compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump";
+  compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
 else
-  compinit -C -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump";
+  compinit -C -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
 fi
 
 # Completion styles
@@ -161,8 +158,12 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
 zstyle ':completion:*' insert-unambiguous true
-zstyle ':completion:*:*:*:*:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*:*:*:*:descriptions' format '%F{green}-- %d --%f'
+zstyle ':completion:*:warnings' format ' %F{red}-- no matches found --%f'
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath'
+zstyle ':completion:*:processes' command 'ps -au$USER'
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 export KEYTIMEOUT=1
 
@@ -178,13 +179,14 @@ bindkey '^[[F' end-of-line
 bindkey '^[[3~' delete-char
 bindkey '^[[1;5C' forward-word
 bindkey '^[[1;5D' backward-word
+bindkey "^[[Z" reverse-menu-complete    # Shift-Tab to go backward in menu
 
 # =============================================================================
 # ALIASES & FUNCTIONS
 # =============================================================================
 
 # --- Navigation ---
-if command -v zoxide >/dev/null 2&>1; then
+if (( $+commands[zoxide] )); then
   alias ..='z ..'
   alias ...='z ../..'
   alias ....='z ../../..'
@@ -201,8 +203,10 @@ else
   alias ......='cd ../../../../..'
   alias bd='cd "$OLDPWD"'
   alias cd-="cd -"
-  unalias cd
+  unalias cd 2>/dev/null || true
 fi
+
+# --- Developer tools ---
 alias pip='python -m pip'
 
 # --- File listings ---
@@ -211,8 +215,15 @@ alias la='eza -a --icons -F --color=auto --group-directories-first'
 alias ll='eza -al --icons -F --color=auto --group-directories-first --git'
 alias lt='eza --tree --level=3 --icons -F --color=auto'
 alias which='command -v '
+
+# --- File operations ---
 touchf(){ command mkdir -p -- "$(dirname -- "$1")" && command touch -- "$1"; }
 mkcd(){ mkdir -p -- "$1" && cd -- "$1" || return; }
+
+# --- Suffix aliases (Arch Wiki recommendation) ---
+alias -s {txt,md}="$EDITOR"
+alias -s {jpg,jpeg,png,gif}="termux-share"
+alias -s {zip,gz,tar,bz2,xz}="tar -tvf"
 
 # --- Git ---
 alias gst='git status'
@@ -229,20 +240,28 @@ alias copy='termux-clipboard-set'
 alias share='termux-share'
 alias notify='termux-notification'
 
+# --- Shell management ---
 alias bash='SHELL=bash bash'
 alias zsh='SHELL=zsh zsh'
 alias fish='SHELL=fish fish'
 alias cls='clear'
 
+# --- Editor and utilities ---
 alias e="\$EDITOR"
 alias r='\bat -p'
 
+# --- Global aliases ---
 alias -g -- -h='-h 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
 alias -g -- --help='--help 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
+alias -g L="| ${PAGER:-less}"
+alias -g G="| rg -i"
+alias -g NE="2>/dev/null"
+alias -g NUL=">/dev/null 2>&1"
 
+
+# --- Help functions ---
 h(){ curl cheat.sh/${@:-cheat}; }
 cht(){
-  # join all arguments with '/', so “topic sub topic” → “topic/sub/topic”
   local query="${*// /\/}"
   if ! LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/${query}"; then
     LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/:help"
@@ -251,18 +270,17 @@ cht(){
 
 # --- Quick Revancify/Simplify launchers ---
 revancify() {
-  if [[ ! -d "$HOME/revancify" ]]; then
-    echo "Installing Revancify..."
-    curl -sL https://github.com/Xisrr1/Revancify-Xisr/main/install.sh | bash
+  if [[ ! -d "$HOME/revancify-xisr" ]]; then
+    echo "Installing Revancify-Xisr..."
+    curl -sL https://github.com/Xisrr1/Revancify-Xisr/raw/main/install.sh | bash
   else
-    bash "$PREFIX/bin/xisr"
+    cd "$HOME/revancify-xisr" && ./revancify.sh
   fi
 }
 
 simplify() {
   if [[ ! -f "$HOME/.Simplify.sh" ]]; then
     echo "Installing Simplify..."
-    pkg update && pkg install --only-upgrade apt bash coreutils openssl -y
     curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh"
   fi
   bash "$HOME/.Simplify.sh"
@@ -271,15 +289,15 @@ simplify() {
 # --- Utility functions ---
 # Search and edit file with fzf
 fe() {
-  local IFS=$'\n' line files=()
-  while IFS='' read -r line; do files+=("$line"); done < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
-  [[ -n "${files[0]}" ]] && ${EDITOR:-micro} "${files[@]}"
+  local files
+  files=($(fzf --query="$1" --multi --select-1 --exit-0))
+  [[ -n "$files" ]] && ${EDITOR:-micro} "${files[@]}"
 }
 
 # cd with fzf
 fcd() {
   local dir
-  dir=$(find "${1:-.}" -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir" || return
+  dir=$(find "${1:-.}" -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf --preview 'eza --tree --color=always {}') && cd "$dir" || return
 }
 
 # --- System maintenance ---
@@ -287,10 +305,20 @@ termux-clean() {
   echo "🧹 Cleaning Termux..."
   pkg clean && pkg autoclean
   apt clean && apt autoclean && apt-get -y autoremove --purge
+  rm -f "$HOME"/.zcompdump* 2>/dev/null
+  rm -f "$HOME"/.zinit/trash/* 2>/dev/null
   find ~ -type d -empty -delete 2>/dev/null || true
   find ~ -type f -name "*.log" -delete 2>/dev/null || true
   echo "✅ Termux cleanup complete."
 }
+
+# --- Precmd hook ---
+autoload -Uz add-zsh-hook
+precmd() {
+  # Update terminal title
+  print -Pn "\e]0;%n@%m: %~\a"
+}
+add-zsh-hook precmd precmd
 
 # =============================================================================
 # POWERLEVEL10K CONFIGURATION
