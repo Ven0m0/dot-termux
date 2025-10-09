@@ -1,0 +1,7 @@
+confirm = true
+track_installs = true
+continue_on_failure = true
+
+[telemetry]
+enabled = false
+consent_asked = false
