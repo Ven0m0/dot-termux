@@ -106,6 +106,56 @@ else
 fi
 alias nano='nano -/' mi=micro
 
+# Get help for a command with bat
+bathelp() {
+  "$@" --help 2>&1 | command bat -splhelp --squeeze-limit 0
+}
+
+# Display online manpages using curl
+manol() {
+  if [[ $# -eq 0 ]]; then
+    echo "Usage: manol [section] <page>" >&2
+    echo "Example: manol 3 printf" >&2
+    return 1
+  fi
+  local page section url
+  local base_url="https://man.archlinux.org/man"
+  local pager="${PAGER:-less}"
+  if [[ $# -eq 1 ]]; then
+    page="$1"
+    url="${base_url}/${page}"
+  else
+    section="$1"
+    page="$2"
+    url="${base_url}/${page}.${section}"
+  fi
+  curl -sL --user-agent "curl-manpage-viewer/1.0" --compressed "$url" | "$pager" -R
+}
+
+# Fancy man pages with bat
+fman() {
+  local -a less_env=(LESS_TERMCAP_md=$'\e[01;31m' LESS_TERMCAP_me=$'\e[0m' LESS_TERMCAP_us=$'\e[01;32m' LESS_TERMCAP_ue=$'\e[0m' LESS_TERMCAP_so=$'\e[45;93m' LESS_TERMCAP_se=$'\e[0m')
+  local -a bat_env=(LANG='C.UTF-8' MANROFFOPT='-c' BAT_STYLE='full' BAT_PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2")
+  
+  if command -v batman &>/dev/null; then
+    env "${bat_env[@]}" "${less_env[@]}" command batman "$@"
+  elif command -v bat &>/dev/null; then
+    env "${bat_env[@]}" "${less_env[@]}" MANPAGER="sh -c 'col -bx | bat -splman --squeeze-limit 0 --tabs 2'" command man "$@"
+  else
+    env "${less_env[@]}" PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2" command man "$@"
+  fi
+}
+
+# Cat^2 (cat for files and directories)
+catt() {
+  for i in "$@"; do
+    if [[ -d "$i" ]]; then
+      eza "$i"
+    else
+      bat -p "$i"
+    fi
+  done
+}
 
 # Change directory aliases
 alias home='cd ~'
@@ -164,16 +214,6 @@ alias mkgz='tar -cvzf'
 alias untar='tar -xvf'
 alias unbz2='tar -xvjf'
 alias ungz='tar -xvzf'
-
-# Automatically do an ls after each cd, z, or zoxide
-cd ()
-{
-	if [ -n "$1" ]; then
-		builtin cd "$@" && ls
-	else
-		builtin cd ~ && ls
-	fi
-}
 
 # Trim leading and trailing spaces (for scripts)
 trim() {
@@ -246,7 +286,6 @@ dedupe_path(){
   [[ -n $s ]] && export PATH="$s"
 }
 dedupe_path
-#===
 #============ Jumping ============
 if command -v zoxide &>/dev/null; then
   export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go" 
@@ -256,7 +295,15 @@ if command -v zoxide &>/dev/null; then
   ifsource "${HOME}/.config/bash/zoxide.sh" && eval "$(zoxide init bash)"
 fi
 
-#curl -fsSL lure.sh/install | bash
+# Automatically do an ls after each cd, z, or zoxide
+cd()
+{
+	if [ -n "$1" ]; then
+		z "$@" && eza
+	else
+		z ~ && eza
+	fi
+}
 
-#eval "$(curl https://get.x-cmd.com)"
-unset -f ifsource prependpath LC_ALL
+
+unset -f ifsource prependpath LC_ALL &>/dev/null
