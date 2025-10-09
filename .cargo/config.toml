@@ -1,0 +1,51 @@
+[alias]
+b = "build"
+i = "install"
+
+[build]
+rustc-wrapper = "sccache"
+
+[env]
+CARGO_CACHE_RUSTC_INFO = { value = "1", force = true }
+GITOXIDE_CORE_MULTIPACKINDEX = { value = "true", force = true }
+GITOXIDE_HTTP_SSLVERSIONMAX = { value = "tls1.3", force = true }
+GITOXIDE_HTTP_SSLVERSIONMIN = { value = "tls1.2", force = true }
+
+[http]
+debug = false
+ssl-version = "tlsv1.3"
+check-revoke = false
+multiplexing = true
+
+[net]
+git-fetch-with-cli = true
+retry = 2
+
+[registries.crates-io]
+protocol = "sparse"
+
+[resolver]
+incompatible-rust-versions = "allow"
+
+[profile.release]
+opt-level = 3
+strip = "symbols"
+debug = false
+debug-assertions = false
+overflow-checks = false
+rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=mold"]
+
+[profile.release.build-override]
+opt-level = 0
+incremental = true
+debug = false
+
+[profile.dev]
+opt-level = 0
+incremental = true
+debug = false
+lto = false
+
+[target.aarch64-linux-android]
+linker = "clang"
+rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=mold"]
