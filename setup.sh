@@ -88,6 +88,44 @@ setup_adb_rish(){
   log "ADB and RISH setup complete"
 }
 
+# Enhanced JetBrains Mono installation (to replace current font installation)
+install_jetbrains_mono() {
+  echo -e "${GREEN}📜 Installing JetBrains Mono font...${RESET}"
+  
+  local font_dir="${HOME}/.termux/font"
+  mkdir -p "$font_dir"
+  
+  # Try using GitHub API for latest release
+  local temp_file=$(mktemp)
+  local release_url version
+  
+  if curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_file" 2>/dev/null; then
+    version=$(awk -F '"' '/tag_name/ {print $4; exit}' "$temp_file")
+    release_url=$(awk -F '"' '/browser_download_url/ {print $4; exit}' "$temp_file")
+    echo -e "${GREEN}Found latest JetBrains Mono version: ${version}${RESET}"
+  else
+    # Fallback to known version if API fails
+    release_url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+    echo -e "${YELLOW}Using fallback JetBrains Mono v2.304${RESET}"
+  fi
+  
+  # Create temporary dir for extraction
+  local temp_dir=$(mktemp -d)
+  
+  echo -e "${GREEN}Downloading font package...${RESET}"
+  if curl -sL "$release_url" -o "${temp_dir}/jb-mono.zip"; then
+    echo -e "${GREEN}Extracting font...${RESET}"
+    unzip -j "${temp_dir}/jb-mono.zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$temp_dir" >/dev/null 2>&1 &&
+      cp "${temp_dir}/JetBrainsMono-Regular.ttf" "${font_dir}/font.ttf" &&
+      echo -e "${GREEN}JetBrains Mono installed successfully${RESET}"
+  else
+    echo -e "${RED}Failed to download JetBrains Mono font${RESET}"
+  fi
+  
+  # Cleanup temporary files
+  rm -rf "$temp_file" "$temp_dir"
+}
+
 # --- Main Setup Logic ---
 main(){
   # Initialize log
@@ -117,6 +155,9 @@ main(){
     ripgrep ripgrep-all libwebp optipng pngquant jpegoptim \
     gifsicle gifski aapt2 pkgtop parallel fd sd fclones \
     apksigner yazi
+
+  print_step "Installing Jetbrains Mono"
+  install_jetbrains_mono
   
   print_step "Setting Zsh as default shell..."
   [[ "$(basename "$SHELL")" != "zsh" ]] && {
