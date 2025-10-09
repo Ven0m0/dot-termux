@@ -15,14 +15,12 @@ YELLOW="\033[0;33m"
 RESET="\033[0m"
 
 # --- Self-bootstrapping Logic ---
-if [[ "${BASH_SOURCE[0]}" != "${0}" && -z "${REPO_PATH}" ]]; then
+if [[ "${BASH_SOURCE[0]:-}" != "$0" && -z "$REPO_PATH" ]]; then
   # Running via curl | bash, clone repo first
   echo -e "${BLUE}🚀 Setting up optimized Termux environment...${RESET}"
-  
   # Update package repos and install essentials
   pkg update -y && pkg upgrade -y
   pkg in -y git curl zsh
-  
   # Clone repo and execute local copy
   if [[ -d "$REPO_PATH" ]]; then
     echo -e "${GREEN}📁 Updating existing repository...${RESET}"
