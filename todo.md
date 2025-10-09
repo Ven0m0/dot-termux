@@ -40,7 +40,7 @@ cargo install --git https://github.com/Blobfolio/flaca.git --bin flaca
 - https://github.com/AvinashReddy3108/LITMux
 
 
-
+Rust stuff
 ```sh
 pkg in -y sccache mold
 export RUSTC_LINKER=clang
@@ -54,3 +54,9 @@ cargo install rimage --features="build-binary"cargo install \
     --bin flaca
 
 ```
+
+apk's:
+
+- https://github.com/REAndroid/APKEditor
+
+
