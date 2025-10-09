@@ -34,8 +34,12 @@ fix
 curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
 ```
 
-# Media: 
+### Media: 
 
 ```bash
 fd -e jpg -e jpeg -e png -e webp ${1:-.} | ~/bin/opt-im.sh
 ```
+
+### ADB over mobile data:
+
+- https://xdaforums.com/t/mod-no-root-supershell-adb-shell-over-mobile-data.4706512/
