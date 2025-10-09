@@ -1,3 +1,11 @@
+[unstable]
+unstable-options = true
+git = { shallow_index = true, shallow_deps = true }
+gitoxide = { fetch = true, internal_use_git2 = true }
+trim-paths = true
+no-embed-metadata = true
+profile-rustflags = true
+
 [alias]
 b = "build"
 i = "install"
@@ -10,6 +18,7 @@ CARGO_CACHE_RUSTC_INFO = { value = "1", force = true }
 GITOXIDE_CORE_MULTIPACKINDEX = { value = "true", force = true }
 GITOXIDE_HTTP_SSLVERSIONMAX = { value = "tls1.3", force = true }
 GITOXIDE_HTTP_SSLVERSIONMIN = { value = "tls1.2", force = true }
+RUSTC_BOOTSTRAP = { value = "1", force = true }
 
 [http]
 debug = false
@@ -49,3 +58,10 @@ lto = false
 [target.aarch64-linux-android]
 linker = "clang"
 rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=mold"]
+
+[term]
+quiet = true
+verbose = false
+unicode = false
+color = 'auto'
+progress.when = 'auto'
