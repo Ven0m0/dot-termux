@@ -16,6 +16,14 @@ setopt auto_cd auto_pushd pushd_ignore_dups extended_glob glob_dots
 setopt no_beep numeric_glob_sort rc_quotes autoparamslash interactive_comments
 unsetopt flow_control
 
+setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS INC_APPEND_HISTORY EXTENDED_HISTORY HIST_IGNORE_DUPS HIST_FIND_NO_DUPS appendhistory
+setopt PROMPT_SUBST auto_remove_slash
+setopt HIST_EXPIRE_DUPS_FIRST HIST_REDUCE_BLANKS HIST_SAVE_NO_DUPS
+
+stty -ixon -ixoff -ixany
+ENABLE_CORRECTION="true"
+DISABLE_UNTRACKED_FILES_DIRTY="true"
+
 # Performance optimization
 skip_global_compinit=1
 setopt no_global_rcs
@@ -25,6 +33,9 @@ SHELL_SESSIONS_DISABLE=1
 HISTSIZE=10000
 SAVEHIST=10000
 HISTFILE=~/.zsh_history
+HISTTIMEFORMAT="%F %T "
+HISTIGNORE="&:[bf]g:clear:cls:exit:history:bash:fish:?:??"
+HISTCONTROL="erasedups:ignoreboth"
 setopt share_history extended_history hist_ignore_all_dups hist_ignore_space
 
 # =============================================================================
@@ -49,11 +60,15 @@ zinit light-mode for \
 # ENVIRONMENT VARIABLES
 # =============================================================================
 
+SHELL=zsh
 export EDITOR='micro'
 export VISUAL="$EDITOR"
 export PAGER='bat'
 export LANG='C.UTF-8' LC_ALL='C.UTF-8'
 export TERM="xterm-256color"
+TZ='Europe/Berlin'
+TIME_STYLE='+%d-%m %H:%M'
+export CLICOLOR=1 MICRO_TRUECOLOR=1
 
 # Path setup
 [[ -d "${HOME}/.local/bin" ]] && export PATH="${HOME}/.local/bin:${PATH}"
@@ -121,13 +136,10 @@ fi
 zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
+zstyle ':completion:*' insert-unambiguous true
 zstyle ':completion:*:*:*:*:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath'
-
-# Enable fish style features
-# ZSH_AUTOSUGGEST_STRATEGY=(history completion)
-# bindkey '^ ' autosuggest-toggle
-
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 export KEYTIMEOUT=1
 
 # Keybindings
@@ -176,6 +188,13 @@ alias fish='SHELL=fish fish'
 
 alias e="\$EDITOR"
 alias r='\bat -p'
+
+alias -g -- -h='-h 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
+alias -g -- --help='--help 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
+
+h(){ curl cheat.sh/${@:-cheat}; }
+mkcd(){ mkdir -p -- "$1" && cd -- "$1" || return; }
+
 
 # --- Quick Revancify/Simplify launchers ---
 revancify() {
