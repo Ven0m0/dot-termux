@@ -30,6 +30,20 @@ else
   git clone --depth=1 "$REPO" "$REPO_DIR"
 fi
 
+echo "Installing JetBrains Mono font in Termux..."
+# Create fonts directory
+mkdir -p ~/.termux/font
+# Download latest JetBrains Mono font
+TEMP_ZIP=$(mktemp)
+curl -L "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$TEMP_ZIP"
+# Extract just the regular font file
+unzip -j "$TEMP_ZIP" "fonts/ttf/JetBrainsMono-Regular.ttf" -d ~/.termux/font/
+# Rename to Termux expected name
+mv ~/.termux/font/JetBrainsMono-Regular.ttf ~/.termux/font/font.ttf
+# Clean up
+rm "$TEMP_ZIP"
+echo "JetBrains Mono installed successfully. Restart Termux for full effect."
+
 # 3. Run setup script
 echo -e "${GREEN}⚙️ Running setup script...${RESET}"
 bash "$REPO_DIR/setup.sh"
