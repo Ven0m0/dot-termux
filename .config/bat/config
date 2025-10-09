@@ -1,0 +1,15 @@
+--squeeze-blank
+--squeeze-limit 0
+--strip-ansi auto
+--style auto
+--paging auto
+--wrap auto
+--decorations auto
+--color auto
+--tabs 2
+--pager="less -RFKQiqs --use-color --no-histdups --no-edit-warn"
+  
+--map-syntax ".ignore:Git Ignore"
+--map-syntax='*.conf:INI'
+--map-syntax='.bash:Bash'
+--map-syntax='.fish:Fish'
