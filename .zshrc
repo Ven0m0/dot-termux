@@ -148,32 +148,34 @@ zinit light Aloxaf/fzf-tab
 # =============================================================================
 
 # Fast compinit with caching - runs only once every 24 hours
-__fast_compinit() {
-  local -a skip_files comp_files
-  local zdump_age zdump_location
-  # Set dump location
-  zdump_location="${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
-  # Determine if we need to regenerate
-  skip_files=(~/.zsh/completions/*~(*~|*.zwc))
-  # Test for dump's existence and age
-  if [[ -f "$zdump_location" ]]; then
-    # If file exists and is less than 24 hours old, use cached version
-    zdump_age=$(($(date +%s) - $(stat -c %Y "$zdump_location" 2>/dev/null || stat -f %m "$zdump_location")))
-    if (( zdump_age < 86400 )); then
-      # Use existing zcompdump
-      compinit -C -d "$zdump_location"
-      return 0
-    fi
+fast_compinit() {
+  emulate -L zsh
+  setopt extendedglob local_options
+  
+  local zdump_loc="${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
+  local skip=0
+  
+  # Check dump file age properly
+  if [[ -f "$zdump_loc" ]]; then
+    # More portable way to check file age
+    local now=$(date +%s)
+    local mtime=$(stat -c %Y "$zdump_loc" 2>/dev/null || stat -f %m "$zdump_loc" 2>/dev/null)
+    [[ -n "$mtime" ]] && (( now - mtime < 86400 )) && skip=1
   fi
-  # Force regeneration
-  compinit -d "$zdump_location"
-  # Background recompile for even faster loading next time
-  { zcompile "$zdump_location" } &!
+  
+  # Run compinit appropriately
+  if (( skip )); then
+    compinit -C -d "$zdump_loc"
+  else
+    compinit -d "$zdump_loc"
+    # Background compilation
+    { zcompile "$zdump_loc" } &!
+  fi
 }
 
 # Initialize completions
 autoload -Uz compinit
-__fast_compinit
+fast_compinit
 
 # Completion styles
 zstyle ':completion:*' menu select
