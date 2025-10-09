@@ -29,6 +29,12 @@ curl -fsSL lure.sh/install | bash
 eval "$(curl https://get.x-cmd.com)"
 
 curl -fsSL https://soar.qaidvoid.dev/install.sh | sh
+
+Cargo binstall
+```bahs
+curl -sL --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+```
+
 fix
 ```bash
 curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
