@@ -41,9 +41,16 @@ cargo install --git https://github.com/Blobfolio/flaca.git --bin flaca
 
 
 
-'''sh
+```sh
 pkg in -y sccache mold
+export RUSTC_LINKER=clang
+export OPT_LEVEL=3
+export CARGO_CACHE_RUSTC_INFO=1
+export RUSTFLAGS="-Copt-level=3 -Ctarget-cpu=native -Ccodegen-units=1 -Cstrip=symbols -Clink-arg=-fuse-ld=mold"
+export RUSTC_WRAPPER=sccache
+export CARGO_HTTP_MULTIPLEXING=true CARGO_NET_GIT_FETCH_WITH_CLI=true CARGO_HTTP_SSL_VERSION="tlsv1.3"
 cargo install rimage --features="build-binary"cargo install \
     --git https://github.com/Blobfolio/flaca.git \
     --bin flaca
-'''
+
+```
