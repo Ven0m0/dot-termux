@@ -35,11 +35,11 @@ curl -sLo rvx-builder.sh https://raw.githubusercontent.com/inotia00/rvx-builder/
 ```
 Revancify
 ```bash
-curl -sL https://github.com/decipher3114/Revancifyheads/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/decipher3114/Revancify/main/install.sh | bash
 ```
 Revancify-Xisr
 ```bash
-curl -sL https://github.com/Xisrr1/Revancify-Xisr/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh | bash
 ```
 
 curl -fsSL lure.sh/install | bash
