@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail # Strict mode for better error handling
+set -euo pipefail
 LC_ALL=C
 
 # --- Configuration ---
@@ -22,22 +22,19 @@ check_internet() {
     echo "Error: No internet connection. Please connect and try again." >&2
     exit 1
   fi
-  echo "Connection successful."
+  log "Connection successful."
 }
 
 symlink_dotfile() {
     local source_file="$1"
     local target_file="$2"
-
     # Create parent directory if it doesn't exist
     mkdir -p "$(dirname "$target_file")"
-
     # Backup existing file before creating symlink
     if [[ -f "$target_file" || -L "$target_file" ]]; then
         log "Backing up existing '$target_file' to '${target_file}.bak'"
         mv "$target_file" "${target_file}.bak"
     fi
-
     # Create the symlink
     ln -sf "$source_file" "$target_file"
     log "Linked '$target_file' -> '$source_file'"
@@ -53,16 +50,20 @@ main() {
   check_internet
   print_step "Setting up Termux storage..."
   termux-setup-storage
-  termux-change-repo
+
+  # 2. Add Repositories
+  print_step "Adding additional repositories..."
+  # Add tur-repo for additional packages
+  pkg install -y tur-repo glibc-repo
   
-  # 2. Update and Upgrade Packages
+  # 3. Update and Upgrade Packages
   print_step "Updating and upgrading all packages..."
   pkg update -y && pkg upgrade -y
   apt dist-upgrade -y & apt full-upgrade -y
   dpkg --configure -a
   apt --fix-broken install -y && apt install --fix-missing -y
 
-  # 3. Install All Essential Packages
+  # 4. Install All Essential Packages
   print_step "Installing essential packages..."
   pkg install -y \
     zsh git curl wget eza bat fzf micro \
@@ -73,7 +74,7 @@ main() {
     gifsicle gifski aapt2 pkgtop parallel fd sd fclones \
     apksigner yazi
 
-  # 4. Set Zsh as Default Shell
+  # 5. Set Zsh as Default Shell
   print_step "Setting Zsh as the default shell..."
   if [[ "$(basename "$SHELL")" != "zsh" ]]; then
     chsh -s zsh
@@ -82,7 +83,7 @@ main() {
     log "Zsh is already the default shell."
   fi
 
-  # 5. Clone Dotfiles Repository
+  # 6. Clone Dotfiles Repository
   print_step "Cloning your dotfiles repository from GitHub..."
   if [[ -d "$REPO_PATH" ]]; then
     log "Repository already exists. Pulling latest changes..."
@@ -91,7 +92,18 @@ main() {
     git clone --depth=1 "$REPO_URL" "$REPO_PATH"
   fi
 
-  # 6. Symlink Configuration Files
+  # 7. Install Zinit Plugin Manager
+  print_step "Setting up Zinit plugin manager..."
+  ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit"
+  if [[ ! -d "$ZINIT_HOME" ]]; then
+    mkdir -p "$ZINIT_HOME"
+    git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME/zinit.git"
+    log "Zinit installed successfully."
+  else
+    log "Zinit is already installed."
+  fi
+
+  # 8. Symlink Configuration Files
   print_step "Linking configuration files..."
   symlink_dotfile "$REPO_PATH/.zshrc" "$HOME/.zshrc"
   symlink_dotfile "$REPO_PATH/.zshenv" "$HOME/.zshenv"
@@ -105,17 +117,11 @@ main() {
   symlink_dotfile "$REPO_PATH/.config/bash/bash_functions.bash" "$HOME/.config/bash/bash_functions.bash"
   symlink_dotfile "$REPO_PATH/.ignore" "$HOME/.config/fd/ignore"
   
-  # 7. Install Zinit Plugin Manager (optimized for speed)
-  print_step "Setting up Zinit plugin manager..."
-  ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit"
-  if [[ ! -d "$ZINIT_HOME" ]]; then
-    mkdir -p "$ZINIT_HOME"
-    git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME/zinit.git"
-    log "Zinit installed successfully."
-  else
-    log "Zinit is already installed."
-  fi
-  
+  # 9. Create Zsh Cache Directory
+  print_step "Creating Zsh cache directory..."
+  mkdir -p "$HOME/.zsh/cache"
+  mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
+
   # Log completion time
   log "Setup completed successfully at $(date +'%Y-%m-%d %H:%M:%S')"
 }
