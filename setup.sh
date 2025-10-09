@@ -33,52 +33,43 @@ symlink_dotfile(){
   log "Linked '$target_file' -> '$source_file'"
 }
 
-# Install ReVanced tools in background (non-blocking)
-setup_revanced_tools(){
+# Install ReVanced tools in background
+setup_revanced_tools() {
   print_step "Setting up ReVanced tools (background process)"
-  
-  # Create directories
   mkdir -p "$HOME/bin"
-  
-  # Tool definitions using array for cleaner code
+  # Use array for tools with proper structure
   local -a tools=(
     "Revancify-Xisr|https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh|revancify-xisr"
     "Simplify|https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh|simplify"
     "RVX-Builder|https://raw.githubusercontent.com/inotia00/rvx-builder/revanced-extended/android-interface.sh|rvx-builder"
   )
-  
-  # Process each tool in background
   for tool_info in "${tools[@]}"; do
+    # Here-string for proper parsing
     IFS="|" read -r name url cmd_name <<< "$tool_info"
-    
-    # Launch subshell with own error handling
+    # Background process with proper error handling
     (
       log "Installing $name..."
       case "$name" in
         "Revancify-Xisr")
           curl -sL "$url" | bash >/dev/null 2>&1
           [[ -d "$HOME/revancify-xisr" ]] && 
-            ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/$cmd_name" 2>/dev/null || true
+            ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1 || true
           ;;
         "Simplify")
-          curl -sL -o "$HOME/.Simplify.sh" "$url"
-          ln -sf "$HOME/.Simplify.sh" "$HOME/bin/$cmd_name" 2>/dev/null || true
+          curl -sL -o "$HOME/.Simplify.sh" "$url" &&
+            ln -sf "$HOME/.Simplify.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1 || true
           ;;
         "RVX-Builder")
-          curl -sL -o "$HOME/bin/rvx-builder.sh" "$url"
-          chmod +x "$HOME/bin/rvx-builder.sh"
-          ln -sf "$HOME/bin/rvx-builder.sh" "$HOME/bin/$cmd_name" 2>/dev/null || true
+          curl -sL -o "$HOME/bin/rvx-builder.sh" "$url" &&
+            chmod +x "$HOME/bin/rvx-builder.sh" &&
+            ln -sf "$HOME/bin/rvx-builder.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1 || true
           ;;
       esac
       log "$name installation complete"
     ) &
   done
-  
-  # Install extended tools in background
-  (log "Installing X-CMD..."; curl -fsSL https://get.x-cmd.com | bash >/dev/null 2>&1) &
-  (log "Installing SOAR..."; curl -fsSL https://soar.qaidvoid.dev/install.sh | sh >/dev/null 2>&1) &
-  
-  log "ReVanced tools installation started in background"
+  { log "Installing X-CMD..."; curl -fsSL https://get.x-cmd.com | bash >/dev/null 2>&1; log "X-CMD installation complete"; } &
+  { log "Installing SOAR..."; curl -fsSL https://soar.qaidvoid.dev/install.sh | sh >/dev/null 2>&1; log "SOAR installation complete"; } &
 }
 
 # Setup ADB and RISH with CSB
@@ -90,40 +81,29 @@ setup_adb_rish(){
 
 # Enhanced JetBrains Mono installation (to replace current font installation)
 install_jetbrains_mono() {
-  echo -e "${GREEN}📜 Installing JetBrains Mono font...${RESET}"
-  
-  local font_dir="${HOME}/.termux/font"
+  echo -e "${GREEN}Installing JetBrains Mono font...${RESET}"
+  local font_dir="$HOME/.termux/font"
   mkdir -p "$font_dir"
-  
-  # Try using GitHub API for latest release
-  local temp_file=$(mktemp)
-  local release_url version
-  
-  if curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_file" 2>/dev/null; then
-    version=$(awk -F '"' '/tag_name/ {print $4; exit}' "$temp_file")
-    release_url=$(awk -F '"' '/browser_download_url/ {print $4; exit}' "$temp_file")
-    echo -e "${GREEN}Found latest JetBrains Mono version: ${version}${RESET}"
+  local temp_json temp_zip
+  temp_json=$(mktemp)
+  if curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_json"; then
+    local version=$(grep -o '"tag_name": *"[^"]*"' "$temp_json" | cut -d'"' -f4)
+    local url=$(grep -o '"browser_download_url": *"[^"]*"' "$temp_json" | head -1 | cut -d'"' -f4)
+    echo -e "${GREEN}Found version: $version${RESET}"
   else
-    # Fallback to known version if API fails
-    release_url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-    echo -e "${YELLOW}Using fallback JetBrains Mono v2.304${RESET}"
+    local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+    echo -e "${YELLOW}Using fallback version v2.304${RESET}"
   fi
-  
-  # Create temporary dir for extraction
-  local temp_dir=$(mktemp -d)
-  
-  echo -e "${GREEN}Downloading font package...${RESET}"
-  if curl -sL "$release_url" -o "${temp_dir}/jb-mono.zip"; then
-    echo -e "${GREEN}Extracting font...${RESET}"
-    unzip -j "${temp_dir}/jb-mono.zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$temp_dir" >/dev/null 2>&1 &&
-      cp "${temp_dir}/JetBrainsMono-Regular.ttf" "${font_dir}/font.ttf" &&
-      echo -e "${GREEN}JetBrains Mono installed successfully${RESET}"
+  temp_zip=$(mktemp)
+  if curl -sL "$url" -o "$temp_zip" &&
+     unzip -j "$temp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$font_dir" >/dev/null 2>&1 &&
+     mv "$font_dir/JetBrainsMono-Regular.ttf" "$font_dir/font.ttf"; then
+    echo -e "${GREEN}JetBrains Mono installed successfully${RESET}"
   else
-    echo -e "${RED}Failed to download JetBrains Mono font${RESET}"
+    echo -e "${RED}Font installation failed${RESET}"
   fi
-  
-  # Cleanup temporary files
-  rm -rf "$temp_file" "$temp_dir"
+  rm -f "$temp_json" "$temp_zip"
+  termux-reload-settings >/dev/null 2>&1 || true
 }
 
 # --- Main Setup Logic ---
