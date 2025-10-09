@@ -1,8 +1,5 @@
-# Don't let ripgrep vomit really long lines to my terminal, and show a preview.
 --max-columns=150
 --max-columns-preview
-
-# Using glob patterns to include/exclude files or folders
 --glob=!.git/*
 --ignore
 --no-require-git
@@ -14,7 +11,7 @@
 --ignore-file="$HOME/.ignore"
 --color=auto
 --smart-case
+--threads 0
 --trim
-#--no-line-number
 --no-heading
 --no-ignore-messages
