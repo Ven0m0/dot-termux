@@ -18,7 +18,7 @@ export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export HOME="${HOME:-/data/data/com.termux/files/home}"
 export LD_LIBRARY_PATH="$PREFIX/lib"
 export PATH="$PREFIX/bin:$PATH"
-export LANG=C.UTF-8 LC_ALL=C
+export LANG=C LC_ALL=C
 
 # ----------------------------------------------------------------------
 # Configuration
