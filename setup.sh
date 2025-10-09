@@ -1,4 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
+# Termux Ultra Setup: One-step environment configuration with Zinit and ReVanced tools
 set -euo pipefail 
 
 # --- Configuration ---
@@ -6,14 +7,46 @@ REPO_URL="https://github.com/ven0m0/dot-termux.git"
 REPO_PATH="$HOME/dot-termux"
 LOG_FILE="$HOME/termux_setup_log.txt"
 export LC_ALL=C LANG=C LANGUAGE=C
-shopt -s nullglob globstar extglob
-cd -P -- "$(cd -P -- "${BASH_SOURCE[0]%/*}" && echo "$PWD")" 2>/dev/null || exit 1
+
+# Colors for output
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+BLUE="\033[0;34m"
+YELLOW="\033[0;33m"
+RESET="\033[0m"
+
+# --- Self-bootstrapping Logic ---
+if [[ "${BASH_SOURCE[0]}" != "${0}" && -z "${REPO_PATH}" ]]; then
+  # Running via curl | bash, clone repo first
+  echo -e "${BLUE}🚀 Setting up optimized Termux environment...${RESET}"
+  
+  # Update package repos and install essentials
+  pkg update -y && pkg upgrade -y
+  pkg in -y git curl zsh
+  
+  # Clone repo and execute local copy
+  if [[ -d "$REPO_PATH" ]]; then
+    echo -e "${GREEN}📁 Updating existing repository...${RESET}"
+    cd "$REPO_PATH" && git pull
+  else
+    echo -e "${GREEN}📥 Cloning configuration repository...${RESET}"
+    git clone --depth=1 "$REPO_URL" "$REPO_PATH"
+  fi
+  
+  exec bash "$REPO_PATH/setup.sh"
+  exit 0
+else
+  # Running from file
+  shopt -s nullglob globstar extglob
+  [[ -n "${BASH_SOURCE[0]}" && "${BASH_SOURCE[0]}" != "-" ]] && 
+    cd -P -- "$(cd -P -- "${BASH_SOURCE[0]%/*}" && echo "$PWD")" 2>/dev/null || true
+fi
 
 # --- Helper Functions ---
-log(){ echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
-print_step(){ printf "\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n" "$1" | tee -a "$LOG_FILE"; }
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
+print_step() { printf "\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n" "$1" | tee -a "$LOG_FILE"; }
 
-check_internet(){
+check_internet() {
   print_step "Checking internet connection..."
   if ! ping -c 1 google.com >/dev/null 2>&1; then
     echo "Error: No internet connection. Please connect and try again." >&2
@@ -22,7 +55,7 @@ check_internet(){
   log "Connection successful."
 }
 
-symlink_dotfile(){
+symlink_dotfile() {
   local source_file="$1" target_file="$2"
   mkdir -p "$(dirname "$target_file")"
   [[ -f "$target_file" || -L "$target_file" ]] && {
@@ -33,20 +66,49 @@ symlink_dotfile(){
   log "Linked '$target_file' -> '$source_file'"
 }
 
-# Install ReVanced tools in background
+install_jetbrains_mono() {
+  print_step "Installing JetBrains Mono font"
+  local font_dir="$HOME/.termux/font"
+  mkdir -p "$font_dir"
+  
+  local temp_json temp_zip url version
+  temp_json=$(mktemp)
+  
+  if curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_json"; then
+    version=$(grep -o '"tag_name": *"[^"]*"' "$temp_json" | cut -d'"' -f4)
+    url=$(grep -o '"browser_download_url": *"[^"]*"' "$temp_json" | head -1 | cut -d'"' -f4)
+    log "Found JetBrains Mono version: $version"
+  else
+    url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+    log "Using fallback version v2.304"
+  fi
+  
+  temp_zip=$(mktemp)
+  if curl -sL "$url" -o "$temp_zip" &&
+     unzip -j "$temp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$font_dir" >/dev/null 2>&1 &&
+     mv "$font_dir/JetBrainsMono-Regular.ttf" "$font_dir/font.ttf"; then
+    log "JetBrains Mono installed successfully"
+    termux-reload-settings >/dev/null 2>&1 || true
+  else
+    log "Font installation failed"
+  fi
+  
+  rm -f "$temp_json" "$temp_zip"
+}
+
 setup_revanced_tools() {
   print_step "Setting up ReVanced tools (background process)"
   mkdir -p "$HOME/bin"
-  # Use array for tools with proper structure
+  
   local -a tools=(
     "Revancify-Xisr|https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh|revancify-xisr"
     "Simplify|https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh|simplify"
     "RVX-Builder|https://raw.githubusercontent.com/inotia00/rvx-builder/revanced-extended/android-interface.sh|rvx-builder"
   )
+  
   for tool_info in "${tools[@]}"; do
-    # Here-string for proper parsing
     IFS="|" read -r name url cmd_name <<< "$tool_info"
-    # Background process with proper error handling
+    
     (
       log "Installing $name..."
       case "$name" in
@@ -68,52 +130,55 @@ setup_revanced_tools() {
       log "$name installation complete"
     ) &
   done
+  
   { log "Installing X-CMD..."; curl -fsSL https://get.x-cmd.com | bash >/dev/null 2>&1; log "X-CMD installation complete"; } &
   { log "Installing SOAR..."; curl -fsSL https://soar.qaidvoid.dev/install.sh | sh >/dev/null 2>&1; log "SOAR installation complete"; } &
+  
+  log "ReVanced tools installation started in background"
 }
 
-# Setup ADB and RISH with CSB
-setup_adb_rish(){
+setup_adb_rish() {
   print_step "Setting up ADB and RISH"
   curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
   log "ADB and RISH setup complete"
 }
 
-# Enhanced JetBrains Mono installation (to replace current font installation)
-install_jetbrains_mono() {
-  echo -e "${GREEN}Installing JetBrains Mono font...${RESET}"
-  local font_dir="$HOME/.termux/font"
-  mkdir -p "$font_dir"
-  local temp_json temp_zip
-  temp_json=$(mktemp)
-  if curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_json"; then
-    local version=$(grep -o '"tag_name": *"[^"]*"' "$temp_json" | cut -d'"' -f4)
-    local url=$(grep -o '"browser_download_url": *"[^"]*"' "$temp_json" | head -1 | cut -d'"' -f4)
-    echo -e "${GREEN}Found version: $version${RESET}"
-  else
-    local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-    echo -e "${YELLOW}Using fallback version v2.304${RESET}"
-  fi
-  temp_zip=$(mktemp)
-  if curl -sL "$url" -o "$temp_zip" &&
-     unzip -j "$temp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$font_dir" >/dev/null 2>&1 &&
-     mv "$font_dir/JetBrainsMono-Regular.ttf" "$font_dir/font.ttf"; then
-    echo -e "${GREEN}JetBrains Mono installed successfully${RESET}"
-  else
-    echo -e "${RED}Font installation failed${RESET}"
-  fi
-  rm -f "$temp_json" "$temp_zip"
-  termux-reload-settings >/dev/null 2>&1 || true
+create_welcome_message() {
+  print_step "Creating welcome message"
+  cat > "$HOME/.welcome.msg" <<EOF
+${BLUE}╔════════════════════════════════════════════════╗${RESET}
+${BLUE}║                                                ║${RESET}
+${BLUE}║  Welcome to your optimized Termux environment  ║${RESET}
+${BLUE}║                                                ║${RESET}
+${BLUE}╚════════════════════════════════════════════════╝${RESET}
+
+Available tools:
+• ${GREEN}revancify-xisr${RESET} - Launch Revancify tool
+• ${GREEN}simplify${RESET}       - Launch Simplify tool
+• ${GREEN}rvx-builder${RESET}    - ReVanced builder
+• ${GREEN}zoxide${RESET}         - Smart directory jumper
+• ${GREEN}atuin${RESET}          - Better shell history
+
+Type ${GREEN}help${RESET} for more information.
+EOF
+  log "Welcome message created"
+}
+
+optimize_zsh() {
+  print_step "Optimizing Zsh performance"
+  zsh -c 'zmodload zsh/zcompiler; zcompile ~/.zshrc; zcompile ~/.zshenv'
+  log "Zsh startup optimized"
 }
 
 # --- Main Setup Logic ---
-main(){
+main() {
   # Initialize log
   : > "$LOG_FILE"
   log "Starting Termux setup..."
   
-  # Setup phases
+  # Core setup phases
   check_internet
+  
   print_step "Setting up Termux storage..."
   termux-setup-storage
   
@@ -135,8 +200,8 @@ main(){
     ripgrep ripgrep-all libwebp optipng pngquant jpegoptim \
     gifsicle gifski aapt2 pkgtop parallel fd sd fclones \
     apksigner yazi
-
-  print_step "Installing Jetbrains Mono"
+  
+  # Install JetBrains Mono font
   install_jetbrains_mono
   
   print_step "Setting Zsh as default shell..."
@@ -178,11 +243,14 @@ main(){
   
   # Setup advanced functionality
   setup_adb_rish
+  setup_revanced_tools
   
   print_step "Creating cache directories..."
   mkdir -p "$HOME/.zsh/cache" "${XDG_CACHE_HOME:-$HOME/.cache}"
   
-  setup_revanced_tools
+  # Final optimizations
+  optimize_zsh
+  create_welcome_message
   
   # Complete
   print_step "🚀 Setup Complete! 🚀"
@@ -192,10 +260,10 @@ After restarting, your prompt will be ready with Zinit and PowerLevel10k.
 
 ReVanced tools are installing in the background. Check $LOG_FILE for progress.
 Available tools after installation completes:
- - Revancify-Xisr: run 'revancify-xisr'
- - Simplify: run 'simplify'
- - RVX Builder: run 'rvx-builder'
- - X-CMD and SOAR: available in path
+ - revancify-xisr: Revancify fork by Xisrr1
+ - simplify: Simplify by arghya339
+ - rvx-builder: RVX Builder by inotia00
+ - X-CMD and SOAR package managers
 
 ADB and RISH have been set up via CSB.
 EOF
@@ -203,5 +271,5 @@ EOF
   log "Setup completed successfully at $(date +'%Y-%m-%d %H:%M:%S')"
 }
 
-# Run main function
+# Execute main function
 main "$@"
