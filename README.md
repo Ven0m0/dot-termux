@@ -1,25 +1,7 @@
 # dot-termux
 
 ```bash
-curl -sfL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh | bash
-```
-
-ADB:
-```bash
-curl -s https://raw.githubusercontent.com/Gtajisan/termux-adb/master/install.sh | bash
-```
-alternative:
-```bash
-curl -s https://raw.githubusercontent.com/nohajc/termux-adb/master/install.sh | bash
-```
-
-# Media: 
-
-```bash
-curl -sf https://raw.githubusercontent.com/Ven0m0/dot-termux/main/bin/opt-img.sh -O
-```
-```bash
-fd -e jpg -e jpeg -e png -e webp ${1:-.} | ~/bin/opt-im.sh
+curl -fsSL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh | bash
 ```
 
 
@@ -50,4 +32,10 @@ curl -fsSL https://soar.qaidvoid.dev/install.sh | sh
 fix
 ```bash
 curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
+```
+
+# Media: 
+
+```bash
+fd -e jpg -e jpeg -e png -e webp ${1:-.} | ~/bin/opt-im.sh
 ```
