@@ -147,13 +147,33 @@ zinit light Aloxaf/fzf-tab
 # COMPLETIONS & KEYBINDINGS
 # =============================================================================
 
-# Setup completions with caching (Arch Wiki recommendation)
+# Fast compinit with caching - runs only once every 24 hours
+__fast_compinit() {
+  local -a skip_files comp_files
+  local zdump_age zdump_location
+  # Set dump location
+  zdump_location="${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
+  # Determine if we need to regenerate
+  skip_files=(~/.zsh/completions/*~(*~|*.zwc))
+  # Test for dump's existence and age
+  if [[ -f "$zdump_location" ]]; then
+    # If file exists and is less than 24 hours old, use cached version
+    zdump_age=$(($(date +%s) - $(stat -c %Y "$zdump_location" 2>/dev/null || stat -f %m "$zdump_location")))
+    if (( zdump_age < 86400 )); then
+      # Use existing zcompdump
+      compinit -C -d "$zdump_location"
+      return 0
+    fi
+  fi
+  # Force regeneration
+  compinit -d "$zdump_location"
+  # Background recompile for even faster loading next time
+  { zcompile "$zdump_location" } &!
+}
+
+# Initialize completions
 autoload -Uz compinit
-if [[ -n ${ZDOTDIR:-${HOME}}/.zcompdump(#qN.mh+24) ]]; then
-  compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
-else
-  compinit -C -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
-fi
+__fast_compinit
 
 # Completion styles
 zstyle ':completion:*' menu select
@@ -161,11 +181,15 @@ zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
 zstyle ':completion:*' insert-unambiguous true
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' completer _complete _match _approximate
+zstyle ':completion:*:approximate:*' max-errors 1 numeric
+zstyle ':completion:*:match:*' original only
+zstyle ':completion:*:processes' command 'ps -au$USER'
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*:*:*:*:descriptions' format '%F{green}-- %d --%f'
 zstyle ':completion:*:warnings' format ' %F{red}-- no matches found --%f'
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath'
-zstyle ':completion:*:processes' command 'ps -au$USER'
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 export KEYTIMEOUT=1
 
