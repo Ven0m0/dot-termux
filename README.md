@@ -43,3 +43,4 @@ fd -e jpg -e jpeg -e png -e webp ${1:-.} | ~/bin/opt-im.sh
 ### ADB over mobile data:
 
 - https://xdaforums.com/t/mod-no-root-supershell-adb-shell-over-mobile-data.4706512/
+- https://gist.github.com/kairusds/1d4e32d3cf0d6ca44dc126c1a383a48d
