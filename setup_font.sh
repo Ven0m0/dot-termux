@@ -3,46 +3,33 @@
 # Install JetBrains Mono font with proper error handling and progress feedback
 setup_font() {
   print_step "Installing JetBrains Mono font"
-  local font_dir="${HOME}/.termux/font"
-  local temp_file temp_dir tag_name release_url
+  local font_dir="$HOME/.termux/font"
+  local temp_json temp_zip tag_name browser_url
   
-  # Create font directory
   mkdir -p "$font_dir"
   
-  # Get latest release information using GitHub API
-  log "Fetching latest JetBrains Mono release info"
-  temp_file=$(mktemp)
-  
-  if ! curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_file"; then
-    log "Failed to fetch release info. Using fallback version."
-    release_url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+  temp_json=$(mktemp)
+  # Use expr/grep instead of jq dependency
+  if curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest" -o "$temp_json"; then
+    tag_name=$(grep -o '"tag_name": *"[^"]*"' "$temp_json" | cut -d'"' -f4)
+    browser_url=$(grep -o '"browser_download_url": *"[^"]*"' "$temp_json" | head -1 | cut -d'"' -f4)
+    log "Found JetBrains Mono version: $tag_name"
   else
-    # Extract release URL using awk for better performance
-    tag_name=$(awk -F '"' '/tag_name/ {print $4; exit}' "$temp_file")
-    release_url=$(awk -F '"' '/browser_download_url/ {print $4; exit}' "$temp_file")
-    log "Found latest version: $tag_name"
+    # Fallback to known version
+    browser_url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+    log "Using fallback version v2.304"
   fi
   
-  # Download and extract the font
-  log "Downloading font archive: $release_url"
-  temp_dir=$(mktemp -d)
-  local zip_file="${temp_dir}/jetbrains-mono.zip"
-  
-  if curl -sL "$release_url" -o "$zip_file"; then
-    log "Extracting regular font file"
-    unzip -j "$zip_file" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$temp_dir" >/dev/null 2>&1
-    
-    if [[ -f "${temp_dir}/JetBrainsMono-Regular.ttf" ]]; then
-      cp "${temp_dir}/JetBrainsMono-Regular.ttf" "${font_dir}/font.ttf"
+  temp_zip=$(mktemp)
+  if curl -sL "$browser_url" -o "$temp_zip"; then
+    unzip -j "$temp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$font_dir" >/dev/null 2>&1 &&
+      mv "$font_dir/JetBrainsMono-Regular.ttf" "$font_dir/font.ttf" &&
       log "JetBrains Mono installed successfully"
-      termux-reload-settings >/dev/null 2>&1 || true
-    else
-      log "Font extraction failed"
-    fi
+    termux-reload-settings >/dev/null 2>&1 || true
   else
-    log "Font download failed"
+    log "Failed to download JetBrains Mono"
   fi
   
-  # Cleanup temp files
-  rm -rf "$temp_file" "$temp_dir"
+  # Clean up temps
+  rm -f "$temp_json" "$temp_zip"
 }
