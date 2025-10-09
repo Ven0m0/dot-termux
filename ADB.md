@@ -1,4 +1,10 @@
 
+```sh
+adb shell cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed
+```
+```sh
+adb shell cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed-profile -f
+```
 
 ```sh
 adb shell am broadcast -a android.intent.action.ACTION_OPTIMIZE_DEVICE
@@ -34,7 +40,8 @@ adb shell cmd display ab-logging-disable
 adb shell cmd display dwb-logging-disable
 ```
 ```sh
- adb shell cmd activity idle-maintenance
+adb shell cmd activity idle-maintenance
+adb shell sm idle-maint run
 ```
 ```sh
 adb shell cmd netpolicy set restrict-background true
@@ -42,7 +49,6 @@ adb shell cmd netpolicy set restrict-background true
 ```sh
 adb shell cmd content_capture destroy sessions
 ```
-
 
 ```bash
 mkdir -p ~/.ssh
