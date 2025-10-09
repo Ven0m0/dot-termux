@@ -2,6 +2,15 @@
 # ~/.zshrc - Optimized for Termux with Zinit
 # =============================================================================
 
+# Enable Zsh compiler for faster startup
+zmodload zsh/zcompiler
+autoload -Uz zrecompile
+
+# Recompile zsh files if needed
+zrecompile -q -p -i "$HOME/.zshrc"
+zrecompile -q -p -i "$HOME/.zshenv"
+zrecompile -q -p -i "$HOME/.zprofile"
+
 # Basic ZSH Settings
 setopt auto_cd auto_pushd pushd_ignore_dups extended_glob glob_dots
 setopt no_beep numeric_glob_sort rc_quotes autoparamslash interactive_comments
@@ -31,7 +40,7 @@ source "$ZINIT_HOME/zinit.git/zinit.zsh"
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
 
-# Enable Turbo mode for speed
+# Enable Turbo mode for a significant speedup
 zinit light-mode for \
     zdharma-continuum/z-a-rust \
     zdharma-continuum/z-a-bin-gem-node
@@ -45,7 +54,6 @@ export VISUAL="$EDITOR"
 export PAGER='bat'
 export LANG='C.UTF-8' LC_ALL='C.UTF-8'
 export TERM="xterm-256color"
-export BAT_THEME="Dracula"
 
 # Path setup
 [[ -d "${HOME}/.local/bin" ]] && export PATH="${HOME}/.local/bin:${PATH}"
@@ -93,20 +101,27 @@ if command -v zoxide >/dev/null 2>&1; then
     eval "$(zoxide init zsh)"
 fi
 
+# --- FZF Tab Completions ---
+zinit ice lucid wait'0'
+zinit light Aloxaf/fzf-tab
+
 # =============================================================================
 # COMPLETIONS & KEYBINDINGS
 # =============================================================================
 
-# Setup completions
+# Setup completions - faster with cache
 autoload -Uz compinit
-compinit -C -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"
+if [[ -n ${ZDOTDIR:-${HOME}}/.zcompdump(#qN.mh+24) ]]; then
+  compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump";
+else
+  compinit -C -d "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump";
+fi
 
 # Completion styles
 zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
 zstyle ':completion:*:*:*:*:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-zstyle ':completion:*' list-colors "$\{(s.:.)LS_COLORS}"
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath'
 
 # Enable fish style features
