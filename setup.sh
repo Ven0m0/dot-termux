@@ -6,6 +6,7 @@ REPO_URL="https://github.com/ven0m0/dot-termux.git"
 REPO_PATH="$HOME/dot-termux"
 LOG_FILE="$HOME/termux_setup_log.txt"
 export LC_ALL=C LANG=C LANGUAGE=C
+export DEBIAN_FRONTEND=noninteractive
 
 # Colors for output
 RED="\033[0;31m"
