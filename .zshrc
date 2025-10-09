@@ -166,6 +166,9 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 export KEYTIMEOUT=1
 
+zstyle ':omz:plugins:eza' 'icons' yes
+zstyle ':omz:plugins:eza' 'dirs-first' yes
+
 # Keybindings
 bindkey -e # Emacs mode
 bindkey '^[[A' history-substring-search-up
