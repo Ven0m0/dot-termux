@@ -75,6 +75,30 @@ export CLICOLOR=1 MICRO_TRUECOLOR=1
 [[ -d "${HOME}/.bin" ]] && export PATH="${HOME}/.bin:${PATH}"
 [[ -d "${HOME}/bin" ]] && export PATH="${HOME}/bin:${PATH}"
 
+: "${LESS_TERMCAP_mb:=$'\e[1;32m'}"
+: "${LESS_TERMCAP_md:=$'\e[1;32m'}"
+: "${LESS_TERMCAP_me:=$'\e[0m'}"
+: "${LESS_TERMCAP_se:=$'\e[0m'}"
+: "${LESS_TERMCAP_so:=$'\e[01;33m'}"
+: "${LESS_TERMCAP_ue:=$'\e[0m'}"
+: "${LESS_TERMCAP_us:=$'\e[1;4;31m'}"
+export "${!LESS_TERMCAP@}"
+export LESSHISTFILE=- LESSCHARSET=utf-8
+export BAT_STYLE=auto LESSQUIET=1
+
+if command -v vivid >/dev/null 2&>1; then
+  export LS_COLORS="$(vivid generate molokai)"
+elif command -v dircolors >/dev/null 2&>1; then
+  eval "$(dircolors -b)" &>/dev/null
+fi
+export MANPAGER="sh -c 'col -bx | bat -lman -ps --squeeze-limit 0'" MANROFFOPT="-c"
+
+export PYTHONOPTIMIZE=2 PYTHON_JIT=1 PYENV_VIRTUALENV_DISABLE_PROMPT=1 PYTHON_COLORS=1 UV_COMPILE_BYTECODE=1
+export ZSTD_NBTHREADS=0 ELECTRON_OZONE_PLATFORM_HINT=auto _JAVA_AWT_WM_NONREPARENTING=1
+
+export FZF_DEFAULT_COMMAND='fd -tf -gH -c always -strip-cwd-prefix -E ".git"'
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+
 # =============================================================================
 # PLUGINS - PRIORITIZED BY STARTUP IMPACT
 # =============================================================================
@@ -157,15 +181,35 @@ bindkey '^[[1;5D' backward-word
 # =============================================================================
 
 # --- Navigation ---
-alias ...='cd ../..'
-alias ..='cd ..'
-alias bd='cd "$OLDPWD"'
+if command -v zoxide >/dev/null 2&>1; then
+  alias ..='z ..'
+  alias ...='z ../..'
+  alias ....='z ../../..'
+  alias .....='z ../../../..'
+  alias ......='z ../../../../..'
+  alias bd='z "$OLDPWD"'
+  alias cd-="z -"
+  alias cd='z'
+else
+  alias ..='cd ..'
+  alias ...='cd ../..'
+  alias ....='cd ../../..'
+  alias .....='cd ../../../..'
+  alias ......='cd ../../../../..'
+  alias bd='cd "$OLDPWD"'
+  alias cd-="cd -"
+  unalias cd
+fi
+alias pip='python -m pip'
 
 # --- File listings ---
 alias ls='eza --icons -F --color=auto --group-directories-first'
 alias la='eza -a --icons -F --color=auto --group-directories-first'
 alias ll='eza -al --icons -F --color=auto --group-directories-first --git'
 alias lt='eza --tree --level=3 --icons -F --color=auto'
+alias which='command -v '
+touchf(){ command mkdir -p -- "$(dirname -- "$1")" && command touch -- "$1"; }
+mkcd(){ mkdir -p -- "$1" && cd -- "$1" || return; }
 
 # --- Git ---
 alias gst='git status'
@@ -185,6 +229,7 @@ alias notify='termux-notification'
 alias bash='SHELL=bash bash'
 alias zsh='SHELL=zsh zsh'
 alias fish='SHELL=fish fish'
+alias cls='clear'
 
 alias e="\$EDITOR"
 alias r='\bat -p'
@@ -193,8 +238,13 @@ alias -g -- -h='-h 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0
 alias -g -- --help='--help 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
 
 h(){ curl cheat.sh/${@:-cheat}; }
-mkcd(){ mkdir -p -- "$1" && cd -- "$1" || return; }
-
+cht(){
+  # join all arguments with '/', so “topic sub topic” → “topic/sub/topic”
+  local query="${*// /\/}"
+  if ! LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/${query}"; then
+    LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/:help"
+  fi
+}
 
 # --- Quick Revancify/Simplify launchers ---
 revancify() {
