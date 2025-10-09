@@ -1,6 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 # Termux Ultra Setup: One-step environment configuration with Zinit and ReVanced tools
-set -euo pipefail 
 
 # --- Configuration ---
 REPO_URL="https://github.com/ven0m0/dot-termux.git"
