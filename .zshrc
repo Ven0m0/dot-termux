@@ -15,6 +15,7 @@ done
 
 # Basic ZSH Settings (Arch Wiki optimized)
 setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS EXTENDED_GLOB GLOB_DOTS NO_BEEP
+setopt PUSHD_SILENT PUSHD_TO_HOME 
 setopt NUMERIC_GLOB_SORT RC_QUOTES AUTOPARAMSLASH INTERACTIVE_COMMENTS
 unsetopt FLOW_CONTROL NOMATCH
 
@@ -29,6 +30,7 @@ DISABLE_UNTRACKED_FILES_DIRTY="true"
 skip_global_compinit=1
 setopt no_global_rcs
 SHELL_SESSIONS_DISABLE=1
+DIRSTACKSIZE=10
 
 # History settings
 HISTSIZE=10000
@@ -205,6 +207,7 @@ else
   alias cd-="cd -"
   unalias cd 2>/dev/null || true
 fi
+alias dirs='dirs -v'
 
 # --- Developer tools ---
 alias pip='python -m pip'
