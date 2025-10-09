@@ -42,3 +42,44 @@ adb shell cmd netpolicy set restrict-background true
 ```sh
 adb shell cmd content_capture destroy sessions
 ```
+
+
+```bash
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# Generate SSH key if not exists
+if [ ! -f ~/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+    echo "SSH key generated at ~/.ssh/id_rsa"
+fi
+
+# ADB shortcuts
+alias adbs='adb shell'
+alias adbd='adb devices'
+alias adbr='adb reboot'
+alias adbw='adb tcpip 5555'
+
+
+# Function to quickly connect to wireless ADB
+adb-connect() {
+    if [ -z "$1" ]; then
+        echo "Usage: adb-connect <device-ip>"
+        return 1
+    fi
+    adb connect $1:5555
+}
+
+# Function to start SSH server
+ssh-start() {
+    sshd
+    echo "SSH server started on port 8022"
+    echo "Connect using: ssh -p 8022 $(whoami)@<device-ip>"
+}
+
+# Function to stop SSH server
+ssh-stop() {
+    pkill sshd
+    echo "SSH server stopped"
+}
+```
