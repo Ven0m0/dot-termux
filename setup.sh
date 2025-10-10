@@ -141,7 +141,10 @@ fi
 zinit light-mode for \
   zdharma-continuum/zinit-annex-bin-gem-node \
   zdharma-continuum/zinit-annex-patch-dl \
-  zdharma-continuum/zinit-annex-rust
+  zdharma-continuum/zinit-annex-rust \
+  zdharma-continuum/zinit-annex-binary-symlink \
+  zinit-zsh/zinit-annex-submods \
+  zdharma-continuum/zinit-annex-linkman \
 
 # Oh-My-Zsh libs (minimal, fast)
 zinit lucid light-mode for \
@@ -152,9 +155,11 @@ zinit lucid light-mode for \
   OMZL::directories.zsh
 
 # Syntax highlighting, completions, auto-suggestions
+zinit wait pack for system-completions
 zinit wait lucid light-mode for \
   atinit"ZINIT[COMPINIT_OPTS]=-C; zpcompinit; zpcdreplay" \
     zdharma-continuum/fast-syntax-highlighting \
+    NorthIsMirror/fast-syntax-highlighting \
   atload"!_zsh_autosuggest_start" \
     zsh-users/zsh-autosuggestions \
   blockf atpull'zinit creinstall -q .' \
@@ -174,6 +179,8 @@ if [[ -d "$PREFIX/share/fzf" ]]; then
     "$PREFIX/share/fzf/key-bindings.zsh" \
     "$PREFIX/share/fzf/completion.zsh"
 fi
+# Fuzzy dotfiles manager
+zinit light kazhala/dotbare
 
 # Additional productivity plugins
 zinit wait lucid light-mode for \
@@ -184,6 +191,47 @@ zinit wait lucid light-mode for \
 # Powerlevel10k theme (instant prompt supported)
 zinit ice depth=1
 zinit light romkatv/powerlevel10k
+
+# TODO: Zinit annexes
+zinit wait pack for ls_colors
+zinit wait pack for system-completions
+
+zi ice \
+    id-as"rust" \
+    wait"0" \
+    lucid \
+    rustup \
+    as"command" \
+    pick"bin/rustc" \
+    atload='export CARGO_HOME=$PWD RUSTUP_HOME=$PWD/rustup'
+zi load zdharma-continuum/null
+
+zi for \
+    atload='
+      [[ ! -f ${ZINIT[COMPLETIONS_DIR]}/_cargo ]] && zi creinstall rust
+      export CARGO_HOME=\$PWD RUSTUP_HOME=$PWD/rustup' \
+    as=null \
+    id-as=rust \
+    lucid \
+    rustup \
+    sbin="bin/*" \
+    wait=1 \
+  zdharma-continuum/null
+
+# Rust stuff
+zinit ice rustup cargo'!E:cargo-update:cargo-binstall'
+zinit load zdharma-continuum/null
+
+# Load the `zsh-autosuggestions' plugin via `autosuggestions' Prezto module
+zinit ice svn submods'zsh-users/zsh-autosuggestions -> external'
+zinit snippet PZTM::autosuggestions
+# Load the`zsh-history-substring-search' plugin via Oh-My-Zsh `history-substring-search' plugin
+zi submods"zsh-users/zsh-history-substring-search -> external" svn for OMZP::history-substring-search
+# Load the`zsh-completions' plugin via Oh-My-Zsh `completion' lib
+zi submods"zsh-users/zsh-completions -> external" for OMZL::completion.zsh
+
+zinit sbin'bin/zsweep' for @psprint/zsh-sweep
+
 ZINIT_EOF
     log "Zinit configuration created at $zshrc_zinit_section"
   fi
