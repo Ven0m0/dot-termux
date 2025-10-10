@@ -50,3 +50,10 @@ fd -e jpg -e jpeg -e png -e webp ${1:-.} | ~/bin/opt-im.sh
 
 - https://xdaforums.com/t/mod-no-root-supershell-adb-shell-over-mobile-data.4706512/
 - https://gist.github.com/kairusds/1d4e32d3cf0d6ca44dc126c1a383a48d
+
+```sh
+adb tcpip 5555
+IP=`adb shell ip route | awk '{print $9}'`
+adb connect "$IP":5555
+# adb pair "$IP":5555
+```
