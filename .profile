@@ -5,8 +5,7 @@ export PATH="$PATH:/data/data/com.termux/files/home/.local/bin:/data/data/com.te
 # Shizuku environment
 [ -f ~/.shizuku_env ] && source ~/.shizuku_env
 export PATH=$PATH:~/bin
-
-/data/data/com.termux/files/home/.cargo/bin
+export PATH=/data/data/com.termux/files/home/.cargo/bin:~/bin
 
 export DEBIAN_FRONTEND=noninteractive
 export LANG=C.UTF-8 LANGUAGE=C.UTF-8
