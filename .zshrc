@@ -2,9 +2,11 @@
 # ~/.zshrc - Optimized for Termux with Zinit
 # =============================================================================
 
-# Enable Zsh compiler for faster startup (Arch Wiki recommended)
-zmodload zsh/zcompiler
-autoload -Uz zrecompile
+autoload -Uz compinit zrecompile
+zrecompile -pq ~/.zshrc ~/.zshenv 2>/dev/null || {
+  zcompile ~/.zshrc 2>/dev/null || true
+  zcompile ~/.zshenv 2>/dev/null || true
+}
 
 # Only recompile if needed (check modification time)
 for file in "$HOME/.zshrc" "$HOME/.zshenv" "$HOME/.zprofile"; do
