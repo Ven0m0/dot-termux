@@ -15,6 +15,9 @@ for file in "$HOME/.zshrc" "$HOME/.zshenv" "$HOME/.zprofile"; do
   fi
 done
 
+# TODO:
+autoload -Uz async && async
+
 # Basic ZSH Settings (Arch Wiki optimized)
 setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS EXTENDED_GLOB GLOB_DOTS NO_BEEP
 setopt PUSHD_SILENT PUSHD_TO_HOME 
