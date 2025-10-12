@@ -25,7 +25,6 @@ autoload -Uz async && async
 setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS EXTENDED_GLOB GLOB_DOTS NO_BEEP
 setopt PUSHD_SILENT PUSHD_TO_HOME 
 setopt NUMERIC_GLOB_SORT RC_QUOTES AUTOPARAMSLASH INTERACTIVE_COMMENTS
-unsetopt FLOW_CONTROL NOMATCH
 
 # History optimization (from Arch Wiki)
 setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS INC_APPEND_HISTORY EXTENDED_HISTORY
@@ -51,13 +50,11 @@ HISTCONTROL="erasedups:ignoreboth"
 # =============================================================================
 # ZINIT SETUP - ULTRA FAST PLUGIN MANAGER
 # =============================================================================
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+[ ! -d $ZINIT_HOME ] && mkdir -p "$(dirname $ZINIT_HOME)"
+[ ! -d $ZINIT_HOME/.git ] && git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+source "${ZINIT_HOME}/zinit.zsh"
 
-ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit"
-if [[ ! -f $ZINIT_HOME/zinit.git/zinit.zsh ]]; then
-    command mkdir -p "$ZINIT_HOME"
-    command git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME/zinit.git"
-fi
-source "$ZINIT_HOME/zinit.git/zinit.zsh"
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
 
@@ -133,7 +130,11 @@ zinit wait lucid light-mode for \
 
 # --- Powerlevel10k Prompt (loads instantly) ---
 zinit ice depth=1
-zinit light romkatv/powerlevel10k
+# zinit light romkatv/powerlevel10k
+zinit ice as"command" from"gh-r" \
+          atclone"./starship init zsh > init.zsh; ./starship completions zsh > _starship" \
+          atpull"%atclone" src"init.zsh"
+zinit light starship/starship
 
 # --- Utilities (deferred loading) ---
 zinit wait lucid for \
@@ -141,11 +142,7 @@ zinit wait lucid for \
     hl2b/zsh-autopair
 
 # --- Zoxide (smarter cd command) ---
-zinit wait'0' lucid as'program' from'gh-r' for \
-    ajeetdsouza/zoxide
-if command -v zoxide >/dev/null 2>&1; then
-    eval "$(zoxide init zsh)"
-fi
+zinit wait'0' lucid as'program' from'gh-r' for ajeetdsouza/zoxide
 
 # --- FZF Tab Completions ---
 zinit ice lucid wait'0'
