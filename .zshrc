@@ -1,8 +1,8 @@
 # =============================================================================
 # ~/.zshrc - Optimized for Termux with Zinit
 # =============================================================================
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}"
 fi
 
 autoload -Uz compinit zrecompile
@@ -17,9 +17,6 @@ for file in "$HOME/.zshrc" "$HOME/.zshenv" "$HOME/.zprofile"; do
     zrecompile -q -p "$file"
   fi
 done
-
-# TODO:
-autoload -Uz async && async
 
 # Basic ZSH Settings (Arch Wiki optimized)
 setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS EXTENDED_GLOB GLOB_DOTS NO_BEEP
@@ -130,11 +127,7 @@ zinit wait lucid light-mode for \
 
 # --- Powerlevel10k Prompt (loads instantly) ---
 zinit ice depth=1
-# zinit light romkatv/powerlevel10k
-zinit ice as"command" from"gh-r" \
-          atclone"./starship init zsh > init.zsh; ./starship completions zsh > _starship" \
-          atpull"%atclone" src"init.zsh"
-zinit light starship/starship
+zinit light romkatv/powerlevel10k
 
 # --- Utilities (deferred loading) ---
 zinit wait lucid for \
@@ -360,6 +353,30 @@ add-zsh-hook precmd precmd
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
 
+# Additional beneficial additions for optimization and usability
+# Enable command correction for common typos
+setopt CORRECT
+setopt CORRECT_ALL
+
+# Add more efficient history search
+bindkey '^R' history-incremental-pattern-search-backward
+
+# Enhanced PATH additions (ensure no duplicates)
+export PATH="$HOME/.cargo/bin:$HOME/go/bin:$PATH"
+
+# Optional: Add support for additional tools if available
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init zsh)"
+fi
+
+# Integrate atuin for better history if installed
+if command -v atuin >/dev/null 2>&1; then
+  eval "$(atuin init zsh --disable-up-arrow)"
+fi
+
+# Export additional environment variables for better tool integration
+export RIPGREP_CONFIG_PATH="$HOME/.config/ripgreprc"
+export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
 
 export PATH="$PATH:/data/data/com.termux/files/home/.local/bin:/data/data/com.termux/files/home/.local/share/soar/bin"
 
