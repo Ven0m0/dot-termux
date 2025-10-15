@@ -57,3 +57,5 @@ IP=`adb shell ip route | awk '{print $9}'`
 adb connect "$IP":5555
 # adb pair "$IP":5555
 ```
+
+- https://github.com/TechnoIndian/apk-mitm.git
