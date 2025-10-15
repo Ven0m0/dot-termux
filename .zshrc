@@ -212,22 +212,65 @@ zstyle ':completion:*:(ssh|scp|rsync):*:hosts-ipaddr' ignored-patterns '^(<->.<-
 # Ignore completion functions for commands you don't have
 zstyle ':completion:*:functions' ignored-patterns '(_*|pre(cmd|exec))'
 
-# Colorize completions using LS_COLORS
-if (( $+commands[vivid] )); then
-  export LS_COLORS="$(vivid generate molokai)"
-elif (( $+commands[dircolors] )); then
-  eval "$(dircolors -b)" &>/dev/null
-fi
-LS_COLORS=${LS_COLORS:-'di=34:ln=35:so=32:pi=33:ex=31:bd=36;01:cd=33;01:su=31;40;07:sg=36;40;07:tw=32;40;07:ow=33;40;07:'}
-zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
+# --- Developer tools ---
+alias pip='python -m pip'
 
-# FZF tab completion if available
-if (( $+commands[fzf] )); then
-  if [[ -f /usr/share/fzf-tab-completion/zsh/fzf-zsh-completion.sh ]]; then
-    source /usr/share/fzf-tab-completion/zsh/fzf-zsh-completion.sh
-    bindkey '^I' fzf_completion
-  fi
-fi
+# --- File listings ---
+alias ls='eza --icons -F --color=auto --group-directories-first'
+alias la='eza -a --icons -F --color=auto --group-directories-first'
+alias ll='eza -al --icons -F --color=auto --group-directories-first --git'
+alias lt='eza --tree --level=3 --icons -F --color=auto'
+alias which='command -v '
+
+# --- File operations ---
+touchf(){ command mkdir -p -- "$(dirname -- "$1")" && command touch -- "$1"; }
+mkcd(){ mkdir -p -- "$1" && cd -- "$1" || return; }
+
+# --- Suffix aliases (Arch Wiki recommendation) ---
+alias -s {txt,md}="$EDITOR"
+alias -s {jpg,jpeg,png,gif}="termux-share"
+alias -s {zip,gz,tar,bz2,xz}="tar -tvf"
+
+# --- Git ---
+alias gst='git status'
+alias gco='git checkout'
+alias gpl='git pull'
+alias gps='git push'
+alias gclone='git clone --filter=blob:none --depth 1'
+
+# --- Termux ---
+alias reload='termux-reload-settings'
+alias battery='termux-battery-status'
+alias clipboard='termux-clipboard-get'
+alias copy='termux-clipboard-set'
+alias share='termux-share'
+alias notify='termux-notification'
+
+# --- Android Toolkit Shortcuts ---
+alias apk-patch='patch-apk'
+alias clean='quick-clean'
+alias deep='deep-clean'
+alias opt-img='simple-optimize-images'
+alias opt-media='optimize-media'
+alias opt-msg='optimize-messaging-media'
+
+# --- Shell management ---
+alias bash='SHELL=bash bash'
+alias zsh='SHELL=zsh zsh'
+alias fish='SHELL=fish fish'
+alias cls='clear'
+
+# --- Editor and utilities ---
+alias e="\$EDITOR"
+alias r='\bat -p'
+
+# --- Global aliases ---
+alias -g -- -h='-h 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
+alias -g -- --help='--help 2>&1 | bat --language=help --style=plain -s --squeeze-limit 0'
+alias -g L="| ${PAGER:-less}"
+alias -g G="| rg -i"
+alias -g NE="2>/dev/null"
+alias -g NUL=">/dev/null 2>&1"
 
 # =========================================================
 # UTILITY FUNCTIONS
@@ -240,34 +283,209 @@ mkcd() {
   mkdir -p -- "$1" && cd -- "$1" || return
 }
 
-# Extract various archive formats
-extract() {
-  if [[ -f "$1" ]]; then
-    case "$1" in
-      *.tar.bz2|*.tbz2) tar -xjf "$1" ;;
-      *.tar.gz|*.tgz) tar -xzf "$1" ;;
-      *.tar.xz|*.txz) tar -xJf "$1" ;;
-      *.tar) tar -xf "$1" ;;
-      *.bz2) bunzip2 "$1" ;;
-      *.gz) gunzip "$1" ;;
-      *.zip) unzip "$1" ;;
-      *.rar) unrar x "$1" ;;
-      *.Z) uncompress "$1" ;;
-      *.7z) 7z x "$1" ;;
-      *) echo "Unknown archive format: $1" ;;
-    esac
+# =============================================================================
+# ANDROID TOOLKIT - APK PATCHING, CLEANING & MEDIA OPTIMIZATION
+# =============================================================================
+
+# --- APK Patching Functions ---
+# Interactive APK patcher menu
+patch-apk() {
+  if command -v revanced-helper >/dev/null 2>&1; then
+    revanced-helper
+  elif [[ -f "$HOME/bin/revanced-helper.sh" ]]; then
+    bash "$HOME/bin/revanced-helper.sh"
+  else
+    echo "🔧 ReVanced helper not found. Setting up..."
+    if [[ -f ~/dot-termux/bin/revanced-helper.sh ]]; then
+      ln -sf ~/dot-termux/bin/revanced-helper.sh ~/bin/revanced-helper
+      chmod +x ~/dot-termux/bin/revanced-helper.sh
+      revanced-helper
+    else
+      echo "❌ Please run setup.sh first to install required tools"
+    fi
+  fi
+}
+
+# Quick launchers for specific patchers
+revancify() {
+  if [[ ! -d "$HOME/revancify-xisr" ]]; then
+    echo "📦 Installing Revancify-Xisr..."
+    curl -sL https://github.com/Xisrr1/Revancify-Xisr/raw/main/install.sh | bash
   else
     echo "File does not exist: $1"
   fi
 }
 
-# Find and cd with fzf
-fcd() {
-  local dir
-  dir=$(find "${1:-.}" -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf --preview 'eza --tree --color=always {}' ) &&
-  cd "$dir" || return
+simplify() {
+  if [[ ! -f "$HOME/.Simplify.sh" ]]; then
+    echo "📦 Installing Simplify..."
+    curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh"
+  fi
+  bash "$HOME/.Simplify.sh"
 }
 
+# --- Android Filesystem Cleaning Functions ---
+# Comprehensive Android cleaner
+android-clean() {
+  if command -v termux-cleaner >/dev/null 2>&1; then
+    termux-cleaner "$@"
+  elif [[ -f "$HOME/bin/termux-cleaner.sh" ]]; then
+    bash "$HOME/bin/termux-cleaner.sh" "$@"
+  else
+    echo "🧹 Termux cleaner not found. Using built-in clean function..."
+    termux-clean
+  fi
+}
+
+# Quick clean with common options
+quick-clean() {
+  echo "🧹 Running quick Android cleanup..."
+  
+  # Clean Termux packages
+  echo "📦 Cleaning package cache..."
+  pkg clean && pkg autoclean
+  apt clean && apt autoclean && apt-get -y autoremove --purge 2>/dev/null
+  
+  # Clean shell cache
+  echo "🐚 Cleaning shell cache..."
+  rm -f "$HOME"/.zcompdump* 2>/dev/null
+  rm -f "$HOME"/.zinit/trash/* 2>/dev/null
+  rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}"/.zcompdump* 2>/dev/null
+  
+  # Clean empty directories and log files
+  echo "📁 Cleaning empty directories and logs..."
+  find "$HOME" -type d -empty -delete 2>/dev/null || true
+  find "$HOME" -type f -name "*.log" -mtime +7 -delete 2>/dev/null || true
+  
+  # Run comprehensive cleaner if available
+  if [[ -f "$HOME/bin/termux-cleaner.sh" ]]; then
+    echo "🔧 Running comprehensive cleaner..."
+    bash "$HOME/bin/termux-cleaner.sh" -y
+  fi
+  
+  echo "✅ Quick cleanup complete!"
+}
+
+# Deep clean with WhatsApp/Telegram media
+deep-clean() {
+  echo "🧹 Running deep Android cleanup..."
+  
+  if command -v termux-cleaner >/dev/null 2>&1; then
+    termux-cleaner -y --clean-whatsapp --clean-telegram --clean-system-cache
+  elif [[ -f "$HOME/bin/termux-cleaner.sh" ]]; then
+    bash "$HOME/bin/termux-cleaner.sh" -y
+  else
+    echo "❌ Deep clean requires termux-cleaner.sh"
+    echo "💡 Run: bash ~/dot-termux/setup.sh"
+  fi
+}
+
+# --- Media Optimization Functions ---
+# Optimize media files (images/videos)
+optimize-media() {
+  if command -v termux-media-optimizer >/dev/null 2>&1; then
+    termux-media-optimizer "$@"
+  elif [[ -f "$HOME/bin/termux-media-optimizer.sh" ]]; then
+    bash "$HOME/bin/termux-media-optimizer.sh" "$@"
+  else
+    echo "🖼️  Media optimizer not found. Using simple optimization..."
+    simple-optimize-images "$@"
+  fi
+}
+
+# Simple image optimization using available tools
+simple-optimize-images() {
+  local target_dir="${1:-.}"
+  
+  if ! command -v fd >/dev/null 2>&1; then
+    echo "❌ fd not installed. Install with: pkg install fd"
+    return 1
+  fi
+  
+  echo "🖼️  Optimizing images in: $target_dir"
+  
+  if command -v cwebp >/dev/null 2>&1; then
+    echo "Converting images to WebP..."
+    fd -e jpg -e jpeg -e png . "$target_dir" -x sh -c 'cwebp -quiet -q 80 -metadata none "{}" -o "{.}.webp" && echo "✓ {}"'
+  elif command -v jpegoptim >/dev/null 2>&1 || command -v optipng >/dev/null 2>&1; then
+    echo "Optimizing images in-place..."
+    if command -v jpegoptim >/dev/null 2>&1; then
+      fd -e jpg -e jpeg . "$target_dir" -x jpegoptim --strip-all --quiet '{}'
+    fi
+    if command -v optipng >/dev/null 2>&1; then
+      fd -e png . "$target_dir" -x optipng -quiet -o2 '{}'
+    fi
+  else
+    echo "❌ No optimization tools found. Install with:"
+    echo "   pkg install libwebp jpegoptim optipng"
+    return 1
+  fi
+  
+  echo "✅ Image optimization complete!"
+}
+
+# Re-encode videos for better compression
+reencode-video() {
+  local input="$1"
+  local output="${2:-${input%.*}_optimized.mp4}"
+  
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    echo "❌ ffmpeg not installed. Install with: pkg install ffmpeg"
+    return 1
+  fi
+  
+  if [[ ! -f "$input" ]]; then
+    echo "❌ Input file not found: $input"
+    return 1
+  fi
+  
+  echo "🎬 Re-encoding video: $input"
+  echo "   Output: $output"
+  
+  ffmpeg -i "$input" -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k "$output"
+  
+  if [[ -f "$output" ]]; then
+    local old_size=$(stat -f%z "$input" 2>/dev/null || stat -c%s "$input")
+    local new_size=$(stat -f%z "$output" 2>/dev/null || stat -c%s "$output")
+    local saved=$((old_size - new_size))
+    local percent=$((saved * 100 / old_size))
+    echo "✅ Re-encoding complete!"
+    echo "   Original: $(numfmt --to=iec-i --suffix=B $old_size 2>/dev/null || echo $old_size bytes)"
+    echo "   Optimized: $(numfmt --to=iec-i --suffix=B $new_size 2>/dev/null || echo $new_size bytes)"
+    echo "   Saved: ${percent}%"
+  fi
+}
+
+# Batch optimize media in WhatsApp/Telegram folders
+optimize-messaging-media() {
+  local storage_dir="${HOME}/storage/shared"
+  
+  if [[ ! -d "$storage_dir" ]]; then
+    echo "📱 Setting up storage access..."
+    termux-setup-storage
+    sleep 2
+  fi
+  
+  echo "🖼️  Optimizing messaging app media..."
+  
+  local -a media_dirs=(
+    "$storage_dir/WhatsApp/Media/WhatsApp Images"
+    "$storage_dir/WhatsApp/Media/WhatsApp Video"
+    "$storage_dir/Telegram/Telegram Images"
+    "$storage_dir/Telegram/Telegram Video"
+  )
+  
+  for dir in "${media_dirs[@]}"; do
+    if [[ -d "$dir" ]]; then
+      echo "Processing: $dir"
+      simple-optimize-images "$dir"
+    fi
+  done
+  
+  echo "✅ Messaging media optimization complete!"
+}
+
+# --- Utility functions ---
 # Search and edit file with fzf
 fe() {
   local files
@@ -297,9 +515,58 @@ prepend-sudo() {
 }
 zle -N prepend-sudo
 
-# Find and kill processes by name
-pskill() {
-  ps aux | grep "$1" | grep -v grep | awk '{print $2}' | xargs kill
+# --- Help/Documentation ---
+android-help() {
+  cat <<'EOF'
+╔══════════════════════════════════════════════════════════════╗
+║           TERMUX ANDROID TOOLKIT - QUICK REFERENCE           ║
+╚══════════════════════════════════════════════════════════════╝
+
+📦 APK PATCHING:
+  patch-apk         Interactive APK patcher (ReVanced)
+  apk-patch         Alias for patch-apk
+  revancify         Launch Revancify-Xisr tool
+  simplify          Launch Simplify patcher
+
+🧹 FILESYSTEM CLEANING:
+  clean             Quick clean (packages, cache, logs)
+  quick-clean       Same as clean
+  deep              Deep clean (includes WhatsApp, Telegram)
+  deep-clean        Same as deep
+  android-clean     Comprehensive Android cleaner (with options)
+  termux-clean      Basic Termux cleanup
+
+🖼️  MEDIA OPTIMIZATION:
+  opt-img [dir]     Optimize images in directory (WebP conversion)
+  opt-media [opts]  Full media optimizer with all features
+  opt-msg           Optimize WhatsApp/Telegram media
+  optimize-media    Same as opt-media
+  reencode-video    Re-encode video for better compression
+
+📝 EXAMPLES:
+  # Patch an APK
+  patch-apk
+  
+  # Clean system
+  clean              # Quick clean
+  deep               # Deep clean with media
+  
+  # Optimize images
+  opt-img ~/storage/shared/DCIM/Camera
+  opt-msg            # Optimize messaging apps
+  
+  # Re-encode video
+  reencode-video input.mp4 output.mp4
+
+💡 TIP: Run 'android-help' anytime to see this help message.
+EOF
+}
+
+# --- Precmd hook ---
+autoload -Uz add-zsh-hook
+precmd() {
+  # Update terminal title
+  print -Pn "\e]0;%n@%m: %~\a"
 }
 
 # =========================================================

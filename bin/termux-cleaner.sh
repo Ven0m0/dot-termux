@@ -269,4 +269,67 @@ clean_telegram_media() {
       else
         # Use find to delete files older than 30 days
         find "$path" -type f -mtime +30 -delete 2>/dev/null || log "Failed to clean $path"
-      
+      fi
+    fi
+  done
+}
+
+# ----------------------------------------------------------------------
+# Main function
+# ----------------------------------------------------------------------
+main() {
+  log "Starting Termux Cleaner"
+  check_tools
+  
+  # Parse options (if any were passed)
+  if confirm "Do you want to clean WhatsApp media?"; then
+    CLEAN_WHATSAPP=1
+  fi
+  
+  if confirm "Do you want to clean Telegram media?"; then
+    CLEAN_TELEGRAM=1
+  fi
+  
+  if confirm "Do you want to clean system cache?"; then
+    CLEAN_SYSTEM_CACHE=1
+  fi
+  
+  # Perform cleaning operations
+  if [[ $CLEAN_WHATSAPP -eq 1 ]]; then
+    clean_whatsapp_media
+  fi
+  
+  if [[ $CLEAN_TELEGRAM -eq 1 ]]; then
+    clean_telegram_media
+  fi
+  
+  if [[ $CLEAN_SYSTEM_CACHE -eq 1 ]]; then
+    clean_system_cache
+  fi
+  
+  log "Cleaning complete"
+}
+
+# Parse command-line arguments
+while getopts "ynswhd" opt; do
+  case "$opt" in
+    y) ASSUME_YES=1 ;;
+    n) DRY_RUN=1 ;;
+    s) CLEAN_SYSTEM_CACHE=1 ;;
+    w) CLEAN_WHATSAPP=1 ;;
+    d) CLEAN_DOWNLOADS=1 ;;
+    h|*)
+      echo "Usage: $0 [-y] [-n] [-s] [-w] [-d]"
+      echo "  -y  Assume yes to all prompts"
+      echo "  -n  Dry run (don't actually delete files)"
+      echo "  -s  Clean system cache"
+      echo "  -w  Clean WhatsApp media"
+      echo "  -d  Clean downloads"
+      echo "  -h  Show this help"
+      exit 0
+      ;;
+  esac
+done
+
+# Run main function
+main

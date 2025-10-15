@@ -3,21 +3,6 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# Todo:
-# adb shell am start -n com.termux/.HomeActivity || adb shell am start -n com.termux/.app.TermuxActivity
-# adb shell input text 'termux-setup-storage'
-# adb shell input keyevent ENTER
-# adb shell input keyevent ENTER
-# adb shell input text 'bash'
-# adb shell input keyevent SPACE
-# apt update && yes | apt upgrade && apt update
-# chsh -s zsh
-# 
-# pkg in -y apt-file && apt-file update
-# mkdir -p $HOME/bin
-# mkdir -p $HOME/.local/bin
-
-
 # --- Configuration ---
 declare -r REPO_URL="https://github.com/ven0m0/dot-termux.git"
 declare -r REPO_PATH="$HOME/dot-termux"
@@ -166,13 +151,20 @@ install_apk_sh() {
 }
 
 setup_revanced_tools() {
-  print_step "Setting up ReVanced tools (background process)"
+  print_step "Setting up ReVanced tools"
   mkdir -p "$HOME/bin"
   
+  # Link the already available revanced-helper.sh from repo
+  if [[ -f "$REPO_PATH/bin/revanced-helper.sh" ]]; then
+    ln -sf "$REPO_PATH/bin/revanced-helper.sh" "$HOME/bin/revanced-helper"
+    chmod +x "$REPO_PATH/bin/revanced-helper.sh"
+    log "ReVanced helper script linked"
+  fi
+  
+  # Install additional tools in background
   local -a tools=(
     "Revancify-Xisr|https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh|revancify-xisr"
     "Simplify|https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh|simplify"
-    "RVX-Builder|https://raw.githubusercontent.com/inotia00/rvx-builder/revanced-extended/android-interface.sh|rvx-builder"
   )
   
   for tool_info in "${tools[@]}"; do
@@ -182,23 +174,26 @@ setup_revanced_tools() {
       log "Installing $name..."
       case "$name" in
         "Revancify-Xisr")
-          curl -sL "$url" | bash >/dev/null 2>&1
-          [[ -d "$HOME/revancify-xisr" ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1
+          if ! curl -sL "$url" | bash >/dev/null 2>&1; then
+            log "Warning: $name installation failed"
+          elif [[ -d "$HOME/revancify-xisr" ]]; then
+            ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/$cmd_name" 2>/dev/null
+          fi
           ;;
         "Simplify")
-          curl -sL -o "$HOME/.Simplify.sh" "$url" && ln -sf "$HOME/.Simplify.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1
-          ;;
-        "RVX-Builder")
-          curl -sL -o "$HOME/bin/rvx-builder.sh" "$url" && chmod +x "$HOME/bin/rvx-builder.sh" && 
-            ln -sf "$HOME/bin/rvx-builder.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1
+          if curl -sL -o "$HOME/.Simplify.sh" "$url" 2>/dev/null; then
+            ln -sf "$HOME/.Simplify.sh" "$HOME/bin/$cmd_name" 2>/dev/null
+          else
+            log "Warning: $name installation failed"
+          fi
           ;;
       esac
       log "$name installation complete"
     ) &
   done
   
-  { log "Installing X-CMD..."; curl -fsSL https://get.x-cmd.com | bash >/dev/null 2>&1; log "X-CMD installation complete"; } &
-  { log "Installing SOAR..."; curl -fsSL https://soar.qaidvoid.dev/install.sh | sh >/dev/null 2>&1; log "SOAR installation complete"; } &
+  { log "Installing X-CMD..."; curl -fsSL https://get.x-cmd.com | bash >/dev/null 2>&1 && log "X-CMD installed" || log "X-CMD installation failed"; } &
+  { log "Installing SOAR..."; curl -fsSL https://soar.qaidvoid.dev/install.sh | sh >/dev/null 2>&1 && log "SOAR installed" || log "SOAR installation failed"; } &
   
   log "ReVanced tools installation started in background"
 }
@@ -309,6 +304,17 @@ main() {
   for item in "${dotfiles[@]}"; do
     IFS=":" read -r src tgt <<<"$item"
     symlink_dotfile "$src" "$tgt"
+  done
+  
+  print_step "Linking utility scripts"
+  mkdir -p "$HOME/bin"
+  for script in "$REPO_PATH/bin"/*.sh; do
+    [[ -f "$script" ]] || continue
+    local script_name
+    script_name=$(basename "$script" .sh)
+    ln -sf "$script" "$HOME/bin/$script_name"
+    chmod +x "$script"
+    log "Linked $script_name"
   done
   
   setup_adb_rish
