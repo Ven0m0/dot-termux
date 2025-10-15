@@ -3,6 +3,21 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# Todo:
+# adb shell am start -n com.termux/.HomeActivity || adb shell am start -n com.termux/.app.TermuxActivity
+# adb shell input text 'termux-setup-storage'
+# adb shell input keyevent ENTER
+# adb shell input keyevent ENTER
+# adb shell input text 'bash'
+# adb shell input keyevent SPACE
+# apt update && yes | apt upgrade && apt update
+# chsh -s zsh
+# 
+# pkg in -y apt-file && apt-file update
+# mkdir -p $HOME/bin
+# mkdir -p $HOME/.local/bin
+
+
 # --- Configuration ---
 declare -r REPO_URL="https://github.com/ven0m0/dot-termux.git"
 declare -r REPO_PATH="$HOME/dot-termux"
