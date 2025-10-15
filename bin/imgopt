@@ -1,0 +1,326 @@
+#!/data/data/com.termux/files/usr/bin/env bash
+# imgopt - Efficient image optimizer and converter for Termux
+# Usage: imgopt [options] file1 [file2...]
+
+set -euo pipefail
+IFS=$'\n\t'
+
+# Check dependencies
+check_deps() {
+  local missing=()
+  for cmd in pngquant optipng jpegoptim cwebp; do
+    command -v "$cmd" &>/dev/null || missing+=("$cmd")
+  done
+  
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf "📦 Missing dependencies: %s\n" "${missing[*]}"
+    printf "Install with: pkg install pngquant optipng jpegoptim libwebp\n"
+    return 1
+  fi
+  return 0
+}
+
+# Show help
+show_help() {
+  cat <<EOF
+📷 imgopt - Efficient image optimizer for Termux
+
+Usage: imgopt [options] file1 [file2...]
+
+Options:
+  -k, --keep-ext      Keep original file extension
+  -c, --convert-to    Convert to format (png, jpg, webp, avif)
+  -q, --quality       Quality setting (1-100, default: 80)
+  -o, --output-dir    Output directory (default: same as input)
+  -i, --interactive   Interactive mode with previews
+  -b, --batch         Process all matching images in directory
+  -h, --help          Show this help message
+
+Examples:
+  imgopt image.png                      # Optimize in-place
+  imgopt -c webp photo.jpg              # Convert to WebP
+  imgopt -k -c webp image.png           # Convert but keep .png extension
+  imgopt -q 90 -o ~/optimized/ *.jpg    # Batch optimize with quality 90
+  imgopt -b -c webp ~/Pictures          # Convert all images in directory to WebP
+EOF
+}
+
+# Format bytes to human-readable
+format_bytes() {
+  local bytes=$1
+  if command -v numfmt &>/dev/null; then
+    numfmt --to=iec-i --suffix=B "$bytes"
+  else
+    if (( bytes < 1024 )); then
+      echo "${bytes}B"
+    elif (( bytes < 1048576 )); then
+      echo "$(( bytes / 1024 ))KiB"
+    else
+      echo "$(( bytes / 1048576 ))MiB"
+    fi
+  fi
+}
+
+# Main function
+main() {
+  # Check dependencies
+  check_deps || exit 1
+  
+  # Parse arguments
+  local keep_ext=0 convert_to="" quality=80 input_files=() output_dir=""
+  local interactive=0 batch=0
+  
+  while (( $# > 0 )); do
+    case "$1" in
+      -k|--keep-ext)
+        keep_ext=1
+        shift
+        ;;
+      -c|--convert-to)
+        shift
+        convert_to="$1"
+        shift
+        ;;
+      -q|--quality)
+        shift
+        quality="$1"
+        shift
+        ;;
+      -o|--output-dir)
+        shift
+        output_dir="$1"
+        shift
+        ;;
+      -i|--interactive)
+        interactive=1
+        shift
+        ;;
+      -b|--batch)
+        batch=1
+        shift
+        ;;
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      -*)
+        echo "⚠️ Unknown option: $1"
+        show_help
+        exit 1
+        ;;
+      *)
+        input_files+=("$1")
+        shift
+        ;;
+    esac
+  done
+  
+  # Handle batch mode
+  if (( batch )); then
+    if (( ${#input_files[@]} == 0 )); then
+      echo "❌ No directory specified for batch mode"
+      exit 1
+    fi
+    
+    local dir="${input_files[0]}"
+    local exts=("-e" "png" "-e" "jpg" "-e" "jpeg" "-e" "webp")
+    local images=()
+    
+    echo "🔍 Finding images in: $dir"
+    if command -v fd &>/dev/null; then
+      mapfile -t images < <(fd "${exts[@]}" . "$dir")
+    else
+      mapfile -t images < <(find "$dir" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \))
+    fi
+    
+    if (( ${#images[@]} == 0 )); then
+      echo "❌ No images found in $dir"
+      exit 1
+    fi
+    
+    echo "📂 Found ${#images[@]} images"
+    echo -n "🔄 Proceed? [Y/n] "
+    read -r reply
+    [[ "$reply" =~ ^[Nn] ]] && exit 0
+    
+    # Replace input_files with found images
+    input_files=("${images[@]}")
+  fi
+  
+  # Check if we have input files
+  if (( ${#input_files[@]} == 0 )); then
+    echo "❌ No input files specified"
+    show_help
+    exit 1
+  fi
+  
+  # Create output directory if specified
+  if [[ -n "$output_dir" ]]; then
+    mkdir -p "$output_dir"
+  fi
+  
+  # Process each file
+  local total_original=0 total_optimized=0
+  
+  for file in "${input_files[@]}"; do
+    if [[ ! -f "$file" ]]; then
+      echo "⚠️ File not found: $file"
+      continue
+    fi
+    
+    local file_ext="${file##*.}"
+    local file_name="${file%.*}"
+    local base_name="${file_name##*/}"
+    local dir_name
+    
+    # Determine output directory
+    if [[ -n "$output_dir" ]]; then
+      dir_name="$output_dir"
+    else
+      dir_name="$(dirname "$file")"
+    fi
+    
+    # Determine target format
+    local target_format="${convert_to:-$file_ext}"
+    local target_ext
+    
+    # Handle keeping extension
+    if (( keep_ext )); then
+      target_ext="$file_ext"
+    else
+      target_ext="$target_format"
+    fi
+    
+    # Determine output filename
+    local output_file="$dir_name/$base_name.opt.$target_ext"
+    local temp_file="$(mktemp -p "${TMPDIR:-/tmp}" XXX.$target_format)"
+    
+    echo "🖼️ Processing: $file"
+    echo "   Format: ${file_ext} → ${target_format}${keep_ext:+ (keeping .$file_ext extension)}"
+    
+    # Get original file size
+    local original_size=$(stat -c %s "$file" 2>/dev/null || stat -f %z "$file" 2>/dev/null)
+    total_original=$((total_original + original_size))
+    
+    # Interactive preview if requested
+    if (( interactive )) && command -v termux-share &>/dev/null; then
+      echo "📱 Showing preview of original image"
+      termux-share "$file" &>/dev/null || true
+      echo -n "📊 Continue optimization? [Y/n] "
+      read -r reply
+      [[ "$reply" =~ ^[Nn] ]] && continue
+    fi
+    
+    # Convert/optimize based on target format
+    case "$target_format" in
+      png)
+        # For PNG output
+        if [[ "$file_ext" == "png" ]]; then
+          # Optimize existing PNG
+          pngquant --quality=65-$quality --strip --speed 1 --force "$file" --output "$temp_file"
+          optipng -quiet -o2 "$temp_file"
+        else
+          # Convert to PNG first
+          if command -v convert &>/dev/null; then
+            convert "$file" png:"$temp_file"
+          else
+            ffmpeg -loglevel error -i "$file" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "$temp_file"
+          fi
+          pngquant --quality=65-$quality --strip --speed 1 --force "$temp_file" --output "${temp_file%.png}.opt.png"
+          mv "${temp_file%.png}.opt.png" "$temp_file"
+          optipng -quiet -o2 "$temp_file"
+        fi
+        ;;
+        
+      jpg|jpeg)
+        # For JPEG output
+        if [[ "$file_ext" == "jpg" || "$file_ext" == "jpeg" ]]; then
+          # Optimize existing JPEG
+          jpegoptim --max=$quality --strip-all --stdout "$file" > "$temp_file"
+        else
+          # Convert to JPEG
+          if command -v convert &>/dev/null; then
+            convert "$file" -quality "$quality" -strip jpg:"$temp_file"
+          else
+            ffmpeg -loglevel error -i "$file" -q:v "$((31 - quality/3))" "$temp_file"
+          fi
+        fi
+        ;;
+        
+      webp)
+        # For WebP output
+        if command -v cwebp &>/dev/null; then
+          cwebp -quiet -q "$quality" -metadata none -o "$temp_file" "$file"
+        else
+          echo "❌ WebP conversion requires cwebp. Install with: pkg install libwebp"
+          rm -f "$temp_file"
+          continue
+        fi
+        ;;
+        
+      avif)
+        # For AVIF output (requires avifenc)
+        if command -v avifenc &>/dev/null; then
+          avifenc --min 0 --max "$quality" -s 6 -j "$(nproc)" "$file" "$temp_file" 2>/dev/null
+        else
+          echo "❌ AVIF conversion requires avifenc. Install with: pkg install libavif"
+          rm -f "$temp_file"
+          continue
+        fi
+        ;;
+        
+      *)
+        echo "❌ Unsupported output format: $target_format"
+        rm -f "$temp_file"
+        continue
+        ;;
+    esac
+    
+    # Check if temp file exists and has content
+    if [[ ! -s "$temp_file" ]]; then
+      echo "❌ Optimization failed for $file"
+      rm -f "$temp_file"
+      continue
+    fi
+    
+    # Move temp file to final destination
+    mv "$temp_file" "$output_file"
+    
+    # Get optimized file size
+    local optimized_size=$(stat -c %s "$output_file" 2>/dev/null || stat -f %z "$output_file" 2>/dev/null)
+    total_optimized=$((total_optimized + optimized_size))
+    
+    # Calculate savings
+    local saved=$((original_size - optimized_size))
+    local percent=$((saved * 100 / original_size))
+    
+    # Format sizes for display
+    local orig_format=$(format_bytes "$original_size")
+    local opt_format=$(format_bytes "$optimized_size")
+    
+    echo "✅ Saved: ${percent}% (${orig_format} → ${opt_format})"
+    echo "   Output: $output_file"
+    
+    # Interactive preview of result if requested
+    if (( interactive )) && command -v termux-share &>/dev/null; then
+      echo "📱 Showing preview of optimized image"
+      termux-share "$output_file" &>/dev/null || true
+      echo
+    fi
+  done
+  
+  # Show summary if multiple files processed
+  if (( ${#input_files[@]} > 1 )); then
+    local total_saved=$((total_original - total_optimized))
+    local total_percent=$((total_saved * 100 / total_original))
+    local total_orig_fmt=$(format_bytes "$total_original")
+    local total_opt_fmt=$(format_bytes "$total_optimized")
+    
+    echo
+    echo "📊 SUMMARY:"
+    echo "   Files processed: ${#input_files[@]}"
+    echo "   Total savings: ${total_percent}% (${total_orig_fmt} → ${total_opt_fmt})"
+  fi
+}
+
+main "$@"
