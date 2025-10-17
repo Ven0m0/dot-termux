@@ -9,25 +9,16 @@ export LC_ALL=C LANG=C LANGUAGE=C
 SELF="${BASH_SOURCE[0]}"
 SCRIPT_DIR="${SELF%/*}"
 readonly SELF SCRIPT_DIR
-cd -P -- "$SCRIPT_DIR" >/dev/null 2>&1 || true
+cd -P -- "$SCRIPT_DIR" >/dev/null 2>&1 || :
 PATH="$SCRIPT_DIR:$PATH"
 
-# --- Helpers (inline) ---
+# Source common library
+COMMON_LIB="$HOME/.config/bash/common.sh"
+[[ -f $COMMON_LIB ]] && source "$COMMON_LIB"
+
+# --- Helpers (inline for fallback) ---
 has(){ command -v -- "$1" >/dev/null 2>&1; }
-_hint_arch(){ printf 'pacman -S --needed %s\n' "$*"; }
-_hint_deb(){ printf 'sudo apt-get install -y %s\n' "$*"; }
-_hint_termux(){ printf 'pkg install %s\n' "$*"; }
-require_deps(){ local miss=(); for d in "$@"; do has "$d" || miss+=("$d"); done
-  ((${#miss[@]}==0)) && return 0
-  printf 'missing deps: %s\n' "${miss[*]}" >&2
-  printf 'Arch:   %s' "$(_hint_arch "${miss[*]}")" >&2
-  printf 'Debian: %s' "$(_hint_deb "${miss[*]}")" >&2
-  printf 'Termux: %s' "$(_hint_termux "${miss[*]}")" >&2
-  exit 127
-}
-die(){ printf '%s\n' "$*" >&2; exit 1; }
 sleepy(){ read -rt "${1:-1}" -- <> <(:) >/dev/null 2>&1 || :; }
-fcat(){ local -n out=$1; out="$(<"$2")"; }  # nameref for output
 bname(){ local t=${1%${1##*[!/]}}; t=${t##*/}; [[ $2 && $t == *"$2" ]] && t=${t%$2}; printf '%s\n' "${t:-/}"; }
 dname(){ local p=${1:-.}; [[ $p != *[!/]* ]] && { printf '/\n'; return; }; p=${p%${p##*[!/]}}; [[ $p != */* ]] && { printf '.\n'; return; }; p=${p%/*}; p=${p%${p##*[!/]}}; printf '%s\n' "${p:-/}"; }
 match(){ printf '%s\n' "$1" | grep -E -o "$2" >/dev/null 2>&1 || return 1; }
@@ -109,7 +100,7 @@ ifsource(){ [[ -r "$1" ]] && source "$1"; }
 ifsource "$HOME/navita.sh"
 
 # --- Env ---
-prependpath(){ [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]] && PATH="$1${PATH:+:$PATH}"; }
+prependpath(){ [[ -d $1 ]] && [[ :$PATH: != *":$1:"* ]] && PATH="$1${PATH:+:$PATH}"; }
 prependpath "$HOME/.local/bin"
 prependpath "$HOME/.bin"
 prependpath "$HOME/bin"
@@ -161,7 +152,7 @@ export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
 gclone(){ LC_ALL=C git_wrapper clone --progress --filter=blob:none --depth 1 "$@" && command cd "$1"; ls -A; }
 alias pip='python -m pip' py3='python3' py='python'
 
-touchf(){ command mkdir -p -- "$(dirname -- "$1")" && command touch -- "$1"; }
+touchf(){ ensure_dir "$(dirname -- "$1")" && command touch -- "$1"; }
 
 # Eza aliases (consolidated from zshrc)
 if has eza; then
@@ -276,7 +267,7 @@ dedupe_path
 adb-connect(){
   if ! adb devices >/dev/null 2>&1; then exit 1; fi
   local IP="${1:-$(adb shell ip route | awk '{print $9}')}" PORT="${2:-5555}"
-  adb tcpip "$PORT" >/dev/null 2>&1
+  adb tcpip "$PORT" >/dev/null 2>&1 || :
   adb connect "${IP}:${PORT}"
 }
 

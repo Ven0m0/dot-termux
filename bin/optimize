@@ -1,0 +1,514 @@
+#!/usr/bin/env bash
+# optimize - Unified media optimization tool
+# Consolidates media.sh, opt-img.sh, img.sh, and imgopt functionality
+
+set -euo pipefail
+export LC_ALL=C
+
+# Source common library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_LIB="${SCRIPT_DIR}/../.config/bash/common.sh"
+if [[ -f $COMMON_LIB ]]; then
+  source "$COMMON_LIB"
+else
+  printf 'Error: common.sh not found\n' >&2
+  exit 1
+fi
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+readonly IMG_QUALITY=85
+readonly VID_CRF=27
+readonly SUFFIX="_opt"
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+show_help(){
+  cat <<'EOF'
+optimize - Unified media optimization tool
+
+Usage: optimize <command> [options] [files...]
+
+Commands:
+  image       Optimize images (jpg, png, webp, avif)
+  video       Optimize videos (mp4, mkv, mov, webm)
+  audio       Optimize audio files (flac)
+  batch       Batch optimize all media in directory
+  help        Show this help message
+
+Image Options:
+  -q, --quality N     Quality setting (1-100, default: 85)
+  -f, --format FMT    Convert to format (png, jpg, webp, avif)
+  -o, --output DIR    Output directory (default: same as input)
+  -k, --keep-ext      Keep original extension when converting
+  -s, --suffix STR    Output suffix (default: _opt)
+
+Video Options:
+  -c, --crf N         CRF value for video (0-51, default: 27, lower=better)
+  -p, --preset STR    Encoder preset (fast, medium, slow, default: medium)
+  -C, --codec STR     Video codec (libx264, libx265, default: libx265)
+
+Batch Options:
+  -r, --recursive     Process directories recursively
+  -t, --type TYPE     Filter by type (image, video, audio, all)
+
+Examples:
+  optimize image photo.jpg
+  optimize image -q 90 -f webp *.png
+  optimize video -c 25 movie.mp4
+  optimize batch ~/Pictures
+  optimize batch -t image -r ~/media
+
+Supported formats:
+  Images: jpg, jpeg, png, webp, avif
+  Videos: mp4, mkv, mov, webm
+  Audio:  flac
+EOF
+}
+
+# ============================================================================
+# IMAGE OPTIMIZATION
+# ============================================================================
+
+optimize_image(){
+  local file=$1
+  local quality=${2:-$IMG_QUALITY}
+  local format=${3:-}
+  local output_dir=${4:-}
+  local keep_ext=${5:-0}
+  local suffix=${6:-$SUFFIX}
+  
+  [[ ! -f $file ]] && { err "File not found: $file"; return 1; }
+  
+  local ext="${file##*.}"
+  local name="${file%.*}"
+  local base="${name##*/}"
+  local dir="${file%/*}"
+  
+  # Skip already processed files
+  [[ $file == *"$suffix"* ]] && { info "Skipping: $file (already processed)"; return 0; }
+  
+  # Determine output
+  local out_dir="${output_dir:-$dir}"
+  local out_ext="${format:-$ext}"
+  [[ $keep_ext -eq 1 ]] && out_ext="$ext"
+  local out_file="${out_dir}/${base}${suffix}.${out_ext}"
+  
+  ensure_dir "$out_dir"
+  
+  info "Processing: $file"
+  
+  # Check for required tools and optimize
+  case "${ext,,}" in
+    jpg|jpeg)
+      if has jpegoptim; then
+        cp "$file" "$out_file" >/dev/null 2>&1 || :
+        jpegoptim -m"$quality" --strip-all --overwrite "$out_file" >/dev/null 2>&1 || :
+      else
+        err "jpegoptim not installed"
+        return 1
+      fi
+      ;;
+    png)
+      if has optipng && has pngquant; then
+        pngquant --quality=65-"$quality" --strip --speed 1 --force "$file" --output "$out_file" >/dev/null 2>&1 || :
+        optipng -quiet -o2 "$out_file" >/dev/null 2>&1 || :
+      elif has optipng; then
+        cp "$file" "$out_file" >/dev/null 2>&1 || :
+        optipng -o7 -strip all "$out_file" >/dev/null 2>&1 || :
+      else
+        err "optipng not installed"
+        return 1
+      fi
+      ;;
+    webp)
+      if has cwebp; then
+        cwebp -q "$quality" -metadata none "$file" -o "$out_file" >/dev/null 2>&1 || :
+      else
+        err "cwebp not installed (pkg install libwebp)"
+        return 1
+      fi
+      ;;
+    avif)
+      if has avifenc; then
+        avifenc --min 0 --max "$quality" -s 6 -j "$(nproc 2>/dev/null || echo 4)" "$file" "$out_file" >/dev/null 2>&1 || :
+      else
+        err "avifenc not installed (pkg install libavif)"
+        return 1
+      fi
+      ;;
+    *)
+      err "Unsupported image format: $ext"
+      return 1
+      ;;
+  esac
+  
+  # Report savings
+  if [[ -f $out_file ]]; then
+    local orig_size new_size saved percent
+    orig_size=$(stat -c %s "$file" 2>/dev/null || stat -f %z "$file" 2>/dev/null)
+    new_size=$(stat -c %s "$out_file" 2>/dev/null || stat -f %z "$out_file" 2>/dev/null)
+    saved=$((orig_size - new_size))
+    percent=$((saved * 100 / orig_size))
+    info "Saved ${percent}%: $out_file"
+  fi
+}
+
+# ============================================================================
+# VIDEO OPTIMIZATION
+# ============================================================================
+
+optimize_video(){
+  local file=$1
+  local crf=${2:-$VID_CRF}
+  local preset=${3:-medium}
+  local codec=${4:-libx265}
+  local suffix=${5:-$SUFFIX}
+  
+  [[ ! -f $file ]] && { err "File not found: $file"; return 1; }
+  
+  require_deps ffmpeg
+  
+  local ext="${file##*.}"
+  local name="${file%.*}"
+  local out_file="${name}${suffix}.${ext}"
+  
+  [[ $file == *"$suffix"* ]] && { info "Skipping: $file (already processed)"; return 0; }
+  
+  info "Processing video: $file"
+  
+  case "$codec" in
+    libx265)
+      ffmpeg -i "$file" -c:v libx265 -preset "$preset" -crf "$crf" \
+        -c:a copy -tag:v hvc1 -y "$out_file" >/dev/null 2>&1 || :
+      ;;
+    libx264)
+      ffmpeg -i "$file" -c:v libx264 -preset "$preset" -crf "$crf" \
+        -c:a copy -y "$out_file" >/dev/null 2>&1 || :
+      ;;
+    *)
+      err "Unsupported codec: $codec"
+      return 1
+      ;;
+  esac
+  
+  if [[ -f $out_file ]]; then
+    local orig_size new_size saved percent
+    orig_size=$(stat -c %s "$file" 2>/dev/null || stat -f %z "$file" 2>/dev/null)
+    new_size=$(stat -c %s "$out_file" 2>/dev/null || stat -f %z "$out_file" 2>/dev/null)
+    saved=$((orig_size - new_size))
+    percent=$((saved * 100 / orig_size))
+    info "Saved ${percent}%: $out_file"
+  fi
+}
+
+# ============================================================================
+# AUDIO OPTIMIZATION
+# ============================================================================
+
+optimize_audio(){
+  local file=$1
+  local suffix=${2:-$SUFFIX}
+  
+  [[ ! -f $file ]] && { err "File not found: $file"; return 1; }
+  
+  local ext="${file##*.}"
+  local name="${file%.*}"
+  local out_file="${name}${suffix}.${ext}"
+  
+  [[ $file == *"$suffix"* ]] && { info "Skipping: $file (already processed)"; return 0; }
+  
+  info "Processing audio: $file"
+  
+  case "${ext,,}" in
+    flac)
+      if has flaca; then
+        cp "$file" "$out_file" >/dev/null 2>&1 || :
+        flaca --best "$out_file" >/dev/null 2>&1 || :
+      else
+        warn "flaca not installed, copying as-is"
+        cp "$file" "$out_file" >/dev/null 2>&1 || :
+      fi
+      ;;
+    *)
+      warn "Unsupported audio format: $ext"
+      return 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# BATCH OPTIMIZATION
+# ============================================================================
+
+optimize_batch(){
+  local dir=$1
+  local recursive=${2:-0}
+  local type=${3:-all}
+  
+  [[ ! -d $dir ]] && { err "Directory not found: $dir"; return 1; }
+  
+  local -a files=()
+  local -a exts=()
+  
+  case "$type" in
+    image)
+      exts=(-e jpg -e jpeg -e png -e webp -e avif)
+      ;;
+    video)
+      exts=(-e mp4 -e mkv -e mov -e webm)
+      ;;
+    audio)
+      exts=(-e flac)
+      ;;
+    all)
+      exts=(-e jpg -e jpeg -e png -e webp -e avif -e mp4 -e mkv -e mov -e webm -e flac)
+      ;;
+    *)
+      err "Unknown type: $type"
+      return 1
+      ;;
+  esac
+  
+  info "Finding files in: $dir"
+  
+  if has fd; then
+    local depth_flag=""
+    [[ $recursive -eq 0 ]] && depth_flag="-d 1"
+    # shellcheck disable=SC2086
+    mapfile -t files < <(fd -t f $depth_flag "${exts[@]}" . "$dir")
+  else
+    local depth_flag="-maxdepth 1"
+    [[ $recursive -eq 1 ]] && depth_flag=""
+    
+    local find_expr="("
+    local first=1
+    for ext in "${exts[@]}"; do
+      [[ $first -eq 0 ]] && find_expr="$find_expr -o"
+      find_expr="$find_expr -iname '*.$ext'"
+      first=0
+    done
+    find_expr="$find_expr )"
+    
+    # shellcheck disable=SC2086
+    mapfile -t files < <(eval find "$dir" $depth_flag -type f $find_expr)
+  fi
+  
+  [[ ${#files[@]} -eq 0 ]] && { info "No files found"; return 0; }
+  
+  info "Found ${#files[@]} files"
+  
+  for file in "${files[@]}"; do
+    local ext="${file##*.}"
+    case "${ext,,}" in
+      jpg|jpeg|png|webp|avif)
+        optimize_image "$file" "$IMG_QUALITY" "" "" 0 "$SUFFIX"
+        ;;
+      mp4|mkv|mov|webm)
+        optimize_video "$file" "$VID_CRF" "medium" "libx265" "$SUFFIX"
+        ;;
+      flac)
+        optimize_audio "$file" "$SUFFIX"
+        ;;
+      *)
+        warn "Unknown extension: $ext for file: $file"
+        ;;
+    esac
+  done
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+main(){
+  [[ $# -eq 0 ]] && { show_help; exit 0; }
+  
+  local cmd=$1
+  shift
+  
+  case "$cmd" in
+    image)
+      local quality=$IMG_QUALITY
+      local format=""
+      local output_dir=""
+      local keep_ext=0
+      local suffix=$SUFFIX
+      local -a files=()
+      
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -q|--quality)
+            quality=$2
+            shift 2
+            ;;
+          -f|--format)
+            format=$2
+            shift 2
+            ;;
+          -o|--output)
+            output_dir=$2
+            shift 2
+            ;;
+          -k|--keep-ext)
+            keep_ext=1
+            shift
+            ;;
+          -s|--suffix)
+            suffix=$2
+            shift 2
+            ;;
+          -h|--help)
+            show_help
+            exit 0
+            ;;
+          -*)
+            err "Unknown option: $1"
+            exit 1
+            ;;
+          *)
+            files+=("$1")
+            shift
+            ;;
+        esac
+      done
+      
+      [[ ${#files[@]} -eq 0 ]] && { err "No files specified"; exit 1; }
+      
+      for file in "${files[@]}"; do
+        optimize_image "$file" "$quality" "$format" "$output_dir" "$keep_ext" "$suffix"
+      done
+      ;;
+      
+    video)
+      local crf=$VID_CRF
+      local preset="medium"
+      local codec="libx265"
+      local suffix=$SUFFIX
+      local -a files=()
+      
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -c|--crf)
+            crf=$2
+            shift 2
+            ;;
+          -p|--preset)
+            preset=$2
+            shift 2
+            ;;
+          -C|--codec)
+            codec=$2
+            shift 2
+            ;;
+          -s|--suffix)
+            suffix=$2
+            shift 2
+            ;;
+          -h|--help)
+            show_help
+            exit 0
+            ;;
+          -*)
+            err "Unknown option: $1"
+            exit 1
+            ;;
+          *)
+            files+=("$1")
+            shift
+            ;;
+        esac
+      done
+      
+      [[ ${#files[@]} -eq 0 ]] && { err "No files specified"; exit 1; }
+      
+      for file in "${files[@]}"; do
+        optimize_video "$file" "$crf" "$preset" "$codec" "$suffix"
+      done
+      ;;
+      
+    audio)
+      local suffix=$SUFFIX
+      local -a files=()
+      
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -s|--suffix)
+            suffix=$2
+            shift 2
+            ;;
+          -h|--help)
+            show_help
+            exit 0
+            ;;
+          -*)
+            err "Unknown option: $1"
+            exit 1
+            ;;
+          *)
+            files+=("$1")
+            shift
+            ;;
+        esac
+      done
+      
+      [[ ${#files[@]} -eq 0 ]] && { err "No files specified"; exit 1; }
+      
+      for file in "${files[@]}"; do
+        optimize_audio "$file" "$suffix"
+      done
+      ;;
+      
+    batch)
+      local recursive=0
+      local type="all"
+      local dir=""
+      
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -r|--recursive)
+            recursive=1
+            shift
+            ;;
+          -t|--type)
+            type=$2
+            shift 2
+            ;;
+          -h|--help)
+            show_help
+            exit 0
+            ;;
+          -*)
+            err "Unknown option: $1"
+            exit 1
+            ;;
+          *)
+            dir=$1
+            shift
+            ;;
+        esac
+      done
+      
+      [[ -z $dir ]] && { err "No directory specified"; exit 1; }
+      
+      optimize_batch "$dir" "$recursive" "$type"
+      ;;
+      
+    help|--help|-h)
+      show_help
+      exit 0
+      ;;
+      
+    *)
+      err "Unknown command: $cmd"
+      show_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
