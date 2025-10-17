@@ -8,10 +8,12 @@ export LC_ALL=C
 # Source common library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMMON_LIB="${SCRIPT_DIR}/../.config/bash/common.sh"
-[[ -f $COMMON_LIB ]] && source "$COMMON_LIB" || {
+if [[ -f $COMMON_LIB ]]; then
+  source "$COMMON_LIB"
+else
   printf 'Error: common.sh not found\n' >&2
   exit 1
-}
+fi
 
 # ============================================================================
 # CONFIGURATION

@@ -8,10 +8,12 @@ export LC_ALL=C
 # Source common library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMMON_LIB="${SCRIPT_DIR}/../.config/bash/common.sh"
-[[ -f $COMMON_LIB ]] && source "$COMMON_LIB" || {
+if [[ -f $COMMON_LIB ]]; then
+  source "$COMMON_LIB"
+else
   printf 'Error: common.sh not found\n' >&2
   exit 1
-}
+fi
 
 # ============================================================================
 # CONFIGURATION
@@ -277,6 +279,7 @@ optimize_batch(){
   if has fd; then
     local depth_flag=""
     [[ $recursive -eq 0 ]] && depth_flag="-d 1"
+    # shellcheck disable=SC2086
     mapfile -t files < <(fd -t f $depth_flag "${exts[@]}" . "$dir")
   else
     local depth_flag="-maxdepth 1"
@@ -291,6 +294,7 @@ optimize_batch(){
     done
     find_expr="$find_expr )"
     
+    # shellcheck disable=SC2086
     mapfile -t files < <(eval find "$dir" $depth_flag -type f $find_expr)
   fi
   
@@ -309,6 +313,9 @@ optimize_batch(){
         ;;
       flac)
         optimize_audio "$file" "$SUFFIX"
+        ;;
+      *)
+        warn "Unknown extension: $ext for file: $file"
         ;;
     esac
   done
