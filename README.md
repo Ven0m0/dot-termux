@@ -34,19 +34,58 @@ simplify         # Launch Simplify patcher
 
 ### Filesystem Cleaning
 
+**New unified `clean` command** consolidates all cleaning functionality:
+
 ```bash
-clean            # Quick clean (packages, cache, logs)
-deep             # Deep clean (includes WhatsApp, Telegram media)
-android-clean    # Comprehensive Android cleaner with options
+clean -q               # Quick clean (packages, cache, logs)
+clean -d               # Deep clean (includes media, downloads)
+clean -w               # Clean WhatsApp media (files older than 30 days)
+clean -t               # Clean Telegram media (files older than 30 days)
+clean -s               # Clean system cache (requires root/ADB/Shizuku)
+clean -a               # Use ADB for cleaning operations
+clean -n -d            # Dry run of deep clean (preview only)
+clean -q -w -t -y      # Quick clean + WhatsApp + Telegram (no prompts)
+```
+
+Legacy shell function aliases:
+```bash
+clean            # Maps to: clean -q
+deep             # Maps to: clean -d
+android-clean    # Maps to: clean with interactive prompts
 ```
 
 ### Media Optimization
 
+**New unified `optimize` command** with subcommands:
+
 ```bash
-opt-img ~/DCIM                    # Optimize images (WebP conversion)
-opt-media                         # Full media optimizer
-opt-msg                           # Optimize WhatsApp/Telegram media
-reencode-video input.mp4 out.mp4  # Re-encode video for compression
+# Optimize images
+optimize image photo.jpg
+optimize image -q 90 -f webp *.png
+optimize image -o ~/optimized/ *.jpg
+
+# Optimize videos
+optimize video -c 25 movie.mp4
+optimize video --preset fast *.mp4
+
+# Batch optimize directory
+optimize batch ~/Pictures
+optimize batch -t image -r ~/media
+
+# Options:
+#   -q, --quality N     Quality setting (1-100, default: 85)
+#   -f, --format FMT    Convert to format (png, jpg, webp, avif)
+#   -c, --crf N         Video CRF (0-51, default: 27, lower=better)
+#   -r, --recursive     Process directories recursively
+#   -t, --type TYPE     Filter by type (image, video, audio, all)
+```
+
+Legacy shell function aliases:
+```bash
+opt-img ~/DCIM         # Use: optimize batch ~/DCIM
+opt-media              # Use: optimize batch with options
+opt-msg                # Optimize WhatsApp/Telegram media
+reencode-video         # Use: optimize video
 ```
 
 ## 📝 Examples
@@ -56,18 +95,59 @@ reencode-video input.mp4 out.mp4  # Re-encode video for compression
 patch-apk
 
 # Clean your system
-clean              # Quick clean
-deep               # Deep clean with media
+clean -q           # Quick clean
+clean -d           # Deep clean with media
+clean -w -t -y     # Clean WhatsApp and Telegram (no prompts)
 
-# Optimize all images in camera folder
-opt-img ~/storage/shared/DCIM/Camera
+# Optimize images
+optimize image photo.jpg
+optimize image -q 90 -f webp *.png
+optimize batch ~/storage/shared/DCIM/Camera
+
+# Optimize videos
+optimize video -c 25 movie.mp4
+optimize batch -t video ~/Movies
 
 # Optimize messaging app media
 opt-msg
-
-# Re-encode a video
-reencode-video large-video.mp4 optimized.mp4
 ```
+
+## 🏗️ Architecture
+
+### Shared Library
+
+All scripts now use a common library (`.config/bash/common.sh`) providing:
+- Dependency checking functions
+- Logging utilities
+- File operations helpers
+- Path manipulation
+- Tool detection (sd/sed, fd/find)
+- Network helpers
+- String utilities
+
+### Consolidated Scripts
+
+**`bin/optimize`** - Unified media optimization tool
+- Consolidates: `media.sh`, `opt-img.sh`, `img.sh`, `imgopt`
+- Subcommands: `image`, `video`, `audio`, `batch`
+- Supports: jpg, png, webp, avif, mp4, mkv, mov, webm, flac
+
+**`bin/clean`** - Unified cleaning tool
+- Consolidates: `clean.sh`, `termux-cleaner.sh`, `adbcc.sh`
+- Flags: `-q` (quick), `-d` (deep), `-w` (whatsapp), `-t` (telegram), `-a` (adb)
+- Supports: Direct access, Shizuku, ADB, root
+
+### Coding Standards
+
+All scripts follow these standards:
+- 2-space indentation
+- Bash-native idioms (no external dependencies when possible)
+- Nameref for function returns
+- Silent error handling: `>/dev/null 2>&1 || :`
+- Prefer `fd` over `find`, `sd` over `sed` when available
+- `LC_ALL=C` for performance
+- `|| :` instead of `|| true`
+- Function definitions: `func(){}` instead of `func() {}`
 
 ## 🔧 Manual Tools
 
@@ -108,14 +188,21 @@ curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
 
 ### Media Optimization Scripts
 
-The repository includes several helper scripts in the `bin/` directory:
+The repository includes consolidated scripts in the `bin/` directory:
 
-- `termux-media-optimizer.sh` - Comprehensive media optimizer
-- `termux-cleaner.sh` - Android filesystem cleaner
+- `optimize` - **NEW** Unified media optimization tool (replaces media.sh, opt-img.sh, img.sh, imgopt)
+- `clean` - **NEW** Unified cleaning tool (replaces clean.sh, termux-cleaner.sh, adbcc.sh)
+- `termux-media-optimizer.sh` - Legacy comprehensive media optimizer (kept for compatibility)
+- `termux-cleaner.sh` - Legacy Android filesystem cleaner (kept for compatibility)
 - `revanced-helper.sh` - ReVanced APK patcher
-- `opt-img.sh` - Image optimization script
 
-These scripts are automatically linked to `~/bin/` during setup and are wrapped by the interactive shell functions.
+**Migration Guide:**
+- Old: `bash bin/opt-img.sh ~/Pictures` → New: `optimize batch ~/Pictures`
+- Old: `bash bin/clean.sh` → New: `clean -q`
+- Old: `bash bin/termux-cleaner.sh -y` → New: `clean -d -y`
+- Old: Multiple media scripts → New: Single `optimize` command with subcommands
+
+The legacy scripts are retained for backwards compatibility but the new consolidated tools are recommended.
 
 ### ADB over mobile data:
 
