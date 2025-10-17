@@ -94,13 +94,14 @@ else
 fi
 
 test_start "ensure_dir() function"
-TEST_DIR="/tmp/dot-termux-test-$$"
+TEST_DIR="${TMPDIR:-/tmp}/dot-termux-test-$$"
 if ensure_dir "$TEST_DIR" && [[ -d "$TEST_DIR" ]]; then
-  rm -rf "$TEST_DIR"
   test_pass
 else
   test_fail "ensure_dir() function not working"
 fi
+# Cleanup test directory
+rm -rf "$TEST_DIR" >/dev/null 2>&1 || :
 
 test_start "check_deps() function"
 if check_deps bash grep sed; then
