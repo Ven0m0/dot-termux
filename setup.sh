@@ -2,21 +2,32 @@
 # Termux Ultra Setup: One-step environment configuration with Zinit and utilities
 set -euo pipefail
 IFS=$'\n\t'
+export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 
 # --- Configuration ---
 declare -r REPO_URL="https://github.com/ven0m0/dot-termux.git"
 declare -r REPO_PATH="$HOME/dot-termux"
 declare -r LOG_FILE="$HOME/termux_setup_log.txt"
-export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 
 # Colors for output
 declare -r RED="\033[0;31m" GREEN="\033[0;32m" BLUE="\033[0;34m" YELLOW="\033[0;33m" RESET="\033[0m"
 
+# Source common library if available
+COMMON_LIB="${REPO_PATH}/.config/bash/common.sh"
+if [[ -f $COMMON_LIB ]]; then
+  source "$COMMON_LIB"
+else
+  # Fallback functions if common library not yet available
+  has(){ command -v -- "$1" >/dev/null 2>&1; }
+  log(){ printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+  print_step(){ printf '\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n' "$1"; }
+fi
+
 # --- Self-bootstrapping Logic ---
-if [[ "${BASH_SOURCE[0]:-}" != "$0" ]]; then
+if [[ ${BASH_SOURCE[0]:-} != "$0" ]]; then
   echo -e "${BLUE}🚀 Setting up optimized Termux environment...${RESET}"
   pkg up -y && pkg i -y git curl zsh
-  [[ -d "$REPO_PATH" ]] && { 
+  [[ -d $REPO_PATH ]] && { 
     echo -e "${GREEN}📁 Updating existing repository...${RESET}"
     (cd "$REPO_PATH" && git pull)
   } || {
@@ -26,40 +37,46 @@ if [[ "${BASH_SOURCE[0]:-}" != "$0" ]]; then
   exec bash "$REPO_PATH/setup.sh" "$@"
   exit 0
 else
-  [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "-" ]] && 
-    cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 || true
+  [[ -n ${BASH_SOURCE[0]:-} && ${BASH_SOURCE[0]} != "-" ]] && 
+    cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 || :
 fi
 
 # --- Helper Functions ---
-log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
-print_step() { printf "\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n" "$1" | tee -a "$LOG_FILE"; }
-check_internet() {
+check_internet(){
   print_step "Checking internet connection"
-  ping -c 1 google.com >/dev/null 2>&1 || { echo "Error: No internet connection." >&2; exit 1; }
+  if has curl; then
+    curl -s --connect-timeout 3 -o /dev/null http://www.google.com >/dev/null 2>&1 || { err "No internet connection"; exit 1; }
+  elif has ping; then
+    ping -c 1 google.com >/dev/null 2>&1 || { err "No internet connection"; exit 1; }
+  fi
   log "Connection successful"
 }
-symlink_dotfile() {
-  local src="$1" tgt="$2"
-  mkdir -p "$(dirname "$tgt")"
-  [[ -e "$tgt" || -L "$tgt" ]] && { log "Backing up '$tgt' to '${tgt}.bak'"; mv -f "$tgt" "${tgt}.bak"; }
+
+symlink_dotfile(){
+  local src=$1 tgt=$2
+  ensure_dir "$(dirname "$tgt")"
+  [[ -e $tgt || -L $tgt ]] && { log "Backing up '$tgt' to '${tgt}.bak'"; mv -f "$tgt" "${tgt}.bak"; }
   ln -sf "$src" "$tgt"
   log "Linked '$tgt' -> '$src'"
 }
 
-install_jetbrains_mono() {
+install_jetbrains_mono(){
   print_step "Installing JetBrains Mono font"
-  local font_dir="$HOME/.termux" temp_zip url
-  mkdir -p "$font_dir"
-  url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+  local font_dir="$HOME/.termux"
+  ensure_dir "$font_dir"
+  
+  local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
   
   # Try to get latest release URL
   local api_response
-  api_response=$(curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest")
-  if [[ "$api_response" =~ \"browser_download_url\":\ *\"(https://[^\"]+JetBrainsMono[^\"]+\.zip)\" ]]; then
-    url="${BASH_REMATCH[1]}"
-    log "Found JetBrains Mono release: $url"
+  if api_response=$(curl -sL "https://api.github.com/repos/JetBrains/JetBrainsMono/releases/latest"); then
+    if [[ $api_response =~ \"browser_download_url\":\ *\"(https://[^\"]+JetBrainsMono[^\"]+\.zip)\" ]]; then
+      url="${BASH_REMATCH[1]}"
+      log "Found JetBrains Mono release: $url"
+    fi
   fi
 
+  local temp_zip
   temp_zip=$(mktemp)
   curl -sL "$url" -o "$temp_zip" &&
     unzip -jo "$temp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$font_dir" >/dev/null 2>&1 &&
@@ -67,24 +84,24 @@ install_jetbrains_mono() {
     log "JetBrains Mono installed successfully" ||
     log "Font installation failed"
     
-  termux-reload-settings >/dev/null 2>&1 || true
+  has termux-reload-settings && termux-reload-settings >/dev/null 2>&1 || :
   rm -f "$temp_zip"
 }
 
-setup_zinit() {
+setup_zinit(){
   print_step "Setting up Zinit plugin manager"
   local zinit_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zinit"
   local zinit_git="$zinit_dir/zinit.git"
   
-  [[ ! -d "$zinit_git" ]] && {
-    mkdir -p "$zinit_dir"
+  if [[ ! -d $zinit_git ]]; then
+    ensure_dir "$zinit_dir"
     git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$zinit_git" >/dev/null 2>&1 &&
       log "Zinit installed at $zinit_git" ||
       log "Zinit installation failed"
-  } || {
-    (cd "$zinit_git" && git pull >/dev/null 2>&1)
+  else
+    (cd "$zinit_git" && git pull >/dev/null 2>&1) || :
     log "Zinit updated"
-  }
+  fi
 
   # Create zinit config snippet
   local zshrc_zinit="$HOME/.zshrc.zinit"
@@ -140,22 +157,22 @@ EOF
   log "Zinit config created at $zshrc_zinit"
 }
 
-install_apk_sh() {
+install_apk_sh(){
   print_step "Installing apk.sh to ~/bin"
   local apk_bin="$HOME/bin/apk.sh"
-  mkdir -p "$HOME/bin"
+  ensure_dir "$HOME/bin"
   curl -fsSL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$apk_bin" &&
     chmod +x "$apk_bin" &&
     log "apk.sh installed at $apk_bin" ||
     log "apk.sh installation failed"
 }
 
-setup_revanced_tools() {
+setup_revanced_tools(){
   print_step "Setting up ReVanced tools"
-  mkdir -p "$HOME/bin"
+  ensure_dir "$HOME/bin"
   
   # Link the already available revanced-helper.sh from repo
-  if [[ -f "$REPO_PATH/bin/revanced-helper.sh" ]]; then
+  if [[ -f $REPO_PATH/bin/revanced-helper.sh ]]; then
     ln -sf "$REPO_PATH/bin/revanced-helper.sh" "$HOME/bin/revanced-helper"
     chmod +x "$REPO_PATH/bin/revanced-helper.sh"
     log "ReVanced helper script linked"
@@ -176,13 +193,13 @@ setup_revanced_tools() {
         "Revancify-Xisr")
           if ! curl -sL "$url" | bash >/dev/null 2>&1; then
             log "Warning: $name installation failed"
-          elif [[ -d "$HOME/revancify-xisr" ]]; then
-            ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/$cmd_name" 2>/dev/null
+          elif [[ -d $HOME/revancify-xisr ]]; then
+            ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1 || :
           fi
           ;;
         "Simplify")
-          if curl -sL -o "$HOME/.Simplify.sh" "$url" 2>/dev/null; then
-            ln -sf "$HOME/.Simplify.sh" "$HOME/bin/$cmd_name" 2>/dev/null
+          if curl -sL -o "$HOME/.Simplify.sh" "$url" >/dev/null 2>&1; then
+            ln -sf "$HOME/.Simplify.sh" "$HOME/bin/$cmd_name" >/dev/null 2>&1 || :
           else
             log "Warning: $name installation failed"
           fi
@@ -226,14 +243,14 @@ EOF
   log "Welcome message created"
 }
 
-optimize_zsh() {
+optimize_zsh(){
   print_step "Optimizing Zsh performance"
   zsh -c '
     autoload -Uz zrecompile
     for f in ~/.zshrc ~/.zshenv ~/.zshrc.zinit ~/.p10k.zsh; do
-      [[ -f "$f" ]] && zrecompile -pq "$f" >/dev/null 2>&1 || true
+      [[ -f "$f" ]] && zrecompile -pq "$f" >/dev/null 2>&1 || :
     done
-  ' >/dev/null 2>&1 || true
+  ' >/dev/null 2>&1 || :
   log "Zsh startup optimized"
 }
 
@@ -307,9 +324,9 @@ main() {
   done
   
   print_step "Linking utility scripts"
-  mkdir -p "$HOME/bin"
+  ensure_dir "$HOME/bin"
   for script in "$REPO_PATH/bin"/*.sh; do
-    [[ -f "$script" ]] || continue
+    [[ -f $script ]] || continue
     local script_name
     script_name=$(basename "$script" .sh)
     ln -sf "$script" "$HOME/bin/$script_name"
@@ -321,7 +338,8 @@ main() {
   setup_revanced_tools
   
   print_step "Creating cache directories"
-  mkdir -p "$HOME/.zsh/cache" "${XDG_CACHE_HOME:-$HOME/.cache}"
+  ensure_dir "$HOME/.zsh/cache"
+  ensure_dir "${XDG_CACHE_HOME:-$HOME/.cache}"
   
   optimize_zsh
   create_welcome_message
