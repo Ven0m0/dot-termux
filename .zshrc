@@ -21,6 +21,10 @@ export LC_ALL=C LANG=C LANGUAGE=C
 # Skip if not interactive
 [[ $- != *i* ]] && return
 
+# Source common library if available
+COMMON_LIB="$HOME/.config/bash/common.sh"
+[[ -f $COMMON_LIB ]] && source "$COMMON_LIB"
+
 # =========================================================
 # ENVIRONMENT VARIABLES
 # =========================================================
@@ -275,11 +279,11 @@ alias -g NUL=">/dev/null 2>&1"
 # =========================================================
 # UTILITY FUNCTIONS
 # =========================================================
-# Check if command exists
-has() { command -v -- "$1" >/dev/null 2>&1; }
+# Check if command exists (fallback if common library not loaded)
+has(){ command -v -- "$1" >/dev/null 2>&1; }
 
 # Create directory and cd into it
-mkcd() {
+mkcd(){
   mkdir -p -- "$1" && cd -- "$1" || return
 }
 
@@ -494,7 +498,7 @@ fe() {
 }
 
 # Help function using cheat.sh
-h() { curl cheat.sh/${@:-cheat}; }
+h(){ curl cheat.sh/${@:-cheat}; }
 
 # Dot expansion for quick navigation upwards
 dot-expansion() {
@@ -516,7 +520,7 @@ prepend-sudo() {
 zle -N prepend-sudo
 
 # --- Help/Documentation ---
-android-help() {
+android-help(){
   cat <<'EOF'
 ╔══════════════════════════════════════════════════════════════╗
 ║           TERMUX ANDROID TOOLKIT - QUICK REFERENCE           ║
