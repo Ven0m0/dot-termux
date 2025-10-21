@@ -1,4 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/env zsh
+
+[[ $- != *i* ]] && return
 # =========================================================
 # EARLY: powerlevel10k instant prompt
 # =========================================================
@@ -8,9 +10,6 @@ fi
 # =========================================================
 # CORE CONFIGURATION
 # =========================================================
-# Return early for non-interactive shells
-[[ $- != *i* ]] && return
-
 setopt EXTENDED_GLOB NULL_GLOB GLOB_DOTS
 export LC_ALL=C LANG=C.UTF-8 LANGUAGE=C
 stty stop undef # disable accidental ctrl s
@@ -234,14 +233,19 @@ extract(){
   esac
 }
 
+# fcd: fuzzy-pick a directory and cd into it
+# Usage: fcd [root_dir] [query...]
 fcd() {
-  local dir
-  if has fd; then
-    dir=$(fd -t d . "${1:-.}" 2>/dev/null | fzf --preview 'eza --tree --color=always {}' --height=40%)
+  local root="." q sel preview
+  [[ $# -gt 0 && -d $1 ]] && { root="$1"; shift; }
+  q="${*:-}"
+  preview=$(( $+commands[eza] )) && preview='eza -T -L2 --color=always {}' || preview='ls -la --color=always {}'
+  if (( $+commands[fd] )); then
+    sel="$(fd -HI -t d . "$root" 2>/dev/null | fzf --ansi --height ${FZF_HEIGHT:-60%} --layout=reverse --border --select-1 --exit-0 --preview "$preview" ${q:+--query "$q"})"
   else
-    dir=$(find "${1:-.}" -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf --preview 'eza --tree --color=always {}' --height=40%)
+    sel="$(find "$root" -type d -not -path '*/.git/*' -print 2>/dev/null | fzf --ansi --height ${FZF_HEIGHT:-60%} --layout=reverse --border --select-1 --exit-0 --preview "$preview" ${q:+--query "$q"})"
   fi
-  [[ -n $dir ]] && cd -- "$dir" || return
+  [[ -n $sel ]] && cd -- "$sel"
 }
 
 # fe: fuzzy-pick files and open in $EDITOR
