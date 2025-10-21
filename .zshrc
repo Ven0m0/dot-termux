@@ -244,10 +244,20 @@ fcd() {
   [[ -n $dir ]] && cd -- "$dir" || return
 }
 
-fe(){
-  local files
-  files=("${(@f)$(fzf --multi --select-1 --exit-0 <<<"${*:-}")}")
-  [[ -n $files ]] && $EDITOR "${(@)files}"
+# fe: fuzzy-pick files and open in $EDITOR
+fe() {
+  local -a files; local q="${*:-}" preview
+  if (( $+commands[bat] )); then
+    preview='bat -n --style=plain --color=always --line-range=:500 {}'
+  else
+    preview='head -n 500 {}'
+  fi
+  if (( $+commands[fzf] )); then
+    files=("${(@f)$(fzf --multi --select-1 --exit-0 ${q:+--query="$q"} --preview "$preview")}")
+  else
+    print -r -- "fzf not found" >&2; return 127
+  fi
+  [[ ${#files} -gt 0 ]] && "${EDITOR:-micro}" "${files[@]}"
 }
 
 # Help function using cheat.sh
