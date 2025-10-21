@@ -15,13 +15,11 @@ setopt EXTENDED_GLOB NULL_GLOB GLOB_DOTS
 export LC_ALL=C LANG=C.UTF-8 LANGUAGE=C
 stty stop undef # disable accidental ctrl s
 
-# Source shared helpers if present (non-mandatory)
-if [[ -r "${HOME}/.config/zsh/common.zsh" ]]; then
-  source "${HOME}/.config/zsh/common.zsh"
-else
-  has(){ command -v -- "$1" >/dev/null 2>&1; }
-  ensure_dir(){ [[ -d $1 ]] || mkdir -p -- "$1"; }
-fi
+ifsource(){ [ -r "$1" ] && source "$1"; return $?; }
+has(){ command -v -- "$1" >/dev/null 2>&1; return $?; }
+ensure_dir(){ [[ -d $1 ]] || mkdir -p -- "$1"; }
+
+ifsource "${HOME}/.config/zsh/common.zsh"
 
 # ---------------------------
 # Environment
