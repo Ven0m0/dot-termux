@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/data/data/com.termux/files/usr/bin/env zsh
 # =========================================================
 # EARLY: powerlevel10k instant prompt
 # =========================================================
