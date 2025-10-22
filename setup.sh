@@ -34,8 +34,6 @@ if [[ ${BASH_SOURCE[0]:-} != "$0" ]]; then
     echo -e "${GREEN}📥 Cloning configuration repository...${RESET}"
     git clone --depth=1 "$REPO_URL" "$REPO_PATH"
   }
-  exec bash "$REPO_PATH/setup.sh" "$@"
-  exit 0
 else
   [[ -n ${BASH_SOURCE[0]:-} && ${BASH_SOURCE[0]} != "-" ]] && 
     cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 || :
