@@ -48,3 +48,72 @@ fzf-man(){
 		return $?
 	fi
 }
+
+git(){
+  local subcmd="${1:-}"
+  if has gix; then
+    case "$subcmd" in
+      clone|fetch|pull|init|status|diff|log|rev-parse|rev-list|commit-graph|verify-pack|index-from-pack|pack-explode|remote|config|exclude|free|mailmap|odb|commitgraph|pack)
+        gix "$@"
+        ;;
+      *)
+        command git "$@"
+        ;;
+    esac
+  else
+    command git "$@"
+  fi
+}
+
+# Curl -> Aria2 wrapper
+curl(){
+  local -a args=() out_file=""
+  if has aria2c; then
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -o|--output)
+          out_file="$2"
+          shift 2
+          ;;
+        -L|--location|-s|--silent|-S|--show-error|-f|--fail)
+          shift
+          ;;
+        http*|ftp*)
+          args+=("$1")
+          shift
+          ;;
+        *)
+          args+=("$1")
+          shift
+          ;;
+      esac
+    done
+    if [[ ${#args[@]} -gt 0 ]]; then
+      if [[ -n $out_file ]]; then
+        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 -d "$(dirname "$out_file")" -o "$(basename "$out_file")" "${args[@]}"
+      else
+        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 "${args[@]}"
+      fi
+    else
+      command curl "$@"
+    fi
+  else
+    command curl "$@"
+  fi
+}
+
+# Pip -> UV wrapper
+pip(){
+  if has uv; then
+    case "${1:-}" in
+      install|uninstall|list|show|freeze|check)
+        uv pip "$@"
+        ;;
+      *)
+        command pip "$@"
+        ;;
+    esac
+  else
+    command pip "$@"
+  fi
+}
