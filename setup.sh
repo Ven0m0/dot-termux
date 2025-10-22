@@ -11,7 +11,7 @@ declare -r LOG_FILE="$HOME/termux_setup_log.txt"
 
 # Colors for output
 declare -r RED="\033[0;31m" GREEN="\033[0;32m" BLUE="\033[0;34m" YELLOW="\033[0;33m" RESET="\033[0m"
-
+z
 # Source common library if available
 COMMON_LIB="${REPO_PATH}/.config/bash/common.sh"
 if [[ -f $COMMON_LIB ]]; then
@@ -22,6 +22,11 @@ else
   log(){ printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
   print_step(){ printf '\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n' "$1"; }
 fi
+
+ensure_dir(){
+  local dir=$1
+  [[ -d $dir ]] || mkdir -p "$dir"
+}
 
 # --- Self-bootstrapping Logic ---
 if [[ ${BASH_SOURCE[0]:-} != "$0" ]]; then
