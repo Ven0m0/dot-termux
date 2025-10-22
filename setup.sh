@@ -258,10 +258,6 @@ main() {
   log "Starting Termux setup..."
   
   check_internet
-  
-  print_step "Setting up Termux storage"
-  termux-setup-storage
-  
   print_step "Adding repositories"
   pkg i -y tur-repo glibc-repo
   
