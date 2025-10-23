@@ -1,0 +1,124 @@
+#!/data/data/com.termux/files/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+shopt -s nullglob globstar
+export LC_ALL=C
+
+# --- Config ---
+readonly SCRIPT_NAME="${0##*/}"
+QUALITY="${QUALITY:-95}"
+METHOD="${METHOD:-6}"
+JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
+RECURSIVE=0
+INPLACE=0
+OUT_DIR=""
+VERBOSE=0
+
+# --- Helpers ---
+has(){ command -v -- "$1" >/dev/null 2>&1; }
+die(){ printf '%s\n' "$*" >&2; exit 1; }
+log(){ (( VERBOSE )) && printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2 || :; }
+
+usage(){
+  cat <<EOF
+Usage: $SCRIPT_NAME [OPTIONS] <files/dirs...>
+
+Convert and optimize images to WebP with near-lossless quality.
+
+OPTIONS:
+  -q NUM    Quality (0-100, default: 95)
+  -m NUM    Compression method (0-6, default: 6)
+  -j NUM    Parallel jobs (default: nproc)
+  -r        Recursive directory processing
+  -i        In-place conversion (replace originals)
+  -o DIR    Output directory
+  -v        Verbose output
+  -h        Show this help
+
+EXAMPLES:
+  $SCRIPT_NAME -v image.jpg
+  $SCRIPT_NAME -q 90 -o webp/ *.{jpg,png}
+  $SCRIPT_NAME -r -i photos/
+  QUALITY=98 $SCRIPT_NAME -j 8 batch/*.png
+
+FORMATS: JPEG, PNG, GIF, TIFF, BMP
+EOF
+}
+
+# --- Parse Args ---
+while getopts ":q:m:j:rio:vh" opt; do
+  case "$opt" in
+    q) QUALITY="$OPTARG";;
+    m) METHOD="$OPTARG";;
+    j) JOBS="$OPTARG";;
+    r) RECURSIVE=1;;
+    i) INPLACE=1;;
+    o) OUT_DIR="$OPTARG";;
+    v) VERBOSE=1;;
+    h) usage; exit 0;;
+    \?|:) usage; exit 64;;
+  esac
+done
+shift $((OPTIND-1))
+
+# --- Validate ---
+(( $# == 0 )) && { usage; exit 64; }
+has cwebp || die "cwebp not found. Install: pkg install libwebp"
+[[ $QUALITY =~ ^[0-9]+$ ]] && (( QUALITY >= 0 && QUALITY <= 100 )) || die "Quality must be 0-100"
+[[ $METHOD =~ ^[0-6]$ ]] || die "Method must be 0-6"
+[[ -n $OUT_DIR ]] && { mkdir -p "$OUT_DIR" || die "Cannot create output dir: $OUT_DIR"; }
+
+# --- Convert Function ---
+convert_to_webp(){
+  local src=$1 dst
+  [[ -f $src ]] || return 1
+  if (( INPLACE )); then
+    dst="${src%.*}.webp"
+  elif [[ -n $OUT_DIR ]]; then
+    dst="$OUT_DIR/$(basename "${src%.*}").webp"
+  else
+    dst="${src%.*}.webp"
+  fi
+  
+  local size_before size_after
+  size_before=$(stat -c%s "$src" 2>/dev/null || stat -f%z "$src" 2>/dev/null || echo 0)
+  
+  if cwebp -q "$QUALITY" -m "$METHOD" -quiet "$src" -o "$dst" >/dev/null 2>&1; then
+    size_after=$(stat -c%s "$dst" 2>/dev/null || stat -f%z "$dst" 2>/dev/null || echo 0)
+    local saved=$((size_before - size_after))
+    local pct=0
+    (( size_before > 0 )) && pct=$(( 100 * saved / size_before ))
+    log "✓ $src → $dst (${pct}% smaller)"
+    (( INPLACE )) && [[ $src != "$dst" ]] && rm -f "$src"
+    return 0
+  else
+    log "✗ Failed: $src"
+    return 1
+  fi
+}
+export -f convert_to_webp has log
+export QUALITY METHOD OUT_DIR INPLACE VERBOSE
+
+# --- Collect Files ---
+declare -a files=()
+for arg in "$@"; do
+  if [[ -d $arg ]]; then
+    if (( RECURSIVE )); then
+      while IFS= read -r -d '' f; do
+        files+=("$f")
+      done < <(find "$arg" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.tiff" -o -iname "*.bmp" \) -print0)
+    else
+      for f in "$arg"/*.{jpg,jpeg,png,gif,tiff,bmp,JPG,JPEG,PNG,GIF,TIFF,BMP}; do
+        [[ -f $f ]] && files+=("$f")
+      done
+    fi
+  elif [[ -f $arg ]]; then
+    files+=("$arg")
+  fi
+done
+(( ${#files[@]} == 0 )) && die "No image files found"
+
+# --- Process ---
+log "Processing ${#files[@]} files with $JOBS parallel jobs..."
+printf '%s\0' "${files[@]}" | xargs -0 -n1 -P"$JOBS" bash -c 'convert_to_webp "$0"'
+log "Done"
