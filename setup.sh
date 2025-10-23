@@ -160,208 +160,39 @@ install_apk_sh(){
   local apk_bin="$HOME/bin/apk.sh"
   ensure_dir "$HOME/bin"
   curl -fsSL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$apk_bin" &&
-    chmod +x "$apk_bin" &&
-    log "apk.sh installed" ||
-    log "apk.sh failed"
+    chmod +x "$apk_bin" && log "apk.sh installed" || log "apk.sh failed"
 }
 
 install_uv(){
   print_step "Installing uv"
-  curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 &&
-    log "uv installed" ||
-    log "uv install failed"
+  curl -sSfL https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 &&
+    log "uv installed" || log "uv install failed"
 }
 
 setup_revanced_tools(){
   print_step "Setting up ReVanced tools"
   ensure_dir "$HOME/bin"
-  [[ -f $REPO_PATH/bin/revanced-helper.sh ]] && {
-    ln -sf "$REPO_PATH/bin/revanced-helper.sh" "$HOME/bin/revanced-helper"
-    chmod +x "$REPO_PATH/bin/revanced-helper.sh"
-    log "ReVanced helper linked"
-  }
-  
-  {
+  { # Install Revancify-Xisr
     log "Installing Revancify-Xisr..."
     curl -sL "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh" | bash >/dev/null 2>&1 &&
-      [[ -d $HOME/revancify-xisr ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/revancify-xisr" >/dev/null 2>&1 || :
+      [[ -d $HOME/revancify-xisr ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/revancify-xisr" >/dev/null 2>&1 || true
     log "Revancify-Xisr done"
   } &
-  
-  {
+  { # Install Simplify
     log "Installing Simplify..."
     curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh" >/dev/null 2>&1 &&
-      ln -sf "$HOME/.Simplify.sh" "$HOME/bin/simplify" >/dev/null 2>&1 || :
+      ln -sf "$HOME/.Simplify.sh" "$HOME/bin/simplify" >/dev/null 2>&1 || true
     log "Simplify done"
   } &
-  
   { log "Installing X-CMD..."; curl -fsSL https://get.x-cmd.com | bash >/dev/null 2>&1 && log "X-CMD done" || log "X-CMD failed"; } &
   { log "Installing SOAR..."; curl -fsSL https://soar.qaidvoid.dev/install.sh | sh >/dev/null 2>&1 && log "SOAR done" || log "SOAR failed"; } &
-  
   log "ReVanced tools installing in background"
 }
 
 setup_adb_rish(){
   print_step "Setting up ADB and RISH"
-  curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
+  curl -sL https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash >/dev/null 2>&1 || true
   log "ADB/RISH done"
-}
-
-create_tool_wrappers(){
-  print_step "Creating tool wrapper functions"
-  
-  # Bash wrappers
-  cat >>"$HOME/.bash_functions" <<'EOF'
-
-# --- Tool Wrappers ---
-
-# Git -> Gix wrapper (gitoxide)
-git(){
-  local subcmd="${1:-}"
-  if has gix; then
-    case "$subcmd" in
-      clone|fetch|pull|init|status|diff|log|rev-parse|rev-list|commit-graph|verify-pack|index-from-pack|pack-explode|remote|config|exclude|free|mailmap|odb|commitgraph|pack)
-        gix "$@"
-        ;;
-      *)
-        command git "$@"
-        ;;
-    esac
-  else
-    command git "$@"
-  fi
-}
-
-# Curl -> Aria2 wrapper
-curl(){
-  local -a args=() out_file=""
-  if has aria2c; then
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-        -o|--output)
-          out_file="$2"
-          shift 2
-          ;;
-        -L|--location|-s|--silent|-S|--show-error|-f|--fail)
-          shift
-          ;;
-        http*|ftp*)
-          args+=("$1")
-          shift
-          ;;
-        *)
-          args+=("$1")
-          shift
-          ;;
-      esac
-    done
-    if [[ ${#args[@]} -gt 0 ]]; then
-      if [[ -n $out_file ]]; then
-        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 -d "$(dirname "$out_file")" -o "$(basename "$out_file")" "${args[@]}"
-      else
-        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 "${args[@]}"
-      fi
-    else
-      command curl "$@"
-    fi
-  else
-    command curl "$@"
-  fi
-}
-
-# Pip -> UV wrapper
-pip(){
-  if has uv; then
-    case "${1:-}" in
-      install|uninstall|list|show|freeze|check)
-        uv pip "$@"
-        ;;
-      *)
-        command pip "$@"
-        ;;
-    esac
-  else
-    command pip "$@"
-  fi
-}
-EOF
-
-  # Zsh wrappers
-  cat >>"$HOME/.config/zsh/wrappers.zsh" <<'EOF'
-# --- Tool Wrappers ---
-
-# Git -> Gix wrapper (gitoxide)
-git(){
-  local subcmd="${1:-}"
-  if (( $+commands[gix] )); then
-    case "$subcmd" in
-      clone|fetch|pull|init|status|diff|log|rev-parse|rev-list|commit-graph|verify-pack|index-from-pack|pack-explode|remote|config|exclude|free|mailmap|odb|commitgraph|pack)
-        gix "$@"
-        ;;
-      *)
-        command git "$@"
-        ;;
-    esac
-  else
-    command git "$@"
-  fi
-}
-
-# Curl -> Aria2 wrapper
-curl(){
-  local -a args=() out_file=""
-  if (( $+commands[aria2c] )); then
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-        -o|--output)
-          out_file="$2"
-          shift 2
-          ;;
-        -L|--location|-s|--silent|-S|--show-error|-f|--fail)
-          shift
-          ;;
-        http*|ftp*)
-          args+=("$1")
-          shift
-          ;;
-        *)
-          args+=("$1")
-          shift
-          ;;
-      esac
-    done
-    if [[ ${#args[@]} -gt 0 ]]; then
-      if [[ -n $out_file ]]; then
-        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 -d "${out_file:h}" -o "${out_file:t}" "${args[@]}"
-      else
-        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 "${args[@]}"
-      fi
-    else
-      command curl "$@"
-    fi
-  else
-    command curl "$@"
-  fi
-}
-
-# Pip -> UV wrapper
-pip(){
-  if (( $+commands[uv] )); then
-    case "${1:-}" in
-      install|uninstall|list|show|freeze|check)
-        uv pip "$@"
-        ;;
-      *)
-        command pip "$@"
-        ;;
-    esac
-  else
-    command pip "$@"
-  fi
-}
-EOF
-
-  log "Tool wrappers created"
 }
 
 create_welcome(){
@@ -405,33 +236,30 @@ main(){
   
   check_internet
   
-  print_step "Adding repos"
-  pkg i -y tur-repo glibc-repo
-  
-  print_step "Updating packages"
-  pkg up -y
-  
+  print_step "Updating packages and adding repos"
+  pkg up -y && pkg in -y tur-repo glibc-repo
   print_step "Upgrading critical"
   pkg i --only-upgrade apt bash coreutils openssl -y
   
   print_step "Installing essentials"
-  pkg i -y zsh git curl wget micro aria2 termux-api openjdk-17 nano man figlet \
-    ncurses-utils build-essential bash-completion zsh-completions android-tools \
-    libwebp optipng pngquant jpegoptim gifsicle gifski aapt2 pkgtop parallel \
-    apksigner yazi rust eza bat fd ripgrep zoxide fzf
+  local -a pkgs=(
+    zsh git curl wget micro aria2 termux-api openjdk-17 nano man figlet 
+    ncurses-utils build-essential bash-completion zsh-completions android-tools 
+    libwebp optipng pngquant jpegoptim gifsicle gifski aapt2 pkgtop parallel 
+    apksigner yazi rust fzf
+    # Rust tools (eza, bat, fd, ripgrep, zoxide) removed here, prioritized via cargo-binstall
+  )
+  pkg i -y "${pkgs[@]}"
   
   install_jetbrains_mono
   
   print_step "Setting Zsh as default"
-  [[ "$(basename "$SHELL")" != "zsh" ]] && {
-    chsh -s zsh
-    log "Zsh is default"
-  } || log "Zsh already default"
+  [[ "$(basename "$SHELL")" != "zsh" ]] && { chsh -s zsh; log "Zsh is default"; } || log "Zsh already default"
   
   print_step "Managing repo"
   if [[ -d "$REPO_PATH" ]]; then
     log "Updating repo"
-    cd "$REPO_PATH" && git pull
+    git -C "$REPO_PATH" pull -r -p
   else
     git clone --depth=1 "$REPO_URL" "$REPO_PATH"
     log "Repo cloned"
@@ -454,10 +282,10 @@ main(){
     "$REPO_PATH/.editorconfig:$HOME/.editorconfig"
     "$REPO_PATH/.curlrc:$HOME/.curlrc"
     "$REPO_PATH/.termux/termux.properties:$HOME/.termux/termux.properties"
+    "$HOME/.bash_functions.wrapper:$HOME/.config/bash/bash_functions.wrapper"
     "$REPO_PATH/.config/bash/bash_functions.bash:$HOME/.config/bash/bash_functions.bash"
     "$REPO_PATH/.ignore:$HOME/.config/fd/ignore"
   )
-  
   for item in "${dotfiles[@]}"; do
     IFS=":" read -r src tgt <<<"$item"
     symlink_dotfile "$src" "$tgt"
@@ -474,7 +302,6 @@ main(){
     log "Linked $script_name"
   done
   
-  create_tool_wrappers
   setup_adb_rish
   setup_revanced_tools
   
@@ -499,7 +326,6 @@ Installed:
   • ReVanced tools
   • cargo-binstall + Rust tools
   • apk.sh, uv
-  • Tool wrappers (git→gix, curl→aria2, pip→uv)
 
 Background jobs installing additional tools.
 Check $LOG_FILE for progress.
