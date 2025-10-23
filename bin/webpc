@@ -2,39 +2,241 @@
 set -euo pipefail
 IFS=$'\n\t'
 shopt -s nullglob globstar
-export LC_ALL=C
+export LC_ALL=C LANG=C LANGUAGE=C
 
 # --- Config ---
-readonly SCRIPT_NAME="${0##*/}"
-QUALITY="${QUALITY:-95}"
-METHOD="${METHOD:-6}"
-JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
-RECURSIVE=0
-INPLACE=0
+readonly SELF="${BASH_SOURCE[0]}"
+readonly SCRIPT_DIR="${SELF%/*}"
+QUALITY=90
+JOBS=0
+KEEP_ORIGINAL=0
 OUT_DIR=""
-VERBOSE=0
+RECURSIVE=0
+LOSSLESS=0
 
 # --- Helpers ---
 has(){ command -v -- "$1" >/dev/null 2>&1; }
 die(){ printf '%s\n' "$*" >&2; exit 1; }
-log(){ (( VERBOSE )) && printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2 || :; }
+log(){ printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+cleanup(){ :; }
+
+trap 'rc=$?; trap - EXIT; cleanup; exit "$rc"' EXIT
+trap 'trap - INT; exit 130' INT
+trap 'trap - TERM; exit 143' TERM
+
+require_deps(){
+  local miss=()
+  for d in "$@"; do
+    has "$d" || miss+=("$d")
+  done
+  ((${#miss[@]}==0)) && return 0
+  printf 'missing deps: %s\n' "${miss[*]}" >&2
+  printf 'Termux: pkg install %s\n' "${miss[*]}" >&2
+  printf 'Arch:   pacman -S --needed %s\n' "${miss[*]}" >&2
+  printf 'Debian: sudo apt-get install -y %s\n' "${miss[*]}" >&2
+  exit 127
+}
 
 usage(){
   cat <<EOF
-Usage: $SCRIPT_NAME [OPTIONS] <files/dirs...>
+Usage: $(basename "$0") [OPTIONS] <files/dirs...>
 
-Convert and optimize images to WebP with near-lossless quality.
+Optimize images and convert to WebP with near-lossless quality
 
-OPTIONS:
-  -q NUM    Quality (0-100, default: 95)
-  -m NUM    Compression method (0-6, default: 6)
-  -j NUM    Parallel jobs (default: nproc)
-  -r        Recursive directory processing
-  -i        In-place conversion (replace originals)
-  -o DIR    Output directory
-  -v        Verbose output
+OPTIONS
   -h        Show this help
+  -q N      Quality 1-100 (default: 90, near-lossless)
+  -l        Lossless mode (max quality, larger files)
+  -j N      Parallel jobs (default: nproc)
+  -k        Keep original files
+  -o DIR    Output directory (default: same as source)
+  -r        Recursive directory processing
 
+EXAMPLES
+  $(basename "$0") image.jpg
+  $(basename "$0") -q 95 -k *.{jpg,png}
+  $(basename "$0") -r -o optimized/ photos/
+  $(basename "$0") -l -j 4 *.png
+
+FORMATS
+  Input:  JPG, PNG, GIF, TIFF, BMP
+  Output: WebP (near-lossless or lossless)
+
+QUALITY
+  75-85  = Good (smaller files, visible artifacts)
+  85-90  = Very good (balanced)
+  90-95  = Near-lossless (recommended)
+  95-100 = Excellent (larger files)
+  -l     = Lossless (largest files, perfect quality)
+EOF
+}
+
+get_size(){
+  local f=$1
+  if [[ -f $f ]]; then
+    stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0
+  else
+    echo 0
+  fi
+}
+
+format_bytes(){
+  local bytes=$1
+  if ((bytes < 1024)); then
+    printf '%dB' "$bytes"
+  elif ((bytes < 1048576)); then
+    printf '%.1fKB' "$(awk "BEGIN {print $bytes/1024}")"
+  else
+    printf '%.2fMB' "$(awk "BEGIN {print $bytes/1048576}")"
+  fi
+}
+
+optimize_image(){
+  local src=$1 out_dir=$2
+  local base ext out_file orig_size new_size savings
+  
+  base=$(basename "$src")
+  ext="${base##*.}"
+  out_file="${out_dir}/${base%.*}.webp"
+  
+  [[ -f $out_file && $KEEP_ORIGINAL -eq 0 ]] && return 0
+  
+  orig_size=$(get_size "$src")
+  
+  if [[ $LOSSLESS -eq 1 ]]; then
+    cwebp -lossless -z 9 -mt -quiet "$src" -o "$out_file" >/dev/null 2>&1 || {
+      log "Failed: $src"
+      return 1
+    }
+  else
+    cwebp -q "$QUALITY" -m 6 -mt -af -quiet "$src" -o "$out_file" >/dev/null 2>&1 || {
+      log "Failed: $src"
+      return 1
+    }
+  fi
+  
+  new_size=$(get_size "$out_file")
+  
+  if ((new_size >= orig_size)); then
+    if [[ $LOSSLESS -eq 0 ]]; then
+      rm -f "$out_file"
+      cwebp -lossless -z 9 -mt -quiet "$src" -o "$out_file" >/dev/null 2>&1 || {
+        log "Failed: $src"
+        return 1
+      }
+      new_size=$(get_size "$out_file")
+    fi
+  fi
+  
+  savings=$(awk "BEGIN {print 100-($new_size*100/$orig_size)}")
+  printf '%s → %s | %s → %s (%.1f%% saved)\n' \
+    "$base" "$(basename "$out_file")" \
+    "$(format_bytes "$orig_size")" \
+    "$(format_bytes "$new_size")" \
+    "$savings"
+  
+  [[ $KEEP_ORIGINAL -eq 0 ]] && rm -f "$src"
+}
+
+process_file(){
+  local f=$1 out_dir=$2
+  local ext="${f##*.}"
+  
+  case "${ext,,}" in
+    jpg|jpeg|png|gif|tiff|tif|bmp)
+      optimize_image "$f" "$out_dir"
+      ;;
+    webp)
+      if [[ $LOSSLESS -eq 1 ]]; then
+        optimize_image "$f" "$out_dir"
+      fi
+      ;;
+    *)
+      log "Skipped: $f (unsupported format)"
+      ;;
+  esac
+}
+
+collect_files(){
+  local -n _files=$1
+  shift
+  local item
+  
+  for item in "$@"; do
+    if [[ -f $item ]]; then
+      _files+=("$item")
+    elif [[ -d $item ]]; then
+      if [[ $RECURSIVE -eq 1 ]]; then
+        if has fd; then
+          while IFS= read -r -d '' f; do
+            _files+=("$f")
+          done < <(fd -t f -e jpg -e jpeg -e png -e gif -e tiff -e tif -e bmp -e webp . "$item" -0)
+        else
+          while IFS= read -r -d '' f; do
+            _files+=("$f")
+          done < <(find "$item" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.tiff" -o -iname "*.tif" -o -iname "*.bmp" -o -iname "*.webp" \) -print0)
+        fi
+      else
+        for f in "$item"/*.{jpg,jpeg,png,gif,tiff,tif,bmp,webp}; do
+          [[ -f $f ]] && _files+=("$f")
+        done
+      fi
+    fi
+  done
+}
+
+main(){
+  local opt
+  while getopts ":hq:lj:ko:r" opt; do
+    case "$opt" in
+      h) usage; exit 0;;
+      q) QUALITY="$OPTARG";;
+      l) LOSSLESS=1;;
+      j) JOBS="$OPTARG";;
+      k) KEEP_ORIGINAL=1;;
+      o) OUT_DIR="$OPTARG";;
+      r) RECURSIVE=1;;
+      \?|:) usage; exit 64;;
+    esac
+  done
+  shift $((OPTIND-1))
+  
+  [[ $# -eq 0 ]] && { usage; exit 1; }
+  
+  require_deps cwebp
+  
+  [[ $JOBS -eq 0 ]] && JOBS=$(nproc 2>/dev/null || echo 1)
+  
+  ((QUALITY >= 1 && QUALITY <= 100)) || die "Quality must be 1-100"
+  
+  local -a files=()
+  collect_files files "$@"
+  
+  [[ ${#files[@]} -eq 0 ]] && die "No images found"
+  
+  log "Found ${#files[@]} image(s)"
+  [[ $LOSSLESS -eq 1 ]] && log "Mode: Lossless" || log "Mode: Lossy (quality: $QUALITY)"
+  log "Jobs: $JOBS"
+  
+  for f in "${files[@]}"; do
+    local dir
+    if [[ -n $OUT_DIR ]]; then
+      dir="$OUT_DIR"
+      mkdir -p "$dir"
+    else
+      dir="$(dirname "$f")"
+    fi
+    
+    export -f optimize_image process_file log has get_size format_bytes
+    export QUALITY LOSSLESS KEEP_ORIGINAL
+    
+    printf '%s\0%s\0' "$f" "$dir"
+  done | xargs -0 -n2 -P"$JOBS" bash -c 'process_file "$1" "$2"' _
+  
+  log "Complete"
+}
+
+main "$@"
 EXAMPLES:
   $SCRIPT_NAME -v image.jpg
   $SCRIPT_NAME -q 90 -o webp/ *.{jpg,png}
