@@ -12,11 +12,10 @@ echo -e "${BLUE}🚀 Setting up optimized Termux environment with Zinit and ReVa
 
 # 1. Update and install essential packages
 echo -e "${GREEN}📦 Updating package repositories...${RESET}"
-pkg update -y && pkg upgrade -y
 pkg in -y git curl zsh tur-repo glibc-repo
 
 # Force refresh after adding repos
-pkg update -y
+pkg update -y || :
 
 # 2. Clone repository with configurations
 REPO="https://github.com/Ven0m0/dot-termux.git"
