@@ -83,7 +83,7 @@ convert_to_webp(){
   local size_before size_after
   size_before=$(stat -c%s "$src" 2>/dev/null || stat -f%z "$src" 2>/dev/null || echo 0)
   
-  if cwebp -q "$QUALITY" -m "$METHOD" -quiet "$src" -o "$dst" >/dev/null 2>&1; then
+  if cwebp -q "$QUALITY" -m 6 -alpha_filter best -quiet "$src" -o "$dst" -mt >/dev/null 2&>1; then
     size_after=$(stat -c%s "$dst" 2>/dev/null || stat -f%z "$dst" 2>/dev/null || echo 0)
     local saved=$((size_before - size_after))
     local pct=0
