@@ -15,18 +15,17 @@ dest=bat-extras
 
 # clone or update in-place
 if [[ -d "$dest/.git" ]]; then
-  "${git_cmd[@]}" -C "$dest" pull --ff-only >/dev/null 2>&1 || true
+  "${git_cmd[@]}" -C "$dest" pull -q --ff-only >/dev/null 2>&1 || :
 else
-  "${git_cmd[@]}" clone --depth=1 "$repo" "$dest"
+  "${git_cmd[@]}" clone -q --depth=1 "$repo" "$dest"
 fi
 
 cd "$dest"
 
-chmod +x build.sh
-./build.sh --minify=all
+chmod +x build.sh && ./build.sh --minify=all
 
 # compute install dir (prefers ~/.local/bin, falls back to ~/bin)
-compute_install_dir() {
+compute_install_dir(){
   local -n out=$1
   if [[ -d "${HOME}/.local/bin" ]]; then
     out="${HOME}/.local/bin"
