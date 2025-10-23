@@ -1,32 +1,14 @@
-#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-shopt -s nullglob globstar
-export LC_ALL=C LANG=C LANGUAGE=C
 [[ $- != *i* ]] && return
 
-# --- Config ---
-SELF="${BASH_SOURCE[0]}"
-SCRIPT_DIR="${SELF%/*}"
-readonly SELF SCRIPT_DIR
-cd -P -- "$SCRIPT_DIR" >/dev/null 2>&1 || :
-PATH="$SCRIPT_DIR:$PATH"
-
-# Source common library
-COMMON_LIB="$HOME/.config/bash/common.sh"
-[[ -f $COMMON_LIB ]] && source "$COMMON_LIB"
-
 # --- Helpers (inline for fallback) ---
-has(){ command -v -- "$1" >/dev/null 2>&1; }
-sleepy(){ read -rt "${1:-1}" -- <> <(:) >/dev/null 2>&1 || :; }
+has(){ command -v -- "$1" &>/dev/null; }
+sleepy(){ read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
 bname(){ local t=${1%${1##*[!/]}}; t=${t##*/}; [[ $2 && $t == *"$2" ]] && t=${t%$2}; printf '%s\n' "${t:-/}"; }
 dname(){ local p=${1:-.}; [[ $p != *[!/]* ]] && { printf '/\n'; return; }; p=${p%${p##*[!/]}}; [[ $p != */* ]] && { printf '.\n'; return; }; p=${p%/*}; p=${p%${p##*[!/]}}; printf '%s\n' "${p:-/}"; }
-match(){ printf '%s\n' "$1" | grep -E -o "$2" >/dev/null 2>&1 || return 1; }
+match(){ printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
 
 # --- Gitoxide wrapper ---
-git_wrapper(){
-  if has gix; then gix "$@"; else git "$@"; fi
-}
+git_wrapper(){ if has gix; then gix "$@"; else git "$@"; fi; }
 
 # --- Lazy loading (adapted from bash-lazyrc.sh) ---
 FUNC_DIRS=("$HOME/.bash/functions.d")
@@ -34,14 +16,14 @@ CONFIG_DIRS=("$HOME/.bash/configs")
 AUTOLOAD_CACHE="$HOME/.cache/bash_autoload.list"
 CONFIG_CACHE="$HOME/.cache/bash_config.loaded"
 
-lazyfile() {
+lazyfile(){
   local src=$1; shift
   for f; do
-    eval "$f() { unset -f $*; source \"$src\"; $f \"\$@\"; }"
+    eval "$f(){ unset -f $*; source \"$src\"; $f \"\$@\"; }"
   done
 }
 
-autoload_parse() {
+autoload_parse(){
   local src=$1 funcs
   if has rg; then
     funcs=$(rg -n --no-heading '^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "$src")
@@ -56,7 +38,7 @@ autoload_parse() {
   printf '%s\n' "$funcs"
 }
 
-autoload_init() {
+autoload_init(){
   local cache_valid=1 config_valid=1
   [[ -f "$AUTOLOAD_CACHE" ]] || cache_valid=0
   if (( cache_valid == 1 )); then
@@ -126,7 +108,7 @@ export MICRO_TRUECOLOR=1 VISUAL="$EDITOR" VIEWER="$EDITOR" GIT_EDITOR="$EDITOR" 
 
 # Pagers/colors
 export PAGER=bat BATPIPE=color BAT_STYLE=auto LESSQUIET=1 LESSCHARSET='utf-8' LESSHISTFILE=-
-if has vivid; then export LS_COLORS="$(vivid generate molokai)"; elif has dircolors; then eval "$(dircolors -b)" >/dev/null 2>&1; fi
+if has vivid; then export LS_COLORS="$(vivid generate molokai)"; elif has dircolors; then eval "$(dircolors -b)" &>/dev/null; fi
 : "${CLICOLOR:=$(tput colors)}"
 export CLICOLOR SYSTEMD_COLORS=1
 
@@ -166,64 +148,58 @@ else
   alias ll='ls --color=auto --group-directories-first -ABhLgGo'
   alias lt='ls --color=auto --group-directories-first -ABhLgGo'
 fi
-
 alias nano='nano -/' mi=micro
 
 # Bat helpers
-bathelp() { "$@" --help 2>&1 | bat -splhelp --squeeze-limit 0; }
+bathelp(){ "$@" --help 2>&1 | bat -splhelp --squeeze-limit 0; }
 
 # Man helpers (consolidated)
-manol() {
+manol(){
   [[ $# -eq 0 ]] && { printf 'Usage: manol [section] <page>\nExample: manol 3 printf\n' >&2; return 1; }
   local page section url base_url="https://man.archlinux.org/man"
   if [[ $# -eq 1 ]]; then page="$1"; url="${base_url}/${page}"; else section="$1"; page="$2"; url="${base_url}/${page}.${section}"; fi
   curl -sL --user-agent "curl-manpage-viewer/1.0" --compressed "$url" | "${PAGER:-less}" -R
 }
 
-fman() {
+fman(){
   local -a less_env=(LESS_TERMCAP_md=$'\e[01;31m' LESS_TERMCAP_me=$'\e[0m' LESS_TERMCAP_us=$'\e[01;32m' LESS_TERMCAP_ue=$'\e[0m' LESS_TERMCAP_so=$'\e[45;93m' LESS_TERMCAP_se=$'\e[0m')
   local -a bat_env=(LANG='C.UTF-8' MANROFFOPT='-c' BAT_STYLE='full' BAT_PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2")
-  if has batman; then env "${bat_env[@]}" "${less_env[@]}" batman "$@"; elif has bat; then env "${bat_env[@]}" "${less_env[@]}" MANPAGER="sh -c 'col -bx | bat -splman --squeeze-limit 0 --tabs 2'" man "$@"; else env "${less_env[@]}" PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2" man "$@"; fi
+  if has batman; then
+    env "${bat_env[@]}" "${less_env[@]}" batman "$@"
+  elif has bat; then
+    env "${bat_env[@]}" "${less_env[@]}" MANPAGER="sh -c 'col -bx | bat -splman --squeeze-limit 0 --tabs 2'" man "$@"
+  else
+    env "${less_env[@]}" PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2" man "$@"
+  fi
 }
+catt(){ for i in "$@"; do [[ -d "$i" ]] && eza "$i" || bat -p "$i"; done; }
 
-catt() {
-  for i in "$@"; do [[ -d "$i" ]] && eza "$i" || bat -p "$i"; done
-}
-
-# Navigation (consolidated from zshrc, gated on zoxide)
+# Navigation
 if has zoxide; then
   export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go"
   export _ZO_FZF_OPTS="--cycle -0 -1 --inline-info --no-multi --no-sort --preview 'eza --no-quotes --color=always --color-scale-mode=fixed --group-directories-first --oneline {2..}'"
   ifsource "$HOME/.config/bash/zoxide.bash" && eval "$(zoxide init bash)"
-  cd(){ if [[ -n "$1" ]]; then z "$@" && eza; else z ~ && eza; fi; }
-  alias ..='z ..' ...='z ../..' ....='z ../../..' .....='z ../../../..' ......='z ../../../../..' bd='z "$OLDPWD"' cd-="z -" cd='z'
-else
-  alias ..='cd ..' ...='cd ../..' ....='cd ../../..' .....='cd ../../../..' ......='cd ../../../../..' bd='cd "$OLDPWD"' cd-="cd -"
 fi
-alias dirs='dirs -v'
 
-# Aliases (consolidated)
-alias home='cd ~' cd..='cd ..' ..='cd ..' ...='cd ../..' ....='cd ../../..' .....='cd ../../../..' ......='cd ../../../../..'
+# Aliases
+alias ..='cd ..' ...='cd ../..' ....='cd ../../..' .....='cd ../../../..' ......='cd ../../../../..' bd='cd "$OLDPWD"' cd-="cd -" home='cd ~'
+alias dirs='dirs -v'
 alias cls='clear' c='clear' h='history'
 alias 000='chmod -R 000' 644='chmod -R 644' 666='chmod -R 666' 755='chmod -R 755' 777='chmod -R 777'
-
-# LESS colors
-: "${LESS:=}"
-: "${LESS_TERMCAP_mb:=$'\e[1;32m'}" "${LESS_TERMCAP_md:=$'\e[1;32m'}" "${LESS_TERMCAP_me:=$'\e[0m'}" "${LESS_TERMCAP_se:=$'\e[0m'}" "${LESS_TERMCAP_so:=$'\e[01;33m'}" "${LESS_TERMCAP_ue:=$'\e[0m'}" "${LESS_TERMCAP_us:=$'\e[1;4;31m'}"
-export "${!LESS_TERMCAP@}"
-
-alias h="history | grep "
-alias p="ps aux | grep "
+alias h="history | grep " p="ps aux | grep " f="find . | grep "
 alias topcpu="/bin/ps -eo pcpu,pid,user,args | sort -k 1 -r | head -10"
-alias f="find . | grep "
 alias diskspace="du -S | sort -n -r |more"
 alias folders='du -h --max-depth=1'
 alias folderssort='find . -maxdepth 1 -type d -print0 | xargs -0 du -sk | sort -rn'
 alias tree='tree -CAhF --dirsfirst'
 alias treed='tree -CAFd'
 alias mountedinfo='df -hT'
-
 alias mktar='tar -cvf' mkbz2='tar -cvjf' mkgz='tar -cvzf' untar='tar -xvf' unbz2='tar -xvjf' ungz='tar -xvzf'
+
+# LESS colors
+: "${LESS:=}"
+: "${LESS_TERMCAP_mb:=$'\e[1;32m'}" "${LESS_TERMCAP_md:=$'\e[1;32m'}" "${LESS_TERMCAP_me:=$'\e[0m'}" "${LESS_TERMCAP_se:=$'\e[0m'}" "${LESS_TERMCAP_so:=$'\e[01;33m'}" "${LESS_TERMCAP_ue:=$'\e[0m'}" "${LESS_TERMCAP_us:=$'\e[1;4;31m'}"
+export "${!LESS_TERMCAP@}"
 
 trim(){ local var=$*; var="${var#"${var%%[![:space:]]*}"}"; var="${var%"${var##*[![:space:]]}"}"; printf '%s\n' "$var"; }
 
@@ -233,7 +209,7 @@ bind '"\e[A":history-substring-search-backward' '"\e[B":history-substring-search
 bind '"\M-\C-e": redraw-current-line' '"\M-\C-v": "\C-a\C-k$\C-y\M-\C-e\C-a\C-y="' '"\M-\C-b": "\C-e > /dev/null 2>&1 &\C-m"'
 bind '"\t": menu-complete' '"\e[Z": menu-complete-backward'
 
-# Prompt (gated experimental)
+# Prompt
 configure_prompt(){
   if has starship; then eval "$(LC_ALL=C starship init bash)"; return; fi
   local MGN='\[\e[35m\]' BLU='\[\e[34m\]' YLW='\[\e[33m\]' BLD='\[\e[1m\]' UND='\[\e[4m\]' GRN='\[\e[32m\]' CYN='\[\e[36m\]' DEF='\[\e[0m\]' RED='\[\e[31m\]' PNK='\[\e[38;5;205m\]' USERN HOSTL
@@ -247,8 +223,7 @@ configure_prompt(){
     unset GIT_PS1_SHOWDIRTYSTATE GIT_PS1_SHOWSTASHSTATE GIT_PS1_SHOWUPSTREAM GIT_PS1_SHOWUNTRACKEDFILES
     PROMPT_COMMAND="LC_ALL=C __git_ps1 2>/dev/null; ${PROMPT_COMMAND:-}"
   fi
-  # Experimental: mommy prompt
-  EXPERIMENTAL="${EXPERIMENTAL:-0}"
+  EXPERIMENTAL="${EXPERIMENTAL:-1}"
   if (( EXPERIMENTAL == 1 )) && has mommy && [[ "${stealth:-0}" -ne 1 ]] && [[ ${PROMPT_COMMAND:-} != *mommy* ]]; then
     PROMPT_COMMAND="LC_ALL=C mommy -1 -s \$?; ${PROMPT_COMMAND:-}"
   fi
@@ -265,9 +240,9 @@ dedupe_path
 
 # ADB connect
 adb-connect(){
-  if ! adb devices >/dev/null 2>&1; then exit 1; fi
+  if ! adb devices &>/dev/null; then exit 1; fi
   local IP="${1:-$(adb shell ip route | awk '{print $9}')}" PORT="${2:-5555}"
-  adb tcpip "$PORT" >/dev/null 2>&1 || :
+  adb tcpip "$PORT" &>/dev/null || :
   adb connect "${IP}:${PORT}"
 }
 
