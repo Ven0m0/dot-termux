@@ -8,11 +8,30 @@ declare -r REPO_PATH="$HOME/dot-termux"
 declare -r LOG_FILE="$HOME/termux_setup_log.txt"
 declare -r RED="\033[0;31m" GREEN="\033[0;32m" BLUE="\033[0;34m" YELLOW="\033[0;33m" RESET="\033[0m"
 declare -r SOAR_VERSION=latest
+declare -r APT_CONF="/data/data/com.termux/files/usr/etc/apt/apt.conf.d/99-termux"
+
 has(){ command -v -- "$1" >/dev/null 2>&1; }
 log(){ printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 print_step(){ printf '\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n' "$1"; }
 ensure_dir(){ [[ -d $1 ]] || mkdir -p "$1"; }
 err(){ printf 'Error: %s\n' "$*" >&2; }
+
+setup_apt_dpkg(){
+  print_step "Configuring apt/dpkg"
+  ensure_dir "$(dirname "$APT_CONF")"
+  cat >"$APT_CONF" <<'EOF'
+Dpkg::Options {
+  "--force-confdef";
+  "--force-confold";
+}
+APT::Get::Assume-Yes "true";
+APT::Get::allow-downgrades "true";
+APT::Get::allow-remove-essential "false";
+APT::Get::allow-change-held-packages "false";
+Acquire::Retries "3";
+EOF
+  log "apt/dpkg configured"
+}
 
 symlink_dotfile(){
   local src=$1 tgt=$2
