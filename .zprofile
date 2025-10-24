@@ -1,2 +1,0 @@
-
-eval "$(mise activate zsh --shims)"
