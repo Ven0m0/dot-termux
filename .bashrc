@@ -228,6 +228,16 @@ pip(){
   fi
 }
 
+updt(){
+  pkg up -y
+  apt upgrade -y
+  apt dist-upgrade -y
+  apt full-upgrade -y
+  dpkg --configure -a
+  apt --fix-broken install -y
+  apt install --fix-missing -y
+}
+
 # Navigation
 if has zoxide; then
   export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go"
