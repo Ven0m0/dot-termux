@@ -7,7 +7,7 @@ declare -r REPO_URL="https://github.com/ven0m0/dot-termux.git"
 declare -r REPO_PATH="$HOME/dot-termux"
 declare -r LOG_FILE="$HOME/termux_setup_log.txt"
 declare -r RED="\033[0;31m" GREEN="\033[0;32m" BLUE="\033[0;34m" YELLOW="\033[0;33m" RESET="\033[0m"
-
+declare -r SOAR_VERSION=latest
 has(){ command -v -- "$1" >/dev/null 2>&1; }
 log(){ printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 print_step(){ printf '\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n' "$1"; }
