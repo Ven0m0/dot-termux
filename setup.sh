@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 IFS=$'\n\t'
 export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 
@@ -128,7 +128,7 @@ main(){
   check_internet
   print_step "Updating packages and adding repos"
   pkg up -y && pkg in -y tur-repo glibc-repo
-  pkg i --only-upgrade apt bash coreutils openssl -y
+  DEBIAN_FRONTEND=noninteractive pkg i --only-upgrade apt bash coreutils -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
   print_step "Installing essentials"
   local -a pkgs=(zsh git curl wget micro aria2 termux-api openjdk-17 nano man figlet ncurses-utils build-essential bash-completion zsh-completions android-tools libwebp optipng pngquant jpegoptim gifsicle gifski aapt2 pkgtop parallel apksigner yazi rust fzf eza bat fd ripgrep zoxide)
   pkg i -y "${pkgs[@]}"
