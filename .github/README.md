@@ -48,6 +48,7 @@ clean -q -w -t -y      # Quick clean + WhatsApp + Telegram (no prompts)
 ```
 
 Legacy shell function aliases:
+
 ```bash
 clean            # Maps to: clean -q
 deep             # Maps to: clean -d
@@ -81,6 +82,7 @@ optimize batch -t image -r ~/media
 ```
 
 Legacy shell function aliases:
+
 ```bash
 opt-img ~/DCIM         # Use: optimize batch ~/DCIM
 opt-media              # Use: optimize batch with options
@@ -117,6 +119,7 @@ opt-msg
 ### Shared Library
 
 All scripts now use a common library (`.config/bash/common.sh`) providing:
+
 - Dependency checking functions
 - Logging utilities
 - File operations helpers
@@ -128,11 +131,13 @@ All scripts now use a common library (`.config/bash/common.sh`) providing:
 ### Consolidated Scripts
 
 **`bin/optimize`** - Unified media optimization tool
+
 - Consolidates: `media.sh`, `opt-img.sh`, `img.sh`, `imgopt`
 - Subcommands: `image`, `video`, `audio`, `batch`
 - Supports: jpg, png, webp, avif, mp4, mkv, mov, webm, flac
 
 **`bin/clean`** - Unified cleaning tool
+
 - Consolidates: `clean.sh`, `termux-cleaner.sh`, `adbcc.sh`
 - Flags: `-q` (quick), `-d` (deep), `-w` (whatsapp), `-t` (telegram), `-a` (adb)
 - Supports: Direct access, Shizuku, ADB, root
@@ -140,6 +145,7 @@ All scripts now use a common library (`.config/bash/common.sh`) providing:
 ### Coding Standards
 
 All scripts follow these standards:
+
 - 2-space indentation
 - Bash-native idioms (no external dependencies when possible)
 - Nameref for function returns
@@ -151,37 +157,46 @@ All scripts follow these standards:
 
 ## 🔧 Manual Tools
 
-### Revanced:
+### Revanced
 
 Simplify
+
 ```bash
 pkg update && pkg install --only-upgrade apt bash coreutils openssl -y; curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh" && bash "$HOME/.Simplify.sh"
 ```
+
 RVX builder
+
 ```bash
 curl -sLo rvx-builder.sh https://raw.githubusercontent.com/inotia00/rvx-builder/revanced-extended/android-interface.sh && chmod +x rvx-builder.sh && ./rvx-builder.sh
 ```
+
 Revancify
+
 ```bash
 curl -sL https://raw.githubusercontent.com/decipher3114/Revancify/main/install.sh | bash
 ```
+
 Revancify-Xisr
+
 ```bash
 curl -sL https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh | bash
 ```
 
 curl -fsSL lure.sh/install | bash
 
-eval "$(curl https://get.x-cmd.com)"
+eval "$(curl <https://get.x-cmd.com>)"
 
-curl -fsSL https://soar.qaidvoid.dev/install.sh | sh
+curl -fsSL <https://soar.qaidvoid.dev/install.sh> | sh
 
 Cargo binstall
+
 ```bahs
 curl -sL --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 ```
 
 fix
+
 ```bash
 curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
 ```
@@ -197,6 +212,7 @@ The repository includes consolidated scripts in the `bin/` directory:
 - `revanced-helper.sh` - ReVanced APK patcher
 
 **Migration Guide:**
+
 - Old: `bash bin/opt-img.sh ~/Pictures` → New: `optimize batch ~/Pictures`
 - Old: `bash bin/clean.sh` → New: `clean -q`
 - Old: `bash bin/termux-cleaner.sh -y` → New: `clean -d -y`
@@ -204,10 +220,10 @@ The repository includes consolidated scripts in the `bin/` directory:
 
 The legacy scripts are retained for backwards compatibility but the new consolidated tools are recommended.
 
-### ADB over mobile data:
+### ADB over mobile data
 
-- https://xdaforums.com/t/mod-no-root-supershell-adb-shell-over-mobile-data.4706512/
-- https://gist.github.com/kairusds/1d4e32d3cf0d6ca44dc126c1a383a48d
+- <https://xdaforums.com/t/mod-no-root-supershell-adb-shell-over-mobile-data.4706512/>
+- <https://gist.github.com/kairusds/1d4e32d3cf0d6ca44dc126c1a383a48d>
 
 ```sh
 adb tcpip 5555
@@ -216,4 +232,4 @@ adb connect "$IP":5555
 # adb pair "$IP":5555
 ```
 
-- https://github.com/TechnoIndian/apk-mitm.git
+- <https://github.com/TechnoIndian/apk-mitm.git>
