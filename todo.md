@@ -27,6 +27,20 @@ compresscli video --two-pass --codec av1 --audio-codec opus --crf 28
 compresscli image --max-width 4000 --max-height 4000 --progressive --optimize --format webp --quality 85
 compresscli batch --videos --jobs $(nproc --ignore 1)
 compresscli batch --images
+
+ffmpeg:
+
+libsvtav1
+librav1e
+libaom-av1
+# hw accel
+av1_nvenc
+av1_vaapi
+av1_vulkan
+
+libwebp libwebp_anim
+
+libopus opus
 ```
 
 ```sh
