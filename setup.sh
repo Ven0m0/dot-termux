@@ -60,25 +60,11 @@ install_jetbrains_mono(){
   log "Font done"
 }
 
-setup_zinit(){
-  print_step "Setting up Zinit"
-  local zinit_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zinit" zinit_git="$zinit_dir/zinit.git"
-  if [[ ! -d $zinit_git ]]; then
-    ensure_dir "$zinit_dir"
-    git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$zinit_git" >/dev/null 2>&1
-  else
-    (cd "$zinit_git" && git pull >/dev/null 2>&1) || :
-  fi
-  cat >"$HOME/.zshrc.zinit" <<'EOF'
-typeset -gAH ZINIT; ZINIT[HOME_DIR]="${XDG_DATA_HOME:-$HOME/.local/share}/zinit"; ZINIT[BIN_DIR]="${ZINIT[HOME_DIR]}/zinit.git"
-[[ -f "${ZINIT[BIN_DIR]}/zinit.zsh" ]] && source "${ZINIT[BIN_DIR]}/zinit.zsh"
-zinit light-mode for zdharma-continuum/fast-syntax-highlighting zsh-users/zsh-autosuggestions zsh-users/zsh-completions
-zinit snippet OMZL::history.zsh; zinit snippet OMZL::completion.zsh; zinit snippet OMZL::key-bindings.zsh
-zinit snippet OMZP::git; zinit snippet OMZP::sudo; zinit snippet OMZP::extract
-zinit ice depth=1; zinit light romkatv/powerlevel10k
-[[ -d "$PREFIX/share/fzf" ]] && source "$PREFIX/share/fzf/key-bindings.zsh" && source "$PREFIX/share/fzf/completion.zsh"
-EOF
-  log "Zinit config created"
+setup_antidote(){
+  print_step "Setting up Antidote"
+  local dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
+  [[ -d $dir ]] || { ensure_dir "${dir%/*}"; git clone --depth 1 https://github.com/mattmc3/antidote "$dir" &>/dev/null || :; }
+  log "Antidote ready"
 }
 
 install_rust_tools_fallback(){
@@ -160,7 +146,7 @@ main(){
   else
     git clone --depth=1 "$REPO_URL" "$REPO_PATH"
   fi
-  setup_zinit
+  setup_antidote
   install_rust_tools_fallback
   install_node_tools
   install_mise
