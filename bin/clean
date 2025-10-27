@@ -5,15 +5,13 @@
 set -euo pipefail
 export LC_ALL=C
 
-# Source common library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMMON_LIB="${SCRIPT_DIR}/../.config/bash/common.sh"
-if [[ -f $COMMON_LIB ]]; then
-  source "$COMMON_LIB"
-else
-  printf 'Error: common.sh not found\n' >&2
-  exit 1
-fi
+# Define common functions inline
+has() { command -v -- "$1" >/dev/null 2>&1; }
+log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+print_step() { printf '\n\033[1;34m==>\033[0m \033[1m%s\033[0m\n' "$1"; }
+info() { printf '\033[0;32m✓\033[0m %s\n' "$*"; }
+warn() { printf '\033[0;33m!\033[0m %s\n' "$*" >&2; }
+err() { printf '\033[0;31m✗\033[0m %s\n' "$*" >&2; }
 
 # ============================================================================
 # CONFIGURATION
