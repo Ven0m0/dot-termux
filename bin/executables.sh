@@ -8,7 +8,7 @@
 	for d in $PATH; do
 		set +f
 		[ -n "$d" ] || d=.
-		for f in "$d"/.[ "$d"/..?* "$d"/*; do
+		for f in "$d"/. "$d"/..?* "$d"/*; do
 			[ -f "$f" ] && [ -x "$f" ] && printf '%s\n' "${f##*/}"
 		done
 	done
