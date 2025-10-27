@@ -21,7 +21,12 @@ oxipng -o max -s -a --scale16 -f 0-8 -z -zi 25 --fast --ng -p
 
 optipng -fix -keep -preserve -o7 -f0-5
 
-pngquant -s 2 -Q 85-100 --skip-if-larger 
+pngquant -s 2 -Q 85-100 --skip-if-larger
+
+compresscli video --two-pass --codec av1 --audio-codec opus --crf 28 
+compresscli image --max-width 4000 --max-height 4000 --progressive --optimize --format webp --quality 85
+compresscli batch --videos --jobs $(nproc --ignore 1)
+compresscli batch --images
 ```
 
 ```sh
