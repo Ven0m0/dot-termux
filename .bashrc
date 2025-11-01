@@ -229,13 +229,28 @@ pip(){
 }
 
 updt(){
+  export LC_ALL=C DEBIAN_FRONTEND=noninteractive
+  local p=${PREFIX:-/data/data/com.termux/files/usr}
   pkg up -y
-  apt upgrade -y
-  apt dist-upgrade -y
-  apt full-upgrade -y
-  dpkg --configure -a
-  apt --fix-broken install -y
-  apt install --fix-missing -y
+  apt-get -y --fix-broken install; dpkg --configure -a
+  pkg clean -y; pkg autoclean -y
+  apt -y autoclean; apt-get -y autoremove --purge
+  rm -rf "${p}/var/lib/apt/lists/"* "${p}/var/cache/apt/archives/partial/"* &>/dev/null
+}
+sweep_home(){
+  local base=${1:-$HOME} p=${PREFIX:-/data/data/com.termux/files/usr}
+  export LC_ALL=C
+  if command -v fd >/dev/null 2>&1; then
+    fd -tf -e bak -e log -e old -e tmp -u -E .git "$base" -x rm -f
+    fd -tf -te -u -E .git "$base" -x rm -f
+    fd -td -te -u -E .git "$base" -x rmdir
+    fd -tf . "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -x rm -f
+  else
+    find -O2 "$base" -type f \( -name '*.bak' -o -name '*.log' -o -name '*.old' -o -name '*.tmp' \) -delete
+    find -O2 "$base" \( -type f -empty -o -type d -empty \) -delete
+    find -O2 "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -type f -delete
+  fi
+  rm -rf "${p}/share/groff/"* "${p}/share/info/"* "${p}/share/lintian/"* "${p}/share/linda/"*
 }
 
 # Navigation
