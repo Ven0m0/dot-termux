@@ -8,13 +8,13 @@ fi
 
 # ===== CORE =====
 setopt EXTENDED_GLOB NULL_GLOB GLOB_DOTS NO_BEEP
-export LC_ALL=C LANG=C.UTF-8 LANGUAGE=C
+export LANG=C.UTF-8 LANGUAGE=C LC_COLLATE=C LC_CTYPE=C LC_MESSAGES=C
 stty stop undef 2>/dev/null
 has(){ command -v -- "$1" >/dev/null 2>&1; }
 ifsource(){ [[ -r "$1" ]] && source "$1"; }
 ensure_dir(){ [[ -d "$1" ]] || mkdir -p -- "$1"; }
 
-export SHELL=zsh EDITOR="${EDITOR:-micro}" VISUAL="$EDITOR" PAGER="${PAGER:-bat}" TERM="${TERM:-xterm-256color}"
+export EDITOR="${EDITOR:-micro}" VISUAL="$EDITOR" PAGER="${PAGER:-bat}" TERM="${TERM:-xterm-256color}"
 export CLICOLOR=1 MICRO_TRUECOLOR=1 KEYTIMEOUT=1 TZ='Europe/Berlin' TIME_STYLE='+%d-%m %H:%M'
 export LESS='-g -i -M -R -S -w -z-4' LESSHISTFILE=- LESSCHARSET=utf-8
 export MANPAGER="sh -c 'col -bx | ${PAGER:-bat} -lman -ps --squeeze-limit 0'"
@@ -125,6 +125,31 @@ fe(){ local -a files; local q="${*:-}" preview; if (( $+commands[bat] )); then p
   [[ ${#files} -gt 0 ]] && "${EDITOR:-micro}" "${files[@]}"
 }
 h(){ curl -s "cheat.sh/${@:-}"; }
+
+updt(){
+  export LC_ALL=C DEBIAN_FRONTEND=noninteractive
+  local p=${PREFIX:-/data/data/com.termux/files/usr}
+  pkg up -y
+  apt-get -y --fix-broken install; dpkg --configure -a
+  pkg clean -y; pkg autoclean -y
+  apt -y autoclean; apt-get -y autoremove --purge
+  rm -rf "${p}/var/lib/apt/lists/"* "${p}/var/cache/apt/archives/partial/"* &>/dev/null
+}
+sweep_home(){
+  local base=${1:-$HOME} p=${PREFIX:-/data/data/com.termux/files/usr}
+  export LC_ALL=C
+  if command -v fd >/dev/null 2>&1; then
+    fd -tf -e bak -e log -e old -e tmp -u -E .git "$base" -x rm -f
+    fd -tf -te -u -E .git "$base" -x rm -f
+    fd -td -te -u -E .git "$base" -x rmdir
+    fd -tf . "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -x rm -f
+  else
+    find -O2 "$base" -type f \( -name '*.bak' -o -name '*.log' -o -name '*.old' -o -name '*.tmp' \) -delete
+    find -O2 "$base" \( -type f -empty -o -type d -empty \) -delete
+    find -O2 "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -type f -delete
+  fi
+  rm -rf "${p}/share/groff/"* "${p}/share/info/"* "${p}/share/lintian/"* "${p}/share/linda/"*
+}
 
 # ===== Integrations & finalize =====
 ifsource ~/.p10k.zsh
