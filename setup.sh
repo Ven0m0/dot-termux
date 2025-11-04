@@ -44,8 +44,9 @@ install_node_tools(){ print_step "Installing bun/pnpm"
   { has pnpm || { curl -fsSL https://get.pnpm.io/install.sh | sh - &>/dev/null; log "pnpm done"; } } &
 }
 
-install_mise(){ print_step "Installing mise"; has mise || { curl -fsSL https://mise.run | sh &>/dev/null; log "mise done"; }; }
-install_soar(){ print_step "Installing SOAR"; has soar || { curl -fsSL https://soar.qaidvoid.dev/install.sh | sh &>/dev/null; log "SOAR done"; }; }
+install_mise(){ print_step "Installing mise"; has mise || { curl -fsL https://mise.run | sh &>/dev/null; log "mise done"; }; }
+install_soar(){ print_step "Installing SOAR"; has soar || { curl -fsL https://soar.qaidvoid.dev/install.sh | sh &>/dev/null; log "SOAR done"; }; }
+install_pkgx(){ print_step "Installing pkgx"; has pkgx || { curl -fsL https://pkgx.sh | sh &>/dev/null; log "pkgx done"; }; }
 
 setup_revanced_tools(){ print_step "Setting up ReVanced tools"; ensure_dir "$HOME/bin"
   { curl -sL "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh" | bash &>/dev/null && [[ -d $HOME/revancify-xisr ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/revancify-xisr" || :; log "Revancify done"; } &
