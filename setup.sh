@@ -54,7 +54,7 @@ setup_revanced_tools(){ print_step "Setting up ReVanced tools"; ensure_dir "$HOM
   { curl -fsSL https://get.x-cmd.com | bash &>/dev/null && log "X-CMD done"; } &
   log "ReVanced tools installing"
 }
-install_wapatch(){ git clone https://github.com/Schwartzblat/WhatsAppPatcher.git; }
+install_wapatch(){ git clone --depth=1 https://github.com/Schwartzblat/WhatsAppPatcher.git && uv pip install -r WhatsAppPatcher/requirements.txt; }
 
 setup_adb_rish(){ print_step "Setting up ADB/RISH"; curl -sL https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash &>/dev/null || :; log "ADB/RISH done"; }
 
