@@ -89,6 +89,7 @@ main(){
   install_node_tools
   install_mise
   install_soar
+  install_pkgx
   { curl -fsSL https://astral.sh/uv/install.sh | sh &>/dev/null; } &
   { curl -fsSL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; } &
   print_step "Linking dotfiles"
