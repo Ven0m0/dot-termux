@@ -24,7 +24,8 @@ install_pkgs(){
   runit rust rust-src sccache ripgrep procps sheldon parallel build-essential bash-completion libwebp gifsicle
   pngquant pngcrush optipng openjpeg imagemagick graphicsmagick jpegoptim ffmpeg 
   nodejs micro mold make llvm gawk fzf dust esbuild eza chafa bat openjdk-21 esbuild
-  apksigner apkeditor aapt2 android-tools binutils-is-llvm jq python-pip topgrade aria2)
+  apksigner apkeditor aapt2 android-tools binutils-is-llvm jq python-pip topgrade aria2
+  termux-services )
   DEBIAN_FRONTEND=noninteractive pkg i -y "${pkgs[@]}" -o 'Dpkg::Options::="--force-confdef"' -o 'Dpkg::Options::="--force-confold"' -o 'APT::Get::Assume-Yes "true"' || :
 }
 install_jetbrains_mono(){ print_step "Installing JetBrains Mono font"
@@ -77,6 +78,12 @@ optimize_zsh(){ print_step "Optimizing Zsh"
 main(){
   : >"$LOG_FILE"; log "Starting setup..."
   check_internet
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  # Generate SSH key if not exists
+  if [ ! -f ~/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+    echo "SSH key generated at ~/.ssh/id_rsa"
+  fi
   print_step "Updating packages, adding repos and installing packages"
   install_pkgs
   install_jetbrains_mono
