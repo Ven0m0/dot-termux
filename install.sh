@@ -10,7 +10,7 @@ echo -e "${BLU}🚀 Starting optimized Termux environment setup...${DEF}"
 # Ensure essential packages are present
 echo -e "${GRN}📦 Ensuring git and curl are installed...${DEF}"
 pkg update -y &>/dev/null
-pkg install -y git curl gitoxide uv &>/dev/null
+pkg install -y git curl gitoxide uv yadm stow &>/dev/null
 
 # Clone or update the repository
 if [[ -d "$REPO_PATH" ]]; then
