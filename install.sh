@@ -13,7 +13,7 @@ pkg update -y &>/dev/null
 pkg install -y git curl gitoxide uv yadm stow &>/dev/null
 
 # Clone or update the repository
-if [[ -d "$REPO_PATH" ]]; then
+if [[ -d $REPO_PATH ]]; then
   echo -e "${GRN}📁 Updating existing dot-termux repository...${DEF}"
   git -C "$REPO_PATH" pull --rebase --autostash
 else

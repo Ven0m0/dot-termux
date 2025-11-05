@@ -21,7 +21,10 @@ ensure_dir() { for dir; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 run_installer() {
   local name="$1" url="$2"
   step "Installing $name..."
-  has "${name%%-*}" && { log "$name already installed."; return 0; }
+  has "${name%%-*}" && {
+    log "$name already installed."
+    return 0
+  }
   local script
   script=$(mktemp --suffix=".sh")
   if curl -fsL --http2 --tcp-fastopen --tcp-nodelay --tls-earlydata --connect-timeout 5 "$url" -o "$script"; then
@@ -33,7 +36,7 @@ run_installer() {
   rm -f "$script"
   log "$name installation process finished."
 }
-run_web(){
+run_web() {
   local url="$1" file="$2"
   if has curl; then
     curl -fsL --http2 --tcp-fastopen --tcp-nodelay --tls-earlydata --connect-timeout 5 --retry 3 --retry-delay 2 "$url" -o "$file"
@@ -98,7 +101,10 @@ install_packages() {
 install_fonts() {
   step "Installing JetBrains Mono font"
   local font_path="$HOME/.termux/font.ttf"
-  [[ -f $font_path ]] && { log "Font already installed."; return 0; }
+  [[ -f $font_path ]] && {
+    log "Font already installed."
+    return 0
+  }
   local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
   local tmp_zip
   tmp_zip=$(mktemp --suffix=".zip")
@@ -114,7 +120,7 @@ install_rust_tools() {
   step "Installing additional Rust tools"
   export PATH="$HOME/.cargo/bin:$PATH"
   run_installer "cargo-binstall" "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh"
-  
+
   local -a tools=(cargo-update oxipng)
   for tool in "${tools[@]}"; do
     has "$tool" || cargo binstall -y "$tool" || cargo install "$tool"
@@ -151,8 +157,8 @@ setup_zsh() {
   local antidote_dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
   if [[ ! -d $antidote_dir ]]; then
     log "Cloning Antidote..."
-    has gix && gix clone --depth=1 https://github.com/mattmc3/antidote.git "$antidote_dir" || \
-      git clone --depth=1 --filter='blob:none' --no-tags https://github.com/mattmc3/antidote.git "$antidote_dir"
+    has gix && gix clone --depth=1 https://github.com/mattmc3/antidote.git "$antidote_dir" \
+      || git clone --depth=1 --filter='blob:none' --no-tags https://github.com/mattmc3/antidote.git "$antidote_dir"
   fi
 }
 
@@ -169,7 +175,8 @@ link_dotfiles() {
   local script target
   for script in "$REPO_PATH/bin"/*.sh; do
     [[ -f $script ]] || continue
-    target="$HOME/bin/${script##*/}"; target="${target%.sh}"
+    target="$HOME/bin/${script##*/}"
+    target="${target%.sh}"
     ln -sf "$script" "$target"
     chmod +x "$target"
   done
@@ -179,7 +186,7 @@ finalize() {
   step "Finalizing setup"
   log "Compiling Zsh configuration for faster startup..."
   zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f "$f" ]] && zrecompile -pq "$f"; done' &>/dev/null || :
-  
+
   cat >"$HOME/.welcome.msg" <<EOF
 ${BLU}╔════════════════════════════════════════════════╗${DEF}
 ${BLU}║  Welcome to your optimized Termux environment  ║${DEF}

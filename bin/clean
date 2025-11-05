@@ -41,7 +41,7 @@ HAS_ADB=0
 # HELP
 # ============================================================================
 
-show_help(){
+show_help() {
   cat <<'EOF'
 clean - Unified cleaning tool for Termux and Android
 
@@ -82,7 +82,7 @@ EOF
 # PRIVILEGE DETECTION
 # ============================================================================
 
-detect_privileges(){
+detect_privileges() {
   # Check for Shizuku
   if has rish; then
     if rish id >/dev/null 2>&1; then
@@ -90,7 +90,7 @@ detect_privileges(){
       [[ $VERBOSE -eq 1 ]] && info "Shizuku access available"
     fi
   fi
-  
+
   # Check for ADB
   if has adb; then
     if adb devices 2>/dev/null | grep -q 'device$'; then
@@ -98,7 +98,7 @@ detect_privileges(){
       [[ $VERBOSE -eq 1 ]] && info "ADB access available"
     fi
   fi
-  
+
   # Check for root
   if has su; then
     if su -c id 2>/dev/null | grep -q uid=0; then
@@ -113,23 +113,26 @@ detect_privileges(){
 # ============================================================================
 
 # Quick clean: cache, logs, temp files
-clean_quick(){
+clean_quick() {
   print_step "Quick cleaning"
-  
+
   # Clean Termux package cache
   if has pkg; then
-    [[ $DRY_RUN -eq 1 ]] && { log "Would clean package cache"; return 0; }
+    [[ $DRY_RUN -eq 1 ]] && {
+      log "Would clean package cache"
+      return 0
+    }
     log "Cleaning package cache"
     pkg clean >/dev/null 2>&1 || :
     pkg autoclean >/dev/null 2>&1 || :
   fi
-  
+
   if has apt; then
     apt clean >/dev/null 2>&1 || :
     apt autoclean >/dev/null 2>&1 || :
     apt-get -y autoremove --purge >/dev/null 2>&1 || :
   fi
-  
+
   # Clean shell cache
   log "Cleaning shell cache"
   [[ $DRY_RUN -eq 0 ]] && {
@@ -137,7 +140,7 @@ clean_quick(){
     rm -f "$HOME"/.bash_history.tmp >/dev/null 2>&1 || :
     rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}"/.zcompdump* >/dev/null 2>&1 || :
   }
-  
+
   # Clean temp files
   log "Cleaning temp files"
   [[ $DRY_RUN -eq 0 ]] && {
@@ -150,30 +153,30 @@ clean_quick(){
     find /data/data/com.termux/files/home/ -type f -name "*.bak" -delete -print 2>/dev/null
     find /data/data/com.termux/files/home -type f -name "*.log" -delete -print 2>/dev/null
   }
-  
+
   # Clean log files
   log "Cleaning log files"
   [[ $DRY_RUN -eq 0 ]] && {
     find "$HOME" -type f -name "*.log" -mtime +7 -delete >/dev/null 2>&1 || :
     find "$HOME" -type f -name "*.bak" -delete >/dev/null 2>&1 || :
   }
-  
+
   # Clean empty directories
   log "Cleaning empty directories"
   [[ $DRY_RUN -eq 0 ]] && {
     find "$HOME" -type d -empty -delete >/dev/null 2>&1 || :
   }
-  
+
   info "Quick clean complete"
 }
 
 # Deep clean: includes everything from quick plus more aggressive cleaning
-clean_deep(){
+clean_deep() {
   print_step "Deep cleaning"
-  
+
   # Run quick clean first
   clean_quick
-  
+
   echo "Cleaning up broken symlinks in: ${1-$PWD}"
   find "${1-$PWD}" -type l -exec sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
 
@@ -184,7 +187,7 @@ clean_deep(){
       find "$HOME/storage/shared/Download" -type f -mtime +60 -delete >/dev/null 2>&1 || :
     }
   fi
-  
+
   # Clean old files in home
   log "Cleaning old files in home"
   [[ $DRY_RUN -eq 0 ]] && {
@@ -192,21 +195,21 @@ clean_deep(){
     find "$HOME" -type f -name "*~" -delete >/dev/null 2>&1 || :
     find "$HOME" -type f -name "core" -delete >/dev/null 2>&1 || :
   }
-  
+
   info "Deep clean complete"
 }
 
 # Clean WhatsApp media
-clean_whatsapp(){
+clean_whatsapp() {
   print_step "Cleaning WhatsApp media"
-  
+
   local storage_path="${HOME}/storage/shared"
-  
-  [[ ! -d "$storage_path" ]] && {
+
+  [[ ! -d $storage_path ]] && {
     warn "Storage not accessible. Run: termux-setup-storage"
     return 1
   }
-  
+
   local -a whatsapp_paths=(
     "$storage_path/WhatsApp/Media/.Statuses"
     "$storage_path/WhatsApp/Media/WhatsApp Documents"
@@ -214,12 +217,12 @@ clean_whatsapp(){
     "$storage_path/WhatsApp/Media/WhatsApp Video"
     "$storage_path/WhatsApp/Media/WhatsApp Audio"
   )
-  
+
   for path in "${whatsapp_paths[@]}"; do
     [[ ! -d $path ]] && continue
-    
+
     log "Cleaning: $path"
-    
+
     if [[ $DRY_RUN -eq 1 ]]; then
       local count
       count=$(find "$path" -type f -mtime +30 2>/dev/null | wc -l)
@@ -228,33 +231,33 @@ clean_whatsapp(){
       find "$path" -type f -mtime +30 -delete >/dev/null 2>&1 || :
     fi
   done
-  
+
   info "WhatsApp cleaning complete"
 }
 
 # Clean Telegram media
-clean_telegram(){
+clean_telegram() {
   print_step "Cleaning Telegram media"
-  
+
   local storage_path="${HOME}/storage/shared"
-  
-  [[ ! -d "$storage_path" ]] && {
+
+  [[ ! -d $storage_path ]] && {
     warn "Storage not accessible. Run: termux-setup-storage"
     return 1
   }
-  
+
   local -a telegram_paths=(
     "$storage_path/Telegram/Telegram Images"
     "$storage_path/Telegram/Telegram Video"
     "$storage_path/Telegram/Telegram Documents"
     "$storage_path/Telegram/Telegram Audio"
   )
-  
+
   for path in "${telegram_paths[@]}"; do
     [[ ! -d $path ]] && continue
-    
+
     log "Cleaning: $path"
-    
+
     if [[ $DRY_RUN -eq 1 ]]; then
       local count
       count=$(find "$path" -type f -mtime +30 2>/dev/null | wc -l)
@@ -263,14 +266,14 @@ clean_telegram(){
       find "$path" -type f -mtime +30 -delete >/dev/null 2>&1 || :
     fi
   done
-  
+
   info "Telegram cleaning complete"
 }
 
 # Clean system cache (requires elevated privileges)
-clean_system_cache(){
+clean_system_cache() {
   print_step "Cleaning system cache"
-  
+
   if [[ $HAS_SHIZUKU -eq 1 ]]; then
     log "Using Shizuku for system cache cleaning"
     [[ $DRY_RUN -eq 0 ]] && {
@@ -301,19 +304,19 @@ clean_system_cache(){
     err "System cache cleaning requires root, ADB, or Shizuku"
     return 1
   fi
-  
+
   info "System cache cleaning complete"
 }
 
 # Clean via ADB
-clean_adb(){
+clean_adb() {
   print_step "Cleaning via ADB"
-  
+
   [[ $HAS_ADB -eq 0 ]] && {
     err "ADB not available or no device connected"
     return 1
   }
-  
+
   # Clean logs
   log "Cleaning Android logs via ADB"
   [[ $DRY_RUN -eq 0 ]] && {
@@ -322,13 +325,13 @@ clean_adb(){
     adb shell rm -rf /data/log/* >/dev/null 2>&1 || :
     adb shell rm -rf /data/tombstones/* >/dev/null 2>&1 || :
   }
-  
+
   # Clean cache
   log "Cleaning app caches via ADB"
   [[ $DRY_RUN -eq 0 ]] && {
     adb shell pm trim-caches 999999999M >/dev/null 2>&1 || :
   }
-  
+
   info "ADB cleaning complete"
 }
 
@@ -336,76 +339,76 @@ clean_adb(){
 # MAIN
 # ============================================================================
 
-main(){
+main() {
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -q|--quick)
-        OPT_QUICK=1
-        shift
-        ;;
-      -d|--deep)
-        OPT_DEEP=1
-        shift
-        ;;
-      -w|--whatsapp)
-        OPT_WHATSAPP=1
-        shift
-        ;;
-      -t|--telegram)
-        OPT_TELEGRAM=1
-        shift
-        ;;
-      -a|--adb)
-        OPT_ADB=1
-        shift
-        ;;
-      -s|--system-cache)
-        OPT_SYSTEM_CACHE=1
-        shift
-        ;;
-      -p|--pkg-cache)
-        OPT_PKG_CACHE=1
-        shift
-        ;;
-      -n|--dry-run)
-        DRY_RUN=1
-        shift
-        ;;
-      -y|--yes)
-        ASSUME_YES=1
-        shift
-        ;;
-      -v|--verbose)
-        VERBOSE=1
-        shift
-        ;;
-      -h|--help)
-        show_help
-        exit 0
-        ;;
-      *)
-        err "Unknown option: $1"
-        show_help
-        exit 1
-        ;;
+    -q | --quick)
+      OPT_QUICK=1
+      shift
+      ;;
+    -d | --deep)
+      OPT_DEEP=1
+      shift
+      ;;
+    -w | --whatsapp)
+      OPT_WHATSAPP=1
+      shift
+      ;;
+    -t | --telegram)
+      OPT_TELEGRAM=1
+      shift
+      ;;
+    -a | --adb)
+      OPT_ADB=1
+      shift
+      ;;
+    -s | --system-cache)
+      OPT_SYSTEM_CACHE=1
+      shift
+      ;;
+    -p | --pkg-cache)
+      OPT_PKG_CACHE=1
+      shift
+      ;;
+    -n | --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -y | --yes)
+      ASSUME_YES=1
+      shift
+      ;;
+    -v | --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      show_help
+      exit 0
+      ;;
+    *)
+      err "Unknown option: $1"
+      show_help
+      exit 1
+      ;;
     esac
   done
-  
+
   # If no options specified, default to quick clean
-  if [[ $OPT_QUICK -eq 0 && $OPT_DEEP -eq 0 && $OPT_WHATSAPP -eq 0 && \
-        $OPT_TELEGRAM -eq 0 && $OPT_ADB -eq 0 && $OPT_SYSTEM_CACHE -eq 0 && \
-        $OPT_PKG_CACHE -eq 0 ]]; then
+  if [[ $OPT_QUICK -eq 0 && $OPT_DEEP -eq 0 && $OPT_WHATSAPP -eq 0 &&
+    $OPT_TELEGRAM -eq 0 && $OPT_ADB -eq 0 && $OPT_SYSTEM_CACHE -eq 0 &&
+    $OPT_PKG_CACHE -eq 0 ]]; then
     OPT_QUICK=1
   fi
-  
+
   # Detect available privileges
   detect_privileges
-  
+
   # Start logging
   log "Starting clean operations"
   [[ $DRY_RUN -eq 1 ]] && warn "DRY RUN MODE - No files will be deleted"
-  
+
   # Execute cleaning operations
   [[ $OPT_QUICK -eq 1 ]] && clean_quick
   [[ $OPT_DEEP -eq 1 ]] && clean_deep
@@ -413,7 +416,7 @@ main(){
   [[ $OPT_TELEGRAM -eq 1 ]] && clean_telegram
   [[ $OPT_SYSTEM_CACHE -eq 1 ]] && clean_system_cache
   [[ $OPT_ADB -eq 1 ]] && clean_adb
-  
+
   info "All cleaning operations complete"
   [[ $VERBOSE -eq 1 ]] && info "Log file: $LOG_FILE"
 }

@@ -22,7 +22,7 @@ export FZF_DEFAULT_OPTS="--height=40% --layout=reverse --border --info=inline --
 export FZF_DEFAULT_COMMAND='fd -tf -H --strip-cwd-prefix -E ".git"'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND" FZF_ALT_C_COMMAND='fd -td -H'
 typeset -gU cdpath fpath mailpath path
-path=($HOME/{,s}bin(N) $HOME/.local/{,s}bin(N) $HOME/.cargo/bin(N) $HOME/go/bin(N) $path)
+path=("$HOME"/{,s}bin(N) "$HOME"/.local/{,s}bin(N) "$HOME"/.cargo/bin(N) "$HOME"/go/bin(N) "$path")
 
 HISTFILE="${HOME}/.zsh_history"; HISTSIZE=50000; SAVEHIST=50000
 setopt HIST_IGNORE_ALL_DUPS HIST_SAVE_NO_DUPS HIST_REDUCE_BLANKS SHARE_HISTORY
@@ -69,7 +69,7 @@ zstyle ':completion:*:warnings' format ' %F{yellow}-- no matches found --%f'
 zstyle ':completion:*' format ' %F{blue}-- %d --%f'
 if has vivid; then export LS_COLORS="$(vivid generate molokai)"; elif has dircolors; then eval "$(dircolors -b)" &>/dev/null; fi
 LS_COLORS=${LS_COLORS:-'di=34:ln=35:so=32:pi=33:ex=31:'}
-zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
+zstyle ':completion:*:default' list-colors "${(s.:.)LS_COLORS}"
 
 # fzf-tab if present in bundle
 (( $+functions[fzf_completion] )) && bindkey '^I' fzf_completion
@@ -102,7 +102,7 @@ alias e='$EDITOR'; alias r='bat -p'; alias dirs='dirs -v'; alias which='command 
 alias open='termux-open'; alias reload='termux-reload-settings'
 alias battery='termux-battery-status'; alias clipboard='termux-clipboard-get'
 alias copy='termux-clipboard-set'; alias share='termux-share'; alias notify='termux-notification'
-alias -s {css,gradle,html,js,json,md,patch,properties,txt,xml,yml}=$PAGER
+alias -s {css,gradle,html,js,json,md,patch,properties,txt,xml,yml}="$PAGER"
 alias -s gz='gzip -l'; alias -s {log,out}='tail -F'
 alias -g -- -h='-h 2>&1 | bat -plhelp'; alias -g -- --help='--help 2>&1 | bat -plhelp'
 alias -g L="| ${PAGER:-less}" G="| rg -i" NE="2>/dev/null" NUL=">/dev/null 2>&1"
@@ -116,8 +116,8 @@ extract(){ [[ -f $1 ]] || { printf 'File not found: %s\n' "$1" >&2; return 1; }
 }
 fcd(){ local root="." q sel preview; [[ $# -gt 0 && -d $1 ]] && { root="$1"; shift; }; q="${*:-}"
   preview=$(( $+commands[eza] )) && preview='eza -T -L2 --color=always {}' || preview='ls -la --color=always {}'
-  if (( $+commands[fd] )); then sel="$(fd -HI -t d . "$root" 2>/dev/null | fzf --ansi --height ${FZF_HEIGHT:-60%} --layout=reverse --border --select-1 --exit-0 --preview "$preview" ${q:+--query "$q"})"
-  else sel="$(find "$root" -type d -not -path '*/.git/*' -print 2>/dev/null | fzf --ansi --height ${FZF_HEIGHT:-60%} --layout=reverse --border --select-1 --exit-0 --preview "$preview" ${q:+--query "$q"})"; fi
+  if (( $+commands[fd] )); then sel="$(fd -HI -t d . "$root" 2>/dev/null | fzf --ansi --height "${FZF_HEIGHT:-60%}" --layout=reverse --border --select-1 --exit-0 --preview "$preview" "${q:+--query "$q"}")"
+  else sel="$(find "$root" -type d -not -path '*/.git/*' -print 2>/dev/null | fzf --ansi --height "${FZF_HEIGHT:-60%}" --layout=reverse --border --select-1 --exit-0 --preview "$preview" "${q:+--query "$q"}")"; fi
   [[ -n $sel ]] && cd -- "$sel"
 }
 fe(){ local -a files; local q="${*:-}" preview; if (( $+commands[bat] )); then preview='bat -n --style=plain --color=always --line-range=:500 {}'; else preview='head -n 500 {}'; fi

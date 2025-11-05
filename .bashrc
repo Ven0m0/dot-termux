@@ -1,14 +1,33 @@
 [[ $- != *i* ]] && return
 
 # --- Helpers (inline for fallback) ---
-has(){ command -v -- "$1" &>/dev/null; }
-sleepy(){ read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
-bname(){ local t=${1%${1##*[!/]}}; t=${t##*/}; [[ $2 && $t == *"$2" ]] && t=${t%$2}; printf '%s\n' "${t:-/}"; }
-dname(){ local p=${1:-.}; [[ $p != *[!/]* ]] && { printf '/\n'; return; }; p=${p%${p##*[!/]}}; [[ $p != */* ]] && { printf '.\n'; return; }; p=${p%/*}; p=${p%${p##*[!/]}}; printf '%s\n' "${p:-/}"; }
-match(){ printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
+has() { command -v -- "$1" &>/dev/null; }
+sleepy() { read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
+bname() {
+  local t=${1%"${1##*[!/]}"}
+  t=${t##*/}
+  [[ -n $2 && $t == *"$2" ]] && t=${t%"$2"}
+  printf '%s\n' "${t:-/}"
+}
+dname() {
+  local p=${1:-.}
+  [[ $p != *[!/]* ]] && {
+    printf '/\n'
+    return
+  }
+  p=${p%"${p##*[!/]}"}
+  [[ $p != */* ]] && {
+    printf '.\n'
+    return
+  }
+  p=${p%/*}
+  p=${p%"${p##*[!/]}"}
+  printf '%s\n' "${p:-/}"
+}
+match() { printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
 
 # --- Gitoxide wrapper ---
-git_wrapper(){ if has gix; then gix "$@"; else git "$@"; fi; }
+git_wrapper() { if has gix; then gix "$@"; else git "$@"; fi; }
 
 # --- Lazy loading (adapted from bash-lazyrc.sh) ---
 FUNC_DIRS=("$HOME/.bash/functions.d")
@@ -16,14 +35,15 @@ CONFIG_DIRS=("$HOME/.bash/configs")
 AUTOLOAD_CACHE="$HOME/.cache/bash_autoload.list"
 CONFIG_CACHE="$HOME/.cache/bash_config.loaded"
 
-lazyfile(){
-  local src=$1; shift
+lazyfile() {
+  local src=$1
+  shift
   for f; do
     eval "$f(){ unset -f $*; source \"$src\"; $f \"\$@\"; }"
   done
 }
 
-autoload_parse(){
+autoload_parse() {
   local src=$1 funcs
   if has rg; then
     funcs=$(rg -n --no-heading '^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "$src")
@@ -38,21 +58,27 @@ autoload_parse(){
   printf '%s\n' "$funcs"
 }
 
-autoload_init(){
+autoload_init() {
   local cache_valid=1 config_valid=1
-  [[ -f "$AUTOLOAD_CACHE" ]] || cache_valid=0
-  if (( cache_valid == 1 )); then
+  [[ -f $AUTOLOAD_CACHE ]] || cache_valid=0
+  if ((cache_valid == 1)); then
     for src in "${FUNC_DIRS[@]}"; do
-      [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do [[ "$f" -nt "$AUTOLOAD_CACHE" ]] && { cache_valid=0; break; }; done
+      [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do [[ $f -nt $AUTOLOAD_CACHE ]] && {
+        cache_valid=0
+        break
+      }; done
     done
   fi
-  [[ -f "$CONFIG_CACHE" ]] || config_valid=0
-  if (( config_valid == 1 )); then
+  [[ -f $CONFIG_CACHE ]] || config_valid=0
+  if ((config_valid == 1)); then
     for src in "${CONFIG_DIRS[@]}"; do
-      [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do [[ "$f" -nt "$CONFIG_CACHE" ]] && { config_valid=0; break; }; done
+      [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do [[ $f -nt $CONFIG_CACHE ]] && {
+        config_valid=0
+        break
+      }; done
     done
   fi
-  if (( cache_valid == 0 )); then
+  if ((cache_valid == 0)); then
     : >"$AUTOLOAD_CACHE"
     for src in "${FUNC_DIRS[@]}"; do
       [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do
@@ -63,26 +89,29 @@ autoload_init(){
   while IFS= read -r fn src; do
     [[ $src == "${FUNC_DIRS[0]}"* ]] && lazyfile "$src" "$fn"
   done <"$AUTOLOAD_CACHE"
-  if (( config_valid == 0 )); then
+  if ((config_valid == 0)); then
     : >"$CONFIG_CACHE"
     for src in "${CONFIG_DIRS[@]}"; do
-      [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do source "$f"; echo "$f" >>"$CONFIG_CACHE"; done
+      [[ "$src"/*.sh ]] && for f in "$src"/*.sh; do
+        source "$f"
+        echo "$f" >>"$CONFIG_CACHE"
+      done
     done
   else
-    while IFS= read -r src; do [[ -f "$src" ]] && source "$src"; done <"$CONFIG_CACHE"
+    while IFS= read -r src; do [[ -f $src ]] && source "$src"; done <"$CONFIG_CACHE"
   fi
 }
 
 # --- Sourcing ---
 dot=("$HOME"/.{bash_aliases,bash_functions,bash_completions,bash.d/cht.sh,config/bash/cht.sh})
-for p in "${dot[@]}"; do [[ -r "$p" ]] && source "$p"; done
+for p in "${dot[@]}"; do [[ -r $p ]] && source "$p"; done
 unset p dot
 [[ -r "$HOME/.inputrc" ]] && export INPUTRC="$HOME/.inputrc"
-ifsource(){ [[ -r "$1" ]] && source "$1"; }
+ifsource() { [[ -r $1 ]] && source "$1"; }
 ifsource "$HOME/navita.sh"
 
 # --- Env ---
-prependpath(){ [[ -d $1 ]] && [[ :$PATH: != *":$1:"* ]] && PATH="$1${PATH:+:$PATH}"; }
+prependpath() { [[ -d $1 ]] && [[ :$PATH: != *":$1:"* ]] && PATH="$1${PATH:+:$PATH}"; }
 prependpath "$HOME/.local/bin"
 prependpath "$HOME/.bin"
 prependpath "$HOME/bin"
@@ -116,7 +145,7 @@ export CURL_HOME="$HOME" WGETRC="$HOME/.wgetrc"
 
 # Cheat.sh
 export CHEAT_USE_FZF=true CHTSH_CURL_OPTIONS="-sfLZ4 --compressed -m 5 --connect-timeout 3"
-cht(){
+cht() {
   local query="${*// /\/}"
   if ! LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/${query}"; then
     LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/:help"
@@ -131,10 +160,13 @@ if has uv; then export UV_COMPILE_BYTECODE=1 UV_LINK_MODE=hardlink; fi
 export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
 
 # Git clone (using git_wrapper)
-gclone(){ LC_ALL=C git_wrapper clone --progress --filter=blob:none --depth 1 "$@" && command cd "$1"; ls -A; }
+gclone() {
+  LC_ALL=C git_wrapper clone --progress --filter=blob:none --depth 1 "$@" && command cd "$1" || exit
+  ls -A
+}
 alias pip='python -m pip' py3='python3' py='python'
 
-touchf(){ ensure_dir "$(dirname -- "$1")" && command touch -- "$1"; }
+touchf() { ensure_dir "$(dirname -- "$1")" && command touch -- "$1"; }
 
 # Eza aliases (consolidated from zshrc)
 if has eza; then
@@ -151,17 +183,27 @@ fi
 alias nano='nano -/' mi=micro
 
 # Bat helpers
-bathelp(){ "$@" --help 2>&1 | bat -splhelp --squeeze-limit 0; }
+bathelp() { "$@" --help 2>&1 | bat -splhelp --squeeze-limit 0; }
 
 # Man helpers (consolidated)
-manol(){
-  [[ $# -eq 0 ]] && { printf 'Usage: manol [section] <page>\nExample: manol 3 printf\n' >&2; return 1; }
+manol() {
+  [[ $# -eq 0 ]] && {
+    printf 'Usage: manol [section] <page>\nExample: manol 3 printf\n' >&2
+    return 1
+  }
   local page section url base_url="https://man.archlinux.org/man"
-  if [[ $# -eq 1 ]]; then page="$1"; url="${base_url}/${page}"; else section="$1"; page="$2"; url="${base_url}/${page}.${section}"; fi
+  if [[ $# -eq 1 ]]; then
+    page="$1"
+    url="${base_url}/${page}"
+  else
+    section="$1"
+    page="$2"
+    url="${base_url}/${page}.${section}"
+  fi
   curl -sL --user-agent "curl-manpage-viewer/1.0" --compressed "$url" | "${PAGER:-less}" -R
 }
 
-fman(){
+fman() {
   local -a less_env=(LESS_TERMCAP_md=$'\e[01;31m' LESS_TERMCAP_me=$'\e[0m' LESS_TERMCAP_us=$'\e[01;32m' LESS_TERMCAP_ue=$'\e[0m' LESS_TERMCAP_so=$'\e[45;93m' LESS_TERMCAP_se=$'\e[0m')
   local -a bat_env=(LANG='C.UTF-8' MANROFFOPT='-c' BAT_STYLE='full' BAT_PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2")
   if has batman; then
@@ -172,17 +214,17 @@ fman(){
     env "${less_env[@]}" PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2" man "$@"
   fi
 }
-catt(){ for i in "$@"; do [[ -d "$i" ]] && eza "$i" || bat -p "$i"; done; }
+catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
 
 # --- Tool Wrappers ---
 
 # Git -> Gix wrapper (gitoxide)
-git(){
+git() {
   local subcmd="${1:-}"
   if has gix; then
     case "$subcmd" in
-      clone|fetch|pull|init|status|diff|log|rev-parse|rev-list|commit-graph|verify-pack|index-from-pack|pack-explode|remote|config|exclude|free|mailmap|odb|commitgraph|pack) gix "$@";;
-      *) command git "$@";;
+    clone | fetch | pull | init | status | diff | log | rev-parse | rev-list | commit-graph | verify-pack | index-from-pack | pack-explode | remote | config | exclude | free | mailmap | odb | commitgraph | pack) gix "$@" ;;
+    *) command git "$@" ;;
     esac
   else
     command git "$@"
@@ -190,15 +232,24 @@ git(){
 }
 
 # Curl -> Aria2 wrapper
-curl(){
+curl() {
   local -a args=() out_file=""
   if has aria2c; then
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        -o|--output) out_file="$2"; shift 2;;
-        -L|--location|-s|--silent|-S|--show-error|-f|--fail|--compressed) shift;;
-        http*|ftp*) args+=("$1"); shift;;
-        *) args+=("$1"); shift;;
+      -o | --output)
+        out_file="$2"
+        shift 2
+        ;;
+      -L | --location | -s | --silent | -S | --show-error | -f | --fail | --compressed) shift ;;
+      http* | ftp*)
+        args+=("$1")
+        shift
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
       esac
     done
     if [[ ${#args[@]} -gt 0 ]]; then
@@ -217,27 +268,30 @@ curl(){
 }
 
 # Pip -> UV wrapper
-pip(){
+pip() {
   if has uv; then
     case "${1:-}" in
-      install|uninstall|list|show|freeze|check) uv pip "$@";;
-      *) command pip "$@";;
+    install | uninstall | list | show | freeze | check) uv pip "$@" ;;
+    *) command pip "$@" ;;
     esac
   else
     command pip "$@"
   fi
 }
 
-updt(){
+updt() {
   export LC_ALL=C DEBIAN_FRONTEND=noninteractive
   local p=${PREFIX:-/data/data/com.termux/files/usr}
   pkg up -y
-  apt-get -y --fix-broken install; dpkg --configure -a
-  pkg clean -y; pkg autoclean -y
-  apt -y autoclean; apt-get -y autoremove --purge
+  apt-get -y --fix-broken install
+  dpkg --configure -a
+  pkg clean -y
+  pkg autoclean -y
+  apt -y autoclean
+  apt-get -y autoremove --purge
   rm -rf "${p}/var/lib/apt/lists/"* "${p}/var/cache/apt/archives/partial/"* &>/dev/null
 }
-sweep_home(){
+sweep_home() {
   local base=${1:-$HOME} p=${PREFIX:-/data/data/com.termux/files/usr}
   export LC_ALL=C
   if command -v fd >/dev/null 2>&1; then
@@ -280,7 +334,12 @@ alias mktar='tar -cvf' mkbz2='tar -cvjf' mkgz='tar -cvzf' untar='tar -xvf' unbz2
 : "${LESS_TERMCAP_mb:=$'\e[1;32m'}" "${LESS_TERMCAP_md:=$'\e[1;32m'}" "${LESS_TERMCAP_me:=$'\e[0m'}" "${LESS_TERMCAP_se:=$'\e[0m'}" "${LESS_TERMCAP_so:=$'\e[01;33m'}" "${LESS_TERMCAP_ue:=$'\e[0m'}" "${LESS_TERMCAP_us:=$'\e[1;4;31m'}"
 export "${!LESS_TERMCAP@}"
 
-trim(){ local var=$*; var="${var#"${var%%[![:space:]]*}"}"; var="${var%"${var##*[![:space:]]}"}"; printf '%s\n' "$var"; }
+trim() {
+  local var=$*
+  var="${var#"${var%%[![:space:]]*}"}"
+  var="${var%"${var##*[![:space:]]}"}"
+  printf '%s\n' "$var"
+}
 
 # Bindings
 bind 'set completion-query-items 250' 'set page-completions off' 'set show-all-if-ambiguous on' 'set show-all-if-unmodified on' 'set menu-complete-display-prefix on' "set completion-ignore-case on" "set completion-map-case on" 'set mark-directories on' "set mark-symlinked-directories on" "set bell-style none" 'set skip-completed-text on' 'set colored-stats on' 'set colored-completion-prefix on' 'set expand-tilde on' '"Space": magic-space' '"\C-o": kill-whole-line' '"\C-a": beginning-of-line' '"\C-e": end-of-line' '"\e[1;5D": backward-word' '"\e[1;5C": forward-word'
@@ -289,12 +348,17 @@ bind '"\M-\C-e": redraw-current-line' '"\M-\C-v": "\C-a\C-k$\C-y\M-\C-e\C-a\C-y=
 bind '"\t": menu-complete' '"\e[Z": menu-complete-backward'
 
 # Prompt
-configure_prompt(){
-  if has starship; then eval "$(LC_ALL=C starship init bash)"; return; fi
+configure_prompt() {
+  if has starship; then
+    eval "$(LC_ALL=C starship init bash)"
+    return
+  fi
   local MGN='\[\e[35m\]' BLU='\[\e[34m\]' YLW='\[\e[33m\]' BLD='\[\e[1m\]' UND='\[\e[4m\]' GRN='\[\e[32m\]' CYN='\[\e[36m\]' DEF='\[\e[0m\]' RED='\[\e[31m\]' PNK='\[\e[38;5;205m\]' USERN HOSTL
-  USERN="${MGN}\u${DEF}"; [[ $EUID -eq 0 ]] && USERN="${RED}\u${DEF}"
-  HOSTL="${BLU}\h${DEF}"; [[ -n $SSH_CONNECTION ]] && HOSTL="${YLW}\h${DEF}"
-  exstat(){ [[ $? == 0 ]] && printf '%s:)${DEF}' || printf '%sD:${DEF}'; }
+  USERN="${MGN}\u${DEF}"
+  [[ $EUID -eq 0 ]] && USERN="${RED}\u${DEF}"
+  HOSTL="${BLU}\h${DEF}"
+  [[ -n $SSH_CONNECTION ]] && HOSTL="${YLW}\h${DEF}"
+  exstat() { [[ $? == 0 ]] && printf '%s:)${DEF}' || printf '%sD:${DEF}'; }
   PS1="[${USERN}@${HOSTL}${UND}|${DEF}${CYN}\w${DEF}]>${PNK}\A${DEF}|\$(exstat) ${BLD}\$${DEF} "
   PS2='> '
   if has __git_ps1; then
@@ -303,22 +367,22 @@ configure_prompt(){
     PROMPT_COMMAND="LC_ALL=C __git_ps1 2>/dev/null; ${PROMPT_COMMAND:-}"
   fi
   EXPERIMENTAL="${EXPERIMENTAL:-1}"
-  if (( EXPERIMENTAL == 1 )) && has mommy && [[ "${stealth:-0}" -ne 1 ]] && [[ ${PROMPT_COMMAND:-} != *mommy* ]]; then
+  if ((EXPERIMENTAL == 1)) && has mommy && [[ ${stealth:-0} -ne 1 ]] && [[ ${PROMPT_COMMAND:-} != *mommy* ]]; then
     PROMPT_COMMAND="LC_ALL=C mommy -1 -s \$?; ${PROMPT_COMMAND:-}"
   fi
 }
 configure_prompt
 
 # Dedupe path
-dedupe_path(){
+dedupe_path() {
   local IFS=: dir s
-  for dir in $PATH; do [[ -n $dir && -z ${seen[$dir]} ]] && seen[$dir]=1 && s="${s:+$s:}$dir"; done
+  for dir in "${PATH[@]}"; do [[ -n $dir && -z ${seen[$dir]} ]] && seen[$dir]=1 && s="${s:+$s:}$dir"; done
   [[ -n $s ]] && export PATH="$s"
 }
 dedupe_path
 
 # ADB connect
-adb-connect(){
+adb-connect() {
   if ! adb devices &>/dev/null; then exit 1; fi
   local IP="${1:-$(adb shell ip route | awk '{print $9}')}" PORT="${2:-5555}"
   adb tcpip "$PORT" &>/dev/null || :
@@ -326,5 +390,5 @@ adb-connect(){
 }
 
 unset -f ifsource prependpath
-autoload_init  # Init lazy loading
+autoload_init # Init lazy loading
 unset -f autoload_init autoload_parse lazyfile

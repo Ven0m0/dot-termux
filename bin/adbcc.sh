@@ -19,7 +19,7 @@ check_dependencies() {
     fi
   done
 
-  if [ "$missing_deps" -ne 0 ]; then
+  if [[ $missing_deps -ne 0 ]]; then
     echo -e "${RED}Aborting due to missing dependencies.${NC}"
     exit 1
   fi
@@ -32,7 +32,7 @@ check_device() {
   local device_state
   device_state=$(adb get-state 2>/dev/null)
 
-  if [ "$device_state" != "device" ]; then
+  if [[ $device_state != "device" ]]; then
     echo -e "${RED}Error: No device found or device not authorized.${NC}"
     echo -e "${YELLOW}Please ensure your device is connected, USB debugging is enabled, and you have authorized the connection.${NC}"
     exit 1
@@ -89,7 +89,7 @@ optimize_whatsapp() {
   echo -e "\n${YELLOW}Pulling media from the device. This could take a very long time depending on the amount of media...${NC}"
   adb pull "$remote_dir" "$local_dir"
 
-  if [ $? -ne 0 ]; then
+  if [[ $? -ne 0 ]]; then
     echo -e "${RED}Failed to pull media from the device. Aborting optimization.${NC}"
     return 1
   fi

@@ -2,18 +2,19 @@
 
 # Open the selected file in the default editor
 fe() {
-  local IFS=$'\n' line; local files=()
+  local IFS=$'\n' line
+  local files=()
   while IFS='' read -r line; do files+=("$line"); done < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
-  [[ -n "${files[0]}" ]] && ${EDITOR:-nano} "${files[@]}"
+  [[ -n ${files[0]} ]] && "${EDITOR:-nano}" "${files[@]}"
 }
 
 # cd to the selected directory
 fcd() {
   local dir
   if has fd; then
-    dir=$(fd -t d -d 5 . "${1:-.}" 2>/dev/null | fzf +m) && cd "$dir"
+    dir=$(fd -t d -d 5 . "${1:-.}" 2>/dev/null | fzf +m) && cd "$dir" || exit
   else
-    dir=$(find "${1:-.}" -O3 -maxdepth 5 -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir"
+    dir=$(find "${1:-.}" -O3 -maxdepth 5 -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir" || exit
   fi
 }
 
@@ -22,11 +23,10 @@ bathelp() {
   "$@" --help 2>&1 | command bat -splhelp --squeeze-limit 0
 }
 
-
 # Cat^2 (cat for files and directories)
 catt() {
   for i in "$@"; do
-    if [[ -d "$i" ]]; then
+    if [[ -d $i ]]; then
       ls "$i"
     else
       cat "$i"
@@ -37,29 +37,34 @@ catt() {
 alias edit='${EDITOR:--nano}'
 alias pager='${PAGER:-less}'
 
-faf(){ eval "$({ alias; declare -F | grep -v '^_'; } | fzf | cut -d= -f1)"; }
-    
+faf() { eval "$({
+  alias
+  declare -F | grep -v '^_'
+} | fzf | cut -d= -f1)"; }
 
-fzf-man(){
-	local MAN="/usr/bin/man"
-	[[ -n $1 ]] && { $MAN "$@"; return; }
-	if has sd; then
-		$MAN -k . | fzf --reverse --preview="echo {1,2} | sd ' \(' '.' | sd '\)\s*$' '' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r $MAN
-	else
-		$MAN -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r $MAN
-	fi
+fzf-man() {
+  local MAN="/usr/bin/man"
+  [[ -n $1 ]] && {
+    "$MAN" "$@"
+    return
+  }
+  if has sd; then
+    "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sd ' \(' '.' | sd '\)\s*$' '' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
+  else
+    "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
+  fi
 }
 
-git(){
+git() {
   local subcmd="${1:-}"
   if has gix; then
     case "$subcmd" in
-      clone|fetch|pull|init|status|diff|log|rev-parse|rev-list|commit-graph|verify-pack|index-from-pack|pack-explode|remote|config|exclude|free|mailmap|odb|commitgraph|pack)
-        gix "$@"
-        ;;
-      *)
-        command git "$@"
-        ;;
+    clone | fetch | pull | init | status | diff | log | rev-parse | rev-list | commit-graph | verify-pack | index-from-pack | pack-explode | remote | config | exclude | free | mailmap | odb | commitgraph | pack)
+      gix "$@"
+      ;;
+    *)
+      command git "$@"
+      ;;
     esac
   else
     command git "$@"
@@ -67,26 +72,26 @@ git(){
 }
 
 # Curl -> Aria2 wrapper
-curl(){
+curl() {
   local -a args=() out_file=""
   if has aria2c; then
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        -o|--output)
-          out_file="$2"
-          shift 2
-          ;;
-        -L|--location|-s|--silent|-S|--show-error|-f|--fail)
-          shift
-          ;;
-        http*|ftp*)
-          args+=("$1")
-          shift
-          ;;
-        *)
-          args+=("$1")
-          shift
-          ;;
+      -o | --output)
+        out_file="$2"
+        shift 2
+        ;;
+      -L | --location | -s | --silent | -S | --show-error | -f | --fail)
+        shift
+        ;;
+      http* | ftp*)
+        args+=("$1")
+        shift
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
       esac
     done
     if [[ ${#args[@]} -gt 0 ]]; then
@@ -104,15 +109,15 @@ curl(){
 }
 
 # Pip -> UV wrapper
-pip(){
+pip() {
   if has uv; then
     case "${1:-}" in
-      install|uninstall|list|show|freeze|check)
-        uv pip "$@"
-        ;;
-      *)
-        command pip "$@"
-        ;;
+    install | uninstall | list | show | freeze | check)
+      uv pip "$@"
+      ;;
+    *)
+      command pip "$@"
+      ;;
     esac
   else
     command pip "$@"

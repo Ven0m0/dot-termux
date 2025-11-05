@@ -17,7 +17,7 @@ script_name="$(basename "$0")"
 args=("$@")
 
 # handle help / too few args
-if (( $# < 3 )) || [[ " ${args[*]} " == *" -h "* ]] || [[ " ${args[*]} " == *" --help "* ]]; then
+if (($# < 3)) || [[ " ${args[*]} " == *" -h "* ]] || [[ " ${args[*]} " == *" --help "* ]]; then
   usage
 fi
 
@@ -30,15 +30,15 @@ operand_1=${args[-3]}
 args=("${args[@]::${#args[@]}-3}")
 
 # validate
-if [[ "$operand_1" == "-"* ]]; then
+if [[ $operand_1 == "-"* ]]; then
   usage
 fi
 
 # determine direction
-if [[ "$operation" == ">" ]]; then
+if [[ $operation == ">" ]]; then
   target="$operand_2"
   link_name="$operand_1"
-elif [[ "$operation" == "<" ]]; then
+elif [[ $operation == "<" ]]; then
   target="$operand_1"
   link_name="$operand_2"
 else
