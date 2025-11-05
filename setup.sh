@@ -40,8 +40,8 @@ setup_antidote(){ print_step "Setting up Antidote"
 }
 install_rust_tools_fallback(){ print_step "Installing Rust tools (fallback)"
   [[ -x "$HOME/.cargo/bin/cargo-binstall" ]] || { curl -fsL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &>/dev/null; }
-  local -a tools=(oxipng)
-  for tool in "${tools[@]}"; do has "$tool" || "$HOME/.cargo/bin/cargo-binstall" -y "$tool" &>/dev/null & done
+  local -a tools=(oxipng cargo-update)
+  for tool in "${tools[@]}"; do has "$tool" || { "$HOME/.cargo/bin/cargo-binstall" "$tool" || cargo install "$tool"; }; done
   log "Rust fallback tools installing"
 }
 install_node_tools(){ print_step "Installing bun"
@@ -89,8 +89,8 @@ main(){
   install_mise
   install_soar
   install_pkgx
-  { curl -fsL https://astral.sh/uv/install.sh | sh &>/dev/null; } &
-  { curl -fsL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; } &
+  uv pip install TUIFIManager
+  { curl -fsL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; }
   print_step "Linking dotfiles"
   local -a dotfiles=("$REPO_PATH/.zshrc:$HOME/.zshrc" "$REPO_PATH/.zshenv:$HOME/.zshenv" "$REPO_PATH/.p10k.zsh:$HOME/.p10k.zsh")
   for item in "${dotfiles[@]}"; do IFS=: read -r src tgt <<<"$item"; symlink_dotfile "$src" "$tgt"; done
