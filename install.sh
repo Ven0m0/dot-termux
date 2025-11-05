@@ -18,7 +18,7 @@ if [[ -d "$REPO_PATH" ]]; then
   git -C "$REPO_PATH" pull --rebase --autostash
 else
   echo -e "${GRN}📥 Cloning dot-termux repository...${DEF}"
-  git clone --depth=1 "$REPO_URL" "$REPO_PATH"
+  git clone --depth=1 --filter='blob:none' "$REPO_URL" "$REPO_PATH"
 fi
 
 # Execute the main setup script
