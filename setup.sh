@@ -136,7 +136,13 @@ install_third_party() {
     curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"
     log "apk.sh installed"
   }
-  git clone --depth=1 --filter='blob:none' --no-tags https://github.com/Gameye98/DTL-X.git "$HOME/DTL-X" && bash "$HOME/DTL-X/termux_install.sh" || log "${YLW}DTL-X installation failed${DEF}"
+  if git clone --depth=1 --filter='blob:none' --no-tags https://github.com/Gameye98/DTL-X.git "$HOME/DTL-X"; then
+    if ! bash "$HOME/DTL-X/termux_install.sh"; then
+      log "${YLW}DTL-X install script failed${DEF}"
+    fi
+  else
+    log "${YLW}DTL-X git clone failed${DEF}"
+  fi
 }
 
 setup_zsh() {
