@@ -33,6 +33,18 @@ run_installer() {
   rm -f "$script"
   log "$name installation process finished."
 }
+run_web(){
+  local url="$1" file="$2"
+  if has curl; then
+    curl -fsL --http2 --tcp-fastopen --tcp-nodelay --tls-earlydata --connect-timeout 5 --retry 3 --retry-delay 2 "$url" -o "$file"
+  elif has wget2; then
+    wget2 -q -t 3 -c --tcp-fastopen "$url"
+  elif has wget; then
+    wget -q -t 3 -c "$url"
+  fi
+  chmod +x "$file"
+}
+
 
 # --- Setup Functions ---
 setup_environment() {
@@ -63,9 +75,7 @@ EOF
 
 install_packages() {
   step "Updating repos and installing base packages"
-  pkg update -y
-  pkg install -y tur-repo glibc-repo root-repo termux-api termux-services
-
+  pkg up -y && pkg i -y tur-repo glibc-repo root-repo termux-api termux-services
   local -a pkgs=(
     # Core
     git gitoxide gh zsh zsh-completions build-essential parallel bash-completion
@@ -122,7 +132,7 @@ install_third_party() {
   run_installer "revancify" "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh"
   run_installer "simplify" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh"
   run_installer "rish-setup" "https://raw.githubusercontent.com/ConzZah/csb/main/csb"
-  
+  curl -fsL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o jaq && chmod +x jaq
   has apk.sh || {
     curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh"
     chmod +x "$HOME/bin/apk.sh"
