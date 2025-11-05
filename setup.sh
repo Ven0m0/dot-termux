@@ -38,13 +38,12 @@ run_web(){
   if has curl; then
     curl -fsL --http2 --tcp-fastopen --tcp-nodelay --tls-earlydata --connect-timeout 5 --retry 3 --retry-delay 2 "$url" -o "$file"
   elif has wget2; then
-    wget2 -q -t 3 -c --tcp-fastopen "$url"
+    wget2 -qO --tcp-fastopen - "$url"
   elif has wget; then
-    wget -q -t 3 -c "$url"
+    wget -qO - "$url"
   fi
   chmod +x "$file"
 }
-
 
 # --- Setup Functions ---
 setup_environment() {
