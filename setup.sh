@@ -24,7 +24,7 @@ run_installer() {
   has "${name%%-*}" && { log "$name already installed."; return 0; }
   local script
   script=$(mktemp --suffix=".sh")
-  if curl -fsL --connect-timeout 5 "$url" -o "$script"; then
+  if curl -fsL --http2 --tcp-fastopen --tcp-nodelay --tls-earlydata --connect-timeout 5 "$url" -o "$script"; then
     log "Downloaded installer for $name. Executing..."
     (bash "$script") &>"$LOG_FILE.log" || log "${RED}Failed to install $name${DEF}"
   else
@@ -132,18 +132,17 @@ install_third_party() {
   run_installer "revancify" "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh"
   run_installer "simplify" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh"
   run_installer "rish-setup" "https://raw.githubusercontent.com/ConzZah/csb/main/csb"
-  curl -fsL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o jaq && chmod +x jaq
+  curl -fsL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/bin/jaq" && chmod +x "$HOME/bin/jaq"
   has apk.sh || {
-    curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh"
-    chmod +x "$HOME/bin/apk.sh"
+    curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"
     log "apk.sh installed"
   }
+  git clone --depth=1 --filter='blob:none' --no-tags https://github.com/Gameye98/DTL-X.git && bash DTL-X/termux_install.sh
 }
 
 setup_zsh() {
   step "Setting up Zsh and Antidote"
   [[ "$(basename "$SHELL")" != "zsh" ]] && chsh -s zsh
-  
   local antidote_dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
   if [[ ! -d "$antidote_dir" ]]; then
     log "Cloning Antidote..."
@@ -159,7 +158,6 @@ link_dotfiles() {
     ln -sf "$src" "$tgt"
     log "Linked $tgt"
   done
-  
   ensure_dir "$HOME/bin"
   for script in "$REPO_PATH/bin"/*.sh; do
     [[ -f $script ]] || continue
@@ -195,18 +193,15 @@ EOF
 main() {
   cd "$HOME"
   [[ -d "$REPO_PATH" ]] && git -C "$REPO_PATH" pull --rebase -p || git clone --depth=1 "$REPO_URL" "$REPO_PATH"
-  
   setup_environment
   configure_apt
   install_packages
   install_fonts
-  
   {
     install_rust_tools
     install_third_party
     uv pip install -U TUIFIManager
   } &
-  
   setup_zsh
   link_dotfiles
   finalize
@@ -231,8 +226,8 @@ install_soar(){ print_step "Installing SOAR"; has soar || { curl -fsL https://so
 install_pkgx(){ print_step "Installing pkgx"; has pkgx || { curl -fsL https://pkgx.sh | sh &>/dev/null; log "pkgx done"; }; }
 
 setup_revanced_tools(){ print_step "Setting up ReVanced tools"; ensure_dir "$HOME/bin"
-  { curl -sL "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh" | bash &>/dev/null && [[ -d $HOME/revancify-xisr ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/revancify-xisr" || :; log "Revancify done"; } &
-  { curl -sL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh" && ln -sf "$HOME/.Simplify.sh" "$HOME/bin/simplify" && log "Simplify done"; } &
+  { curl -sfL "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh" | bash &>/dev/null && [[ -d $HOME/revancify-xisr ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/revancify-xisr" || :; log "Revancify done"; } &
+  { curl -sfL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh" && ln -sf "$HOME/.Simplify.sh" "$HOME/bin/simplify" && log "Simplify done"; } &
   { curl -fsL https://get.x-cmd.com | bash &>/dev/null && log "X-CMD done"; } &
   log "ReVanced tools installing"
 }
