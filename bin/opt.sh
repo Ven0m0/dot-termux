@@ -254,9 +254,9 @@ opt_vid() {
       local grep_cmd="grep"
       has rg && grep_cmd="rg"
 
-      if ffmpeg -encoders 2>/dev/null | $grep_cmd -q libsvtav1; then
+      if ffmpeg -encoders 2>/dev/null | "$grep_cmd" -q libsvtav1; then
         enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$crf" -g 240)
-      elif ffmpeg -encoders 2>/dev/null | $grep_cmd -q libaom-av1; then
+      elif ffmpeg -encoders 2>/dev/null | "$grep_cmd" -q libaom-av1; then
         enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$crf" -g 240)
       else
         enc_cmd=(-c:v libx265 -preset medium -crf "$crf")

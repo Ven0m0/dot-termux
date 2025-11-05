@@ -43,7 +43,7 @@ check_deps() {
     missing+=("ffmpeg (pkg install ffmpeg)")
   fi
 
-  if ! has flaca && [[ "$*" == *".flac"* ]]; then
+  if ! has flaca && [[ $* == *".flac"* ]]; then
     warn "flaca not found, FLAC optimization will be skipped"
   fi
 
