@@ -24,7 +24,7 @@ run_installer() {
   has "${name%%-*}" && { log "$name already installed."; return 0; }
   local script
   script=$(mktemp --suffix=".sh")
-  if curl -fsSL --connect-timeout 5 "$url" -o "$script"; then
+  if curl -fsL --connect-timeout 5 "$url" -o "$script"; then
     log "Downloaded installer for $name. Executing..."
     (bash "$script") &>"$LOG_FILE.log" || log "${RED}Failed to install $name${DEF}"
   else
@@ -137,7 +137,7 @@ setup_zsh() {
   local antidote_dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
   if [[ ! -d "$antidote_dir" ]]; then
     log "Cloning Antidote..."
-    git clone --depth=1 https://github.com/mattmc3/antidote.git "$antidote_dir"
+    git clone --depth=1 --filter='blob:none' https://github.com/mattmc3/antidote.git "$antidote_dir"
   fi
 }
 
