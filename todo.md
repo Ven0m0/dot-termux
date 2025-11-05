@@ -86,4 +86,5 @@ apk's:
 
 - https://github.com/REAndroid/APKEditor
 
-
+- https://github.com/Gameye98/DTL-X
+python3 dtlx.py --rmtrackers --rmads1 --rmads3 --rmads4 --rmssrestrict --paidkw 
