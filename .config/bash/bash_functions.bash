@@ -10,9 +10,11 @@ fe() {
 # cd to the selected directory
 fcd() {
   local dir
-  dir=$(find "${1:-.}" -path '*/\.*' -prune \
-      -o -type d -print 2> /dev/null | fzf +m) \
-      && cd "$dir" || return 1
+  if has fd; then
+    dir=$(fd -t d -d 5 . "${1:-.}" 2>/dev/null | fzf +m) && cd "$dir"
+  else
+    dir=$(find "${1:-.}" -O3 -maxdepth 5 -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir"
+  fi
 }
 
 # Get help for a command with bat
@@ -39,13 +41,12 @@ faf(){ eval "$({ alias; declare -F | grep -v '^_'; } | fzf | cut -d= -f1)"; }
     
 
 fzf-man(){
-	MAN="/usr/bin/man"
-	if [ -n "$1" ]; then
-		$MAN "$@"
-		return $?
+	local MAN="/usr/bin/man"
+	[[ -n $1 ]] && { $MAN "$@"; return; }
+	if has sd; then
+		$MAN -k . | fzf --reverse --preview="echo {1,2} | sd ' \(' '.' | sd '\)\s*$' '' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r $MAN
 	else
 		$MAN -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r $MAN
-		return $?
 	fi
 }
 

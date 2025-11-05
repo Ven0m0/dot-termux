@@ -4,8 +4,8 @@
 echo "Your Global IP is: $(curl -s https://api.ipify.org/)"
 
 # Display weather report based on region
-location="$(curl -s ipinfo.io/region)"
-[[ "$location" != "Bielefeld" ]] && location="Bielefeld"
+location=$(curl -s ipinfo.io/region)
+[[ $location != Bielefeld ]] && location="Bielefeld"
 curl -s wttr.in/$location?0
 
 # Speedtest DL/UP
