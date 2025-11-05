@@ -1,63 +1,59 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/usr/bin/env bash
 #
-# optimize - A comprehensive and efficient media optimization script for Termux
+# optimize - Unified media optimization script for Termux
 #
-# This script combines the functionality of multiple previous scripts into a
-# single, powerful tool. It's designed for speed, high compression, and
-# ease of use, leveraging the best available tools on the system.
+# Combines functionality from optimize, opt.sh, and media.sh into a single,
+# comprehensive tool for optimizing images, videos, and audio files.
+#
+# Features:
+# - Lossless and lossy image optimization
+# - Video re-encoding with multiple codec support (AV1, H.265, H.264)
+# - Format conversion (WebP, AVIF, PNG, JPG)
+# - Audio optimization (FLAC)
+# - Parallel processing with modern tool preferences
+# - Flexible input: stdin, files, or directories
 #
 
 set -euo pipefail
-IFS=$'\\n\\t'
+IFS=$'\n\t'
 export LC_ALL=C
 
-# --- Configuration ---
-# Quality settings (1-100, lower can mean smaller but lower quality)
-IMG_QUALITY=85
-WEBP_QUALITY=80
-VID_CRF=28 # (0-51, lower is better quality, 28 is a good balance)
+# --- Configuration Defaults ---
+QUALITY=85          # Image quality (1-100)
+VIDEO_CRF=27        # Video CRF (0-51, lower is better quality)
+VIDEO_CODEC="h265"  # Default video codec (av1, h265, h264)
+JOBS=0              # Parallel jobs (0 = auto-detect)
+SUFFIX="_opt"       # Suffix for optimized files
 
-# Suffix for optimized files
-SUFFIX="_opt"
-
-# Number of parallel jobs (0 for auto-detect)
-JOBS=0
+# Mode flags
+KEEP_ORIGINAL=0     # Keep original files
+INPLACE=0           # Replace originals in-place
+RECURSIVE=0         # Process directories recursively
+CONVERT_FORMAT=""   # Convert to specific format (webp, avif, png, jpg)
+LOSSLESS=1          # Default to lossless mode
+OUTPUT_DIR=""       # Output directory
+MEDIA_TYPE="all"    # all, image, video, audio
 
 # --- Helper Functions ---
+has() {
+  command -v "$1" >/dev/null 2>&1
+}
+
 log() {
-  printf '[%s] %s\\n' "$(date '+%H:%M:%S')" "$*"
+  printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
 }
 
 warn() {
-  printf 'WARNING: %s\\n' "$*" >&2
+  printf 'WARNING: %s\n' "$*" >&2
 }
 
 err() {
-  printf 'ERROR: %s\\n' "$*" >&2
+  printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
 
-has() {
-  command -v "$1" &>/dev/null
-}
-
-check_deps() {
-  local missing=()
-  for dep in "$@"; do
-    has "$dep" || missing+=("$dep")
-  done
-
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    warn "Missing dependencies: ${missing[*]}"
-    warn "Please install them to enable all features."
-    warn "Example: pkg install ${missing[*]}"
-    return 1
-  fi
-  return 0
-}
-
 get_size() {
-  stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null || echo 0
+  stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null || echo 0
 }
 
 format_bytes() {
@@ -66,235 +62,544 @@ format_bytes() {
     numfmt --to=iec-i --suffix=B --format="%.2f" "$bytes"
   else
     if ((bytes < 1024)); then
-      echo "${bytes}B"
+      printf '%dB' "$bytes"
     elif ((bytes < 1048576)); then
-      printf "%.1fK" "$(awk "BEGIN {print $bytes/1024}")"
+      printf '%.1fKB' "$(awk "BEGIN {print $bytes/1024}")"
     else
-      printf "%.1fM" "$(awk "BEGIN {print $bytes/1048576}")"
+      printf '%.2fMB' "$(awk "BEGIN {print $bytes/1048576}")"
     fi
   fi
 }
 
-# --- Core Optimization Functions ---
+get_output_path() {
+  local src=$1
+  local fmt=$2
+  local base_name ext name
 
-# Optimize a single image file
-optimize_single_image() {
-  local file=$1
-  local out_dir=$2
-  local quality=$3
-  local to_webp=$4
-  local keep_original=$5
+  base_name=$(basename "$src")
+  name="${base_name%.*}"
+  ext="${base_name##*.}"
 
-  local base_name
-  base_name=$(basename "$file")
-  local name="${base_name%.*}"
-  local ext="${base_name##*.}"
-  local out_file
-
-  if [[ $to_webp -eq 1 ]]; then
-    out_file="${out_dir}/${name}.webp"
-  else
-    out_file="${out_dir}/${name}${SUFFIX}.${ext}"
-  fi
-
-  # Avoid re-processing
-  [[ -f $out_file ]] && return
-
-  local original_size
-  original_size=$(get_size "$file")
-
-  log "Processing Image: $base_name"
-
-  local temp_file
-  temp_file=$(mktemp -p "${TMPDIR:-/tmp}" "opt-img.XXXXXX")
-
-  local success=0
-
-  # --- Conversion to WebP ---
-  if [[ $to_webp -eq 1 ]]; then
-    if has cwebp; then
-      if cwebp -quiet -q "$quality" -mt -m 6 -af "$file" -o "$temp_file"; then
-        success=1
-      fi
-    elif has convert; then # Fallback to ImageMagick
-      if convert "$file" -quality "$quality" "$temp_file"; then
-        success=1
-      fi
+  if [[ -n $OUTPUT_DIR ]]; then
+    if [[ -n $fmt && $fmt != "${ext,,}" ]]; then
+      echo "$OUTPUT_DIR/${name}.${fmt}"
+    elif [[ $INPLACE -eq 1 ]]; then
+      echo "$OUTPUT_DIR/${base_name}"
     else
-      warn "WebP conversion requires 'cwebp' or 'convert'. Skipping."
+      echo "$OUTPUT_DIR/${name}${SUFFIX}.${ext}"
     fi
   else
-    # --- Standard Optimization ---
-    case "${ext,,}" in
+    if [[ -n $fmt && $fmt != "${ext,,}" ]]; then
+      echo "$(dirname "$src")/${name}.${fmt}"
+    elif [[ $INPLACE -eq 1 ]]; then
+      echo "$src"
+    else
+      echo "$(dirname "$src")/${name}${SUFFIX}.${ext}"
+    fi
+  fi
+}
+
+# --- Image Optimization Functions ---
+optimize_png() {
+  local src=$1 out=$2
+  local orig_sz tmp success=0
+
+  orig_sz=$(get_size "$src")
+  tmp="${out}.tmp"
+
+  # Tool preference: oxipng > optipng > pngcrush
+  if has oxipng; then
+    cp "$src" "$tmp"
+    if [[ $LOSSLESS -eq 1 ]]; then
+      oxipng -o6 --strip safe -q "$tmp" 2>/dev/null && success=1
+    else
+      oxipng -o6 --strip safe -q "$tmp" 2>/dev/null || true
+      if has pngquant; then
+        pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$tmp" -o "${tmp}.2" 2>/dev/null && mv "${tmp}.2" "$tmp" && success=1 || success=1
+      else
+        success=1
+      fi
+    fi
+  elif has optipng; then
+    cp "$src" "$tmp"
+    if [[ $LOSSLESS -eq 1 ]]; then
+      optipng -o7 -strip all -quiet "$tmp" 2>/dev/null && success=1
+    else
+      if has pngquant; then
+        pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" 2>/dev/null || cp "$src" "$tmp"
+        optipng -o2 -strip all -quiet "$tmp" 2>/dev/null || true
+      else
+        optipng -o7 -strip all -quiet "$tmp" 2>/dev/null || true
+      fi
+      success=1
+    fi
+  elif has pngcrush; then
+    pngcrush -rem alla -reduce "$src" "$tmp" 2>/dev/null && success=1 || cp "$src" "$tmp"
+  else
+    cp "$src" "$tmp"
+    success=1
+  fi
+
+  if [[ $success -eq 1 ]]; then
+    mv "$tmp" "$out"
+    echo "$((orig_sz - $(get_size "$out")))"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
+optimize_jpeg() {
+  local src=$1 out=$2
+  local orig_sz tmp success=0
+
+  orig_sz=$(get_size "$src")
+  tmp="${out}.tmp"
+
+  # Tool preference: jpegoptim > mozjpeg
+  if has jpegoptim; then
+    if [[ $LOSSLESS -eq 1 ]]; then
+      jpegoptim --strip-all --stdout "$src" >"$tmp" 2>/dev/null && success=1
+    else
+      jpegoptim --max="$QUALITY" --strip-all --stdout "$src" >"$tmp" 2>/dev/null && success=1
+    fi
+  elif has convert; then
+    convert "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
+  else
+    cp "$src" "$tmp"
+    success=1
+  fi
+
+  if [[ $success -eq 1 ]]; then
+    mv "$tmp" "$out"
+    echo "$((orig_sz - $(get_size "$out")))"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
+optimize_image() {
+  local src=$1
+  local ext="${src##*.}"
+  ext="${ext,,}"
+  local out fmt
+
+  # Determine output format
+  if [[ -n $CONVERT_FORMAT ]]; then
+    fmt="$CONVERT_FORMAT"
+  else
+    fmt="$ext"
+  fi
+
+  out=$(get_output_path "$src" "$fmt")
+
+  # Skip if output exists and we're keeping originals
+  if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then
+    return 0
+  fi
+
+  local orig_sz new_sz saved pct
+  orig_sz=$(get_size "$src")
+
+  log "Processing image: $(basename "$src")"
+
+  # Format conversion using specialized tools
+  if [[ $CONVERT_FORMAT != "" && $CONVERT_FORMAT != "$ext" ]]; then
+    local tmp="${out}.tmp"
+    local success=0
+
+    case "$CONVERT_FORMAT" in
+    webp)
+      if has cwebp; then
+        cwebp -q "$QUALITY" -m 6 -mt -af "$src" -o "$tmp" 2>/dev/null && success=1
+      fi
+      ;;
+    avif)
+      if has avifenc; then
+        avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1
+      fi
+      ;;
     jpg | jpeg)
-      if has jpegoptim; then
-        jpegoptim --max="$quality" --strip-all --stdout "$file" >"$temp_file" && success=1
-      elif has convert; then
-        convert "$file" -quality "$quality" -strip "$temp_file" && success=1
+      if has convert; then
+        convert "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
       fi
       ;;
     png)
-      if has pngquant && has optipng; then
-        pngquant --quality="65-${quality}" --strip --speed 1 --force "$file" --output "$temp_file" && optipng -quiet -o2 "$temp_file" && success=1
-      elif has oxipng; then
-        oxipng -o max --strip safe -q "$file" -out "$temp_file" && success=1
-      elif has optipng; then
-        cp "$file" "$temp_file" && optipng -quiet -o7 -strip all "$temp_file" && success=1
+      if has convert; then
+        convert "$src" PNG:"$tmp" 2>/dev/null && success=1
       fi
+      ;;
+    esac
+
+    if [[ $success -eq 1 ]]; then
+      mv "$tmp" "$out"
+    else
+      warn "Format conversion failed for $(basename "$src")"
+      rm -f "$tmp"
+      return 1
+    fi
+  else
+    # Optimize in native format
+    case "$ext" in
+    png)
+      optimize_png "$src" "$out" >/dev/null || return 1
+      ;;
+    jpg | jpeg)
+      optimize_jpeg "$src" "$out" >/dev/null || return 1
       ;;
     gif)
       if has gifsicle; then
-        gifsicle -O3 "$file" -o "$temp_file" && success=1
+        gifsicle -O3 "$src" -o "$out" 2>/dev/null || return 1
+      else
+        cp "$src" "$out"
       fi
       ;;
     svg)
       if has svgcleaner; then
-        svgcleaner "$file" "$temp_file" && success=1
+        svgcleaner "$src" "$out" 2>/dev/null || return 1
       elif has svgo; then
-        svgo -i "$file" -o "$temp_file" && success=1
+        svgo -i "$src" -o "$out" 2>/dev/null || return 1
+      else
+        cp "$src" "$out"
       fi
       ;;
-    webp) # Re-optimize webp
+    webp)
       if has cwebp; then
-        cwebp -quiet -q "$quality" -mt -m 6 -af "$file" -o "$temp_file" && success=1
+        cwebp -q "$QUALITY" -m 6 -mt "$src" -o "$out" 2>/dev/null || return 1
+      else
+        cp "$src" "$out"
+      fi
+      ;;
+    avif)
+      if has avifenc; then
+        avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1
+      else
+        cp "$src" "$out"
+      fi
+      ;;
+    tiff | tif | bmp)
+      # Use image-optimizer or rimage if available
+      if has image-optimizer; then
+        image-optimizer -i "$src" -o "$(dirname "$out")" -q "$QUALITY" 2>/dev/null || cp "$src" "$out"
+      elif has imgc; then
+        imgc "$src" "$ext" -q "$QUALITY" -o "$(dirname "$out")" 2>/dev/null || cp "$src" "$out"
+      elif has rimage; then
+        rimage -q "$QUALITY" "$src" -o "$out" 2>/dev/null || cp "$src" "$out"
+      else
+        cp "$src" "$out"
       fi
       ;;
     *)
-      warn "Unsupported image format: $ext. Copying."
-      cp "$file" "$temp_file" && success=1
+      warn "Unsupported image format: $ext"
+      return 1
       ;;
     esac
   fi
 
-  if [[ $success -eq 1 && -s $temp_file ]]; then
-    local new_size
-    new_size=$(get_size "$temp_file")
-    if ((new_size > 0 && new_size < original_size)); then
-      mv "$temp_file" "$out_file"
-      local saved=$((original_size - new_size))
-      local percent=$((saved * 100 / original_size))
-      printf 'Saved %s (%s -> %s, %d%%) -> %s\n' \
-        "$(format_bytes "$saved")" \
-        "$(format_bytes "$original_size")" \
-        "$(format_bytes "$new_size")" \
-        "$percent" \
-        "$out_file"
-      [[ $keep_original -eq 0 ]] && rm -f "$file"
+  # Report savings
+  new_sz=$(get_size "$out")
+  if ((new_sz > 0 && new_sz < orig_sz)); then
+    saved=$((orig_sz - new_sz))
+    pct=$((saved * 100 / orig_sz))
+    printf '%s → %s | %s → %s (%d%%)\n' \
+      "$(basename "$src")" "$(basename "$out")" \
+      "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
+
+    # Remove original if inplace or not keeping
+    if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
+      [[ "$src" != "$out" ]] && rm -f "$src"
+    fi
+  elif ((new_sz >= orig_sz)); then
+    if [[ $CONVERT_FORMAT == "" ]]; then
+      warn "No savings for $(basename "$src"), keeping original"
+      rm -f "$out"
+      return 1
     else
-      # If optimized is larger, just copy original if format is same
-      if [[ $to_webp -eq 0 ]]; then
-        cp "$file" "$out_file"
-        printf 'No savings for %s, copied original.\n' "$base_name"
+      log "Converted $(basename "$src") to $CONVERT_FORMAT"
+    fi
+  fi
+}
+
+# --- Video Optimization Functions ---
+optimize_video() {
+  local src=$1
+  local ext="${src##*.}"
+  local out
+
+  out=$(get_output_path "$src" "$ext")
+
+  # Skip if output exists
+  if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then
+    return 0
+  fi
+
+  local orig_sz new_sz saved pct
+  orig_sz=$(get_size "$src")
+
+  log "Processing video: $(basename "$src")"
+
+  local success=0
+  local video_tool=""
+  local enc_cmd=()
+
+  # Tool preference: ffzap > compresscli > ffmpeg
+  if has ffzap; then
+    video_tool="ffzap"
+    case "$VIDEO_CODEC" in
+    av1)
+      enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240 -c:a copy)
+      ;;
+    h265 | hevc)
+      enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF" -tag:v hvc1 -c:a copy)
+      ;;
+    h264)
+      enc_cmd=(-c:v libx264 -preset medium -crf "$VIDEO_CRF" -c:a copy)
+      ;;
+    esac
+    ffzap -i "$src" -f "${enc_cmd[*]}" -o "$out" -t 1 2>/dev/null && success=1
+  elif has compresscli; then
+    video_tool="compresscli"
+    local quality=$((100 - VIDEO_CRF * 2))
+    compresscli --input "$src" --output "$out" --quality "$quality" 2>/dev/null && success=1
+  elif has ffmpeg; then
+    video_tool="ffmpeg"
+    case "$VIDEO_CODEC" in
+    av1)
+      # Tool preference for grep: rg -> grep
+      local grep_cmd="grep"
+      has rg && grep_cmd="rg"
+
+      if ffmpeg -encoders 2>/dev/null | $grep_cmd -q libsvtav1; then
+        enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240)
+      elif ffmpeg -encoders 2>/dev/null | $grep_cmd -q libaom-av1; then
+        enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240)
       else
-        printf 'No savings for %s, skipping.\n' "$base_name"
+        warn "AV1 encoder not found, falling back to H.265"
+        enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF")
       fi
-      rm -f "$temp_file"
-    fi
+      ;;
+    h265 | hevc)
+      enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF" -tag:v hvc1)
+      ;;
+    h264)
+      enc_cmd=(-c:v libx264 -preset medium -crf "$VIDEO_CRF")
+      ;;
+    esac
+
+    ffmpeg -i "$src" "${enc_cmd[@]}" -c:a copy -y "$out" -loglevel error 2>&1 && success=1
   else
-    warn "Optimization failed for $base_name"
-    rm -f "$temp_file"
-  fi
-}
-
-# Optimize a single video file
-optimize_single_video() {
-  local file=$1
-  local out_dir=$2
-  local crf=$3
-  local keep_original=$4
-
-  if ! has ffmpeg; then
-    warn "Video optimization requires 'ffmpeg'. Skipping."
-    return
+    err "No video encoding tool found (ffzap, compresscli, or ffmpeg required)"
   fi
 
-  local base_name
-  base_name=$(basename "$file")
-  local name="${base_name%.*}"
-  local ext="${base_name##*.}"
-  local out_file="${out_dir}/${name}${SUFFIX}.${ext}"
+  if [[ $success -eq 1 ]]; then
+    new_sz=$(get_size "$out")
+    if ((new_sz > 0 && new_sz < orig_sz)); then
+      saved=$((orig_sz - new_sz))
+      pct=$((saved * 100 / orig_sz))
+      printf '%s → %s | %s → %s (%d%%) [%s]\n' \
+        "$(basename "$src")" "$(basename "$out")" \
+        "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct" "$video_tool"
 
-  [[ -f $out_file ]] && return
-
-  local original_size
-  original_size=$(get_size "$file")
-
-  log "Processing Video: $base_name"
-
-  if ffmpeg -i "$file" -c:v libx265 -preset medium -crf "$crf" -c:a copy -tag:v hvc1 -y "$out_file" -loglevel error; then
-    local new_size
-    new_size=$(get_size "$out_file")
-    if ((new_size > 0 && new_size < original_size)); then
-      local saved=$((original_size - new_size))
-      local percent=$((saved * 100 / original_size))
-      printf 'Saved %s (%s -> %s, %d%%) -> %s\n' \
-        "$(format_bytes "$saved")" \
-        "$(format_bytes "$original_size")" \
-        "$(format_bytes "$new_size")" \
-        "$percent" \
-        "$out_file"
-      [[ $keep_original -eq 0 ]] && rm -f "$file"
+      # Remove original if inplace or not keeping
+      if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
+        [[ "$src" != "$out" ]] && rm -f "$src"
+      fi
     else
-      printf 'No savings for %s. Deleting temp file.\n' "$base_name"
-      rm -f "$out_file"
+      warn "No savings for $(basename "$src")"
+      rm -f "$out"
+      return 1
     fi
   else
-    warn "Video optimization failed for $base_name"
-    rm -f "$out_file" # ffmpeg might create an empty file on failure
+    warn "Video optimization failed for $(basename "$src")"
+    rm -f "$out"
+    return 1
   fi
 }
 
-# --- Main Logic ---
+# --- Audio Optimization Functions ---
+optimize_audio() {
+  local src=$1
+  local ext="${src##*.}"
+  local out
 
+  out=$(get_output_path "$src" "$ext")
+
+  # Skip if output exists
+  if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then
+    return 0
+  fi
+
+  local orig_sz new_sz saved pct
+  orig_sz=$(get_size "$src")
+
+  log "Processing audio: $(basename "$src")"
+
+  case "${ext,,}" in
+  flac)
+    if has flaca; then
+      cp "$src" "$out" || return 1
+      flaca --best "$out" 2>/dev/null || return 1
+      new_sz=$(get_size "$out")
+      if ((new_sz < orig_sz)); then
+        saved=$((orig_sz - new_sz))
+        pct=$((saved * 100 / orig_sz))
+        printf '%s → %s | %s → %s (%d%%)\n' \
+          "$(basename "$src")" "$(basename "$out")" \
+          "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
+
+        if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
+          [[ "$src" != "$out" ]] && rm -f "$src"
+        fi
+      fi
+    else
+      warn "flaca not found, skipping FLAC optimization"
+      return 1
+    fi
+    ;;
+  *)
+    warn "Unsupported audio format: $ext"
+    return 1
+    ;;
+  esac
+}
+
+# --- File Processing ---
+process_file() {
+  local file=$1
+  local ext="${file##*.}"
+  ext="${ext,,}"
+
+  # Skip already processed files
+  if [[ $INPLACE -eq 0 && $file == *"$SUFFIX"* ]]; then
+    return 0
+  fi
+
+  case "$ext" in
+  jpg | jpeg | png | gif | svg | webp | avif | tiff | tif | bmp)
+    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "image" ]] && optimize_image "$file"
+    ;;
+  mp4 | mkv | mov | webm | avi | flv)
+    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && optimize_video "$file"
+    ;;
+  flac)
+    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "audio" ]] && optimize_audio "$file"
+    ;;
+  *)
+    warn "Skipping unsupported file: $file"
+    ;;
+  esac
+}
+
+# --- File Collection ---
+collect_files() {
+  local -a files=()
+  local items=("$@")
+
+  if [[ ${#items[@]} -eq 0 ]]; then
+    # Read from stdin
+    while IFS= read -r file; do
+      [[ -f $file ]] && files+=("$file")
+    done
+  else
+    # Collect from arguments
+    for item in "${items[@]}"; do
+      if [[ -f $item ]]; then
+        files+=("$(realpath "$item")")
+      elif [[ -d $item ]]; then
+        local search_path
+        search_path=$(realpath "$item")
+
+        local -a found_files=()
+        local exts=("jpg" "jpeg" "png" "gif" "svg" "webp" "avif" "tiff" "tif" "bmp" "mp4" "mkv" "mov" "webm" "avi" "flv" "flac")
+
+        # Tool preference: fdf -> fd -> find
+        if has fdf; then
+          local fd_args=(-t f)
+          for e in "${exts[@]}"; do fd_args+=(-e "$e"); done
+          [[ $RECURSIVE -eq 0 ]] && fd_args+=(-d 1)
+          mapfile -t -d '' found_files < <(fdf "${fd_args[@]}" . "$search_path" -0 2>/dev/null || true)
+        elif has fd; then
+          local fd_args=(-t f)
+          for e in "${exts[@]}"; do fd_args+=(-e "$e"); done
+          [[ $RECURSIVE -eq 0 ]] && fd_args+=(-d 1)
+          mapfile -t -d '' found_files < <(fd "${fd_args[@]}" . "$search_path" -0 2>/dev/null || true)
+        else
+          local find_args=()
+          [[ $RECURSIVE -eq 0 ]] && find_args+=(-maxdepth 1)
+          local patterns=()
+          for e in "${exts[@]}"; do patterns+=(-o -iname "*.$e"); done
+          patterns=("${patterns[@]:1}")  # Remove first -o
+          mapfile -t found_files < <(find "$search_path" "${find_args[@]}" -type f \( "${patterns[@]}" \) 2>/dev/null || true)
+        fi
+
+        for f in "${found_files[@]}"; do
+          [[ -n $f ]] && files+=("$f")
+        done
+      fi
+    done
+  fi
+
+  printf '%s\n' "${files[@]}"
+}
+
+# --- Usage ---
 show_help() {
   cat <<EOF
-  
-A comprehensive and efficient media optimization script for Termux.
+optimize - Unified media optimization tool for Termux
 
-Usage: $(basename "$0") [OPTIONS] <files or directories...>
+USAGE:
+  $(basename "$0") [OPTIONS] <files or directories...>
+  <command> | $(basename "$0") [OPTIONS]
 
 OPTIONS:
-  -h, --help          Show this help message.
-  -t, --type TYPE     Specify media type: image, video, all (default: all).
-  -q, --quality N     Image quality (1-100, default: $IMG_QUALITY).
-  -c, --crf N         Video CRF value (0-51, default: $VID_CRF).
-  -w, --webp          Convert images to WebP format.
-  -o, --output DIR    Output directory (default: same as input).
-  -k, --keep          Keep original files (default: delete originals).
-  -j, --jobs N        Number of parallel jobs (default: auto).
-  -r, --recursive     Process directories recursively.
+  -h, --help              Show this help message
+  -t, --type TYPE         Media type: all, image, video, audio (default: all)
+  -q, --quality N         Quality for lossy compression (1-100, default: $QUALITY)
+  -c, --crf N             Video CRF value (0-51, default: $VIDEO_CRF)
+  -C, --codec CODEC       Video codec: av1, h265, h264 (default: $VIDEO_CODEC)
+  -f, --format FMT        Convert images to format: webp, avif, png, jpg
+  -o, --output DIR        Output directory (default: same as input)
+  -k, --keep              Keep original files
+  -i, --inplace           Replace originals in-place
+  -r, --recursive         Process directories recursively
+  -j, --jobs N            Number of parallel jobs (default: auto)
+  -l, --lossy             Enable lossy compression (default: lossless)
 
 EXAMPLES:
-  # Optimize all images and videos in the current directory
+  # Lossless optimization of all media in current directory
   $(basename "$0") .
 
-  # Convert all PNGs in 'Pictures' to WebP with quality 90, recursively
-  $(basename "$0") -t image -w -q 90 -r ~/Pictures/*.png
+  # Convert all images to WebP with quality 90
+  $(basename "$0") -f webp -q 90 -r ~/Pictures
 
-  # Optimize a specific video with a lower CRF (better quality)
-  $(basename "$0") -t video -c 24 my_movie.mp4
+  # Re-encode video with AV1 codec
+  $(basename "$0") -t video -C av1 -c 28 movie.mp4
 
-  # Optimize all media in Downloads and move to 'optimized' folder
-  $(basename "$0") -r -o /sdcard/optimized /sdcard/Download
+  # Process files from find command
+  find . -name "*.jpg" | $(basename "$0") -q 85
 
-SUPPORTED TOOLS:
-  Images: jpegoptim, pngquant, optipng, oxipng, gifsicle, svgcleaner, svgo, cwebp, convert
-  Video:  ffmpeg (with libx265)
+  # Recursive optimization with output directory
+  $(basename "$0") -r -o ./optimized ~/Downloads
+
+SUPPORTED FORMATS:
+  Images: JPG, PNG, GIF, SVG, WebP, AVIF, TIFF, BMP
+  Video:  MP4, MKV, MOV, WebM, AVI, FLV
+  Audio:  FLAC
+
+TOOLS (in preference order):
+  File finding:  fdf -> fd -> find
+  Parallel:      rust-parallel -> parallel -> xargs
+  PNG:           oxipng -> optipng -> pngcrush
+  JPEG:          jpegoptim -> mozjpeg
+  Video:         ffzap -> compresscli -> ffmpeg
+  Pattern match: rg -> grep
 
 EOF
 }
 
+# --- Main ---
 main() {
-  # Default options
-  local type="all"
-  local quality=$IMG_QUALITY
-  local crf=$VID_CRF
-  local to_webp=0
-  local output_dir=""
-  local keep_original=0
-  local recursive=0
-  local files=()
-
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -303,162 +608,105 @@ main() {
       exit 0
       ;;
     -t | --type)
-      type="$2"
+      MEDIA_TYPE="$2"
       shift 2
       ;;
     -q | --quality)
-      quality="$2"
+      QUALITY="$2"
       shift 2
       ;;
     -c | --crf)
-      crf="$2"
+      VIDEO_CRF="$2"
       shift 2
       ;;
-    -w | --webp)
-      to_webp=1
-      shift
+    -C | --codec)
+      VIDEO_CODEC="$2"
+      shift 2
+      ;;
+    -f | --format)
+      CONVERT_FORMAT="$2"
+      LOSSLESS=0
+      shift 2
       ;;
     -o | --output)
-      output_dir="$2"
+      OUTPUT_DIR="$2"
       shift 2
       ;;
     -k | --keep)
-      keep_original=1
+      KEEP_ORIGINAL=1
+      shift
+      ;;
+    -i | --inplace)
+      INPLACE=1
+      KEEP_ORIGINAL=0
+      shift
+      ;;
+    -r | --recursive)
+      RECURSIVE=1
       shift
       ;;
     -j | --jobs)
       JOBS="$2"
       shift 2
       ;;
-    -r | --recursive)
-      recursive=1
+    -l | --lossy)
+      LOSSLESS=0
       shift
       ;;
-    -*) err "Unknown option: $1" ;;
+    -*)
+      err "Unknown option: $1 (use -h for help)"
+      ;;
     *)
-      files+=("$1")
-      shift
+      break
       ;;
     esac
   done
 
-  # Validate inputs
-  [[ ${#files[@]} -eq 0 ]] && err "No input files or directories specified. Use -h for help."
-  if [[ -n $output_dir ]]; then
-    mkdir -p "$output_dir" || err "Could not create output directory: $output_dir"
-    output_dir=$(realpath "$output_dir")
+  # Validate
+  ((QUALITY >= 1 && QUALITY <= 100)) || err "Quality must be 1-100"
+  ((VIDEO_CRF >= 0 && VIDEO_CRF <= 51)) || err "CRF must be 0-51"
+
+  # Create output directory if specified
+  if [[ -n $OUTPUT_DIR ]]; then
+    mkdir -p "$OUTPUT_DIR" || err "Could not create output directory: $OUTPUT_DIR"
+    OUTPUT_DIR=$(realpath "$OUTPUT_DIR")
   fi
 
-  # --- File Collection ---
-  local all_files=()
-  local image_exts="jpg,jpeg,png,gif,svg,webp"
-  local video_exts="mp4,mkv,mov,webm,avi,flv"
-
-  local find_args=()
-  [[ $recursive -eq 1 ]] || find_args+=(-maxdepth 1)
-
-  for item in "${files[@]}"; do
-    if [[ -d $item ]]; then
-      local search_path
-      search_path=$(realpath "$item")
-      log "Searching in: $search_path"
-
-      local patterns=()
-      if [[ $type == "image" || $type == "all" ]]; then
-        for ext in "${image_exts//,/ }"; do patterns+=(-o -iname "*.$ext"); done
-      fi
-      if [[ $type == "video" || $type == "all" ]]; then
-        for ext in "${video_exts//,/ }"; do patterns+=(-o -iname "*.$ext"); done
-      fi
-
-      # Remove first '-o'
-      [[ ${#patterns[@]} -gt 0 ]] && patterns=("${patterns[@]:1}")
-
-      # Use tool preference: fdf -> fd -> find
-      if has fdf; then
-        local fd_exts=()
-        [[ $type == "image" || $type == "all" ]] && for ext in "${image_exts//,/ }"; do fd_exts+=(-e "$ext"); done
-        [[ $type == "video" || $type == "all" ]] && for ext in "${video_exts//,/ }"; do fd_exts+=(-e "$ext"); done
-        local max_depth_flag=()
-        [[ $recursive -eq 0 ]] && max_depth_flag=(-d 1)
-        mapfile -t -d '' found_files < <(fdf -0 -t f "${max_depth_flag[@]}" "${fd_exts[@]}" . "$search_path")
-        for f in "${found_files[@]}"; do all_files+=("$f"); done
-      elif has fd; then
-        local fd_exts=()
-        [[ $type == "image" || $type == "all" ]] && for ext in "${image_exts//,/ }"; do fd_exts+=(-e "$ext"); done
-        [[ $type == "video" || $type == "all" ]] && for ext in "${video_exts//,/ }"; do fd_exts+=(-e "$ext"); done
-        local max_depth_flag=()
-        [[ $recursive -eq 0 ]] && max_depth_flag=(-d 1)
-        mapfile -t -d '' found_files < <(fd -0 -t f "${max_depth_flag[@]}" "${fd_exts[@]}" . "$search_path")
-        for f in "${found_files[@]}"; do all_files+=("$f"); done
-      else
-        mapfile -t found_files < <(find "$search_path" "${find_args[@]}" -type f \( "${patterns[@]}" \))
-        for f in "${found_files[@]}"; do all_files+=("$f"); done
-      fi
-
-    elif [[ -f $item ]]; then
-      all_files+=("$(realpath "$item")")
-    fi
-  done
-
-  [[ ${#all_files[@]} -eq 0 ]] && err "No matching files found to process."
-
-  log "Found ${#all_files[@]} files to process. Starting optimization..."
-
-  # --- Parallel Processing ---
+  # Auto-detect jobs
   if [[ $JOBS -eq 0 ]]; then
     JOBS=$(nproc 2>/dev/null || echo 2)
   fi
-  log "Using $JOBS parallel jobs."
 
-  export -f optimize_single_image optimize_single_video log warn err has get_size format_bytes
-  export SUFFIX
+  # Collect files
+  local -a all_files=()
+  mapfile -t all_files < <(collect_files "$@")
 
-  process_file() {
-    local file=$1
-    local out_base_dir=$2
-    local quality=$3
-    local crf=$4
-    local to_webp=$5
-    local keep_original=$6
+  [[ ${#all_files[@]} -eq 0 ]] && err "No files found to process"
 
-    local file_ext="${file##*.}"
-    local out_dir
+  log "Processing ${#all_files[@]} file(s) with $JOBS parallel jobs"
+  [[ $LOSSLESS -eq 1 ]] && log "Mode: Lossless" || log "Mode: Lossy (Q=$QUALITY)"
+  [[ -n $CONVERT_FORMAT ]] && log "Convert to: $CONVERT_FORMAT"
 
-    if [[ -n $out_base_dir ]]; then
-      out_dir="$out_base_dir"
-    else
-      out_dir=$(dirname "$file")
-    fi
+  # Export functions for parallel processing
+  export -f process_file optimize_image optimize_video optimize_audio
+  export -f optimize_png optimize_jpeg get_output_path
+  export -f has log warn get_size format_bytes
+  export QUALITY VIDEO_CRF VIDEO_CODEC SUFFIX KEEP_ORIGINAL INPLACE
+  export OUTPUT_DIR CONVERT_FORMAT LOSSLESS MEDIA_TYPE
 
-    case "${file_ext,,}" in
-    jpg | jpeg | png | gif | svg | webp)
-      optimize_single_image "$file" "$out_dir" "$quality" "$to_webp" "$keep_original"
-      ;;
-    mp4 | mkv | mov | webm | avi | flv)
-      optimize_single_video "$file" "$out_dir" "$crf" "$keep_original"
-      ;;
-    *)
-      # This case should ideally not be reached due to find/fd filtering
-      warn "Skipping unsupported file type: $file"
-      ;;
-    esac
-  }
-  export -f process_file
-
-  # Use tool preference: rust-parallel -> parallel -> xargs
+  # Parallel processing with tool preference: rust-parallel -> parallel -> xargs
   if has rust-parallel; then
-    printf '%s\\0' "${all_files[@]}" | rust-parallel -0 -j "$JOBS" bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+    printf '%s\0' "${all_files[@]}" | rust-parallel -0 -j "$JOBS" bash -c 'process_file "$0"'
   elif has parallel; then
-    printf '%s\\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+    printf '%s\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "$0"'
   else
-    printf '%s\\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -I {} bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+    printf '%s\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -I {} bash -c 'process_file "$0"' {}
   fi
 
-  log "Optimization complete!"
+  log "Optimization complete"
 }
 
-# Run main function if script is executed directly
+# Run main if executed directly
 if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
   main "$@"
 fi
