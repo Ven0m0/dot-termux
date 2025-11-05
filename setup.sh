@@ -40,7 +40,7 @@ setup_antidote(){ print_step "Setting up Antidote"
 }
 install_rust_tools_fallback(){ print_step "Installing Rust tools (fallback)"
   [[ -x "$HOME/.cargo/bin/cargo-binstall" ]] || { curl -fsL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &>/dev/null; }
-  local -a tools=()
+  local -a tools=(oxipng)
   for tool in "${tools[@]}"; do has "$tool" || "$HOME/.cargo/bin/cargo-binstall" -y "$tool" &>/dev/null & done
   log "Rust fallback tools installing"
 }
