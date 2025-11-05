@@ -13,8 +13,8 @@ adb usb
 # Port number first... 
 
 timeout 3 logcat | grep -e "adbwifi" -e "adb wifi" > ~/adbport.txt
-ADB_PORT_VALUE=$(tail -n 1 ~/adbport.txt | awk '{print substr($NF, length($NF)-4)}')
-export ADB_PORT=$ADB_PORT_VALUE
+ADB_PORT=$(tail -n 1 ~/adbport.txt | awk '{print substr($NF, length($NF)-4)}')
+export ADB_PORT
 
 #... Then IP address 
 
@@ -24,22 +24,18 @@ while read ip; do
     eval ADB${index}="${ip}:${ADB_PORT}"
     ((index++))
 done < ~/adbip.txt
-i=1
-while [ $i -lt $index ]; do
+for ((i=1; i<index; i++)); do
     var_name="ADB${i}"
-    adb_address=$(eval echo \$$var_name)  # Retrieve the value of ADB1, ADB2, etc.
-    adb_ip=$(echo $adb_address | cut -d: -f1)  # Extract the IP address part (before the colon)
-    echo $adb_address
-    echo adb_ip
-# Now we try to connect 
-    
+    adb_address=$(eval echo \$$var_name)
+    adb_ip=${adb_address%%:*}
+    echo "$adb_address"
+    echo "$adb_ip"
+    # Now we try to connect
     if timeout 5 adb connect "$adb_address" | grep -q 'connected'; then
         echo "Connected to $adb_address"
-        export adb_address  # Export the full address (IP:PORT)
-        export adb_ip       # Export only the IP address
+        export adb_address adb_ip
         break
     fi
-    ((i++))
 done
 
 # Step 3: Execute emulator commands

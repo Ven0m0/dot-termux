@@ -46,68 +46,37 @@ log() {
 }
 
 run_cmd() {
-  if [[ $DRY_RUN -eq 1 ]]; then
-    log "[DRY RUN] Would run: $*"
-    return 0
-  fi
-  
+  (( DRY_RUN )) && { log "[DRY RUN] Would run: $*"; return 0; }
   log "Running: $*"
-  if ! "$@" >> "$LOG_FILE" 2>&1; then
-    log "Command failed: $*"
-    return 1
-  fi
-  return 0
+  "$@" &>> "$LOG_FILE" || { log "Command failed: $*"; return 1; }
 }
 
 confirm() {
-  [[ $ASSUME_YES -eq 1 ]] && return 0
-  
-  local prompt="$1"
+  (( ASSUME_YES )) && return 0
   local response
-  
-  echo -n "$prompt [y/N] "
-  read -r response
-  
-  [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]
+  read -rp "$1 [y/N] " response
+  [[ ${response,,} == @(y|yes) ]]
 }
 
 check_tools() {
   # Check for Termux:API package
-  if command -v termux-info >/dev/null 2>&1; then
+  if command -v termux-info &>/dev/null; then
     log "Termux:API is installed"
   else
-    log "Termux:API not found. Consider installing for more features:"
-    log "pkg install termux-api"
+    log "Termux:API not found. Consider installing: pkg install termux-api"
   fi
-  
+
   # Check for Shizuku support
-  if command -v rish >/dev/null 2>&1; then
+  if command -v rish &>/dev/null; then
     log "Shizuku integration available via rish"
-    if rish id >/dev/null 2>&1; then
-      log "Shizuku is active"
-      HAS_SHIZUKU=1
-    else
-      log "Shizuku is installed but not active"
-    fi
+    rish id &>/dev/null && { log "Shizuku is active"; HAS_SHIZUKU=1; } || log "Shizuku is installed but not active"
   fi
-  
+
   # Check for ADB
-  if command -v adb >/dev/null 2>&1; then
-    if adb devices | grep -q 'device$'; then
-      log "ADB connection available"
-      HAS_ADB=1
-    else
-      log "ADB installed but no device connected"
-    fi
-  fi
-  
+  command -v adb &>/dev/null && adb devices | grep -q 'device$' && { log "ADB connection available"; HAS_ADB=1; } || log "ADB not available"
+
   # Check for root
-  if command -v su >/dev/null 2>&1; then
-    if su -c id 2>/dev/null | grep -q uid=0; then
-      log "Root access available"
-      HAS_ROOT=1
-    fi
-  fi
+  command -v su &>/dev/null && su -c id 2>/dev/null | grep -q uid=0 && { log "Root access available"; HAS_ROOT=1; }
 }
 
 # ----------------------------------------------------------------------
@@ -115,45 +84,26 @@ check_tools() {
 # ----------------------------------------------------------------------
 access_external_storage() {
   # Check if we have direct access
-  if [[ -d /sdcard && -w /sdcard ]]; then
-    log "Direct /sdcard access available"
-    echo "/sdcard"
-    return 0
-  fi
-  
+  [[ -d /sdcard && -w /sdcard ]] && { log "Direct /sdcard access available"; echo "/sdcard"; return 0; }
+
   # Try termux-setup-storage first
-  if command -v termux-setup-storage >/dev/null 2>&1; then
+  if command -v termux-setup-storage &>/dev/null; then
     log "Running termux-setup-storage to request access..."
     termux-setup-storage
-    if [[ -d "$HOME/storage/shared" && -w "$HOME/storage/shared" ]]; then
-      log "Access granted via termux-setup-storage"
-      echo "$HOME/storage/shared"
-      return 0
-    fi
+    [[ -d $HOME/storage/shared && -w $HOME/storage/shared ]] && { log "Access granted via termux-setup-storage"; echo "$HOME/storage/shared"; return 0; }
   fi
-  
+
   # Try termux-saf as a fallback
-  if command -v termux-saf >/dev/null 2>&1; then
+  if command -v termux-saf &>/dev/null; then
     log "Using termux-saf for storage access"
-    local saf_dir
-    saf_dir=$(termux-saf -d)
-    if [[ -n "$saf_dir" ]]; then
-      echo "$saf_dir"
-      return 0
-    fi
+    local saf_dir=$(termux-saf -d)
+    [[ -n $saf_dir ]] && { echo "$saf_dir"; return 0; }
   fi
-  
+
   # Use ADB or Shizuku as last resort
-  if [[ $HAS_ADB -eq 1 ]]; then
-    log "Using ADB for storage access"
-    echo "adb"
-    return 0
-  elif [[ $HAS_SHIZUKU -eq 1 ]]; then
-    log "Using Shizuku for storage access"
-    echo "shizuku"
-    return 0
-  fi
-  
+  (( HAS_ADB )) && { log "Using ADB for storage access"; echo "adb"; return 0; }
+  (( HAS_SHIZUKU )) && { log "Using Shizuku for storage access"; echo "shizuku"; return 0; }
+
   log "Warning: No storage access method available"
   return 1
 }
@@ -162,41 +112,30 @@ access_external_storage() {
 # Cleaning functions
 # ----------------------------------------------------------------------
 clean_app_cache() {
-  local app="$1"
-  
-  log "Cleaning cache for $app"
-  
-  if [[ $HAS_SHIZUKU -eq 1 ]]; then
-    run_cmd rish pm clear --cache-only "$app"
-    return $?
-  elif [[ $HAS_ADB -eq 1 ]]; then
-    run_cmd adb shell pm clear --cache-only "$app"
-    return $?
-  elif [[ $HAS_ROOT -eq 1 ]]; then
-    run_cmd su -c "rm -rf /data/data/$app/cache/*"
-    return $?
-  else
-    log "Cannot clean app cache without Shizuku, ADB, or root"
-    return 1
-  fi
+  log "Cleaning cache for $1"
+  (( HAS_SHIZUKU )) && { run_cmd rish pm clear --cache-only "$1"; return; }
+  (( HAS_ADB )) && { run_cmd adb shell pm clear --cache-only "$1"; return; }
+  (( HAS_ROOT )) && { run_cmd su -c "rm -rf /data/data/$1/cache/*"; return; }
+  log "Cannot clean app cache without Shizuku, ADB, or root"
+  return 1
 }
 
 clean_system_cache() {
   log "Cleaning system cache"
-  
-  if [[ $HAS_SHIZUKU -eq 1 ]]; then
+
+  if (( HAS_SHIZUKU )); then
     run_cmd rish pm trim-caches 128G
     run_cmd rish sync
     run_cmd rish cmd shortcut reset-all-throttling
     run_cmd rish logcat -b all -c
     run_cmd rish sm fstrim
-  elif [[ $HAS_ADB -eq 1 ]]; then
+  elif (( HAS_ADB )); then
     run_cmd adb shell pm trim-caches 128G
     run_cmd adb shell sync
     run_cmd adb shell cmd shortcut reset-all-throttling
     run_cmd adb shell logcat -b all -c
     run_cmd adb shell sm fstrim
-  elif [[ $HAS_ROOT -eq 1 ]]; then
+  elif (( HAS_ROOT )); then
     run_cmd su -c "pm trim-caches 128G"
     run_cmd su -c "sync"
     run_cmd su -c "logcat -b all -c"
@@ -205,13 +144,9 @@ clean_system_cache() {
     log "Cannot clean system cache without Shizuku, ADB, or root"
     return 1
   fi
-  
+
   # Clean package manager cache
-  if [[ $HAS_ROOT -eq 1 ]]; then
-    run_cmd su -c "rm -rf /data/dalvik-cache/*"
-  fi
-  
-  return 0
+  (( HAS_ROOT )) && run_cmd su -c "rm -rf /data/dalvik-cache/*"
 }
 
 clean_whatsapp_media() {
@@ -220,10 +155,10 @@ clean_whatsapp_media() {
   local storage_path
   storage_path=$(access_external_storage) || return 1
   
-  if [[ "$storage_path" == "adb" ]]; then
-    run_cmd adb shell "find /sdcard/WhatsApp/Media -type f \( -name '*.jpg' -o -name '*.mp4' -o -name '*.opus' \) -mtime +30 -delete"
-  elif [[ "$storage_path" == "shizuku" ]]; then
-    run_cmd rish "find /sdcard/WhatsApp/Media -type f \( -name '*.jpg' -o -name '*.mp4' -o -name '*.opus' \) -mtime +30 -delete"
+  if [[ $storage_path == adb ]]; then
+    run_cmd adb shell "find -O3 /sdcard/WhatsApp/Media -type f \( -name '*.jpg' -o -name '*.mp4' -o -name '*.opus' \) -mtime +30 -delete"
+  elif [[ $storage_path == shizuku ]]; then
+    run_cmd rish "find -O3 /sdcard/WhatsApp/Media -type f \( -name '*.jpg' -o -name '*.mp4' -o -name '*.opus' \) -mtime +30 -delete"
   else
     # Check WhatsApp media paths
     local whatsapp_paths=(
@@ -235,14 +170,14 @@ clean_whatsapp_media() {
     )
     
     for path in "${whatsapp_paths[@]}"; do
-      if [[ -d "$path" ]]; then
-        log "Cleaning $path"
-        if [[ $DRY_RUN -eq 1 ]]; then
-          log "[DRY RUN] Would clean files older than 30 days in $path"
-        else
-          # Use find with -print0 and xargs for better performance on large directories
-          find "$path" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
-        fi
+      [[ -d $path ]] || continue
+      log "Cleaning $path"
+      (( DRY_RUN )) && { log "[DRY RUN] Would clean files older than 30 days in $path"; continue; }
+      # Use fd or find with -O3 and xargs for better performance
+      if command -v fd &>/dev/null; then
+        fd -t f --changed-before 30d . "$path" -0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
+      else
+        find -O3 "$path" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
       fi
     done
   fi
@@ -262,14 +197,14 @@ clean_telegram_media() {
   )
   
   for path in "${telegram_paths[@]}"; do
-    if [[ -d "$path" ]]; then
-      log "Cleaning $path"
-      if [[ $DRY_RUN -eq 1 ]]; then
-        log "[DRY RUN] Would clean files older than 30 days in $path"
-      else
-        # Use find with -print0 and xargs for better performance on large directories
-        find "$path" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
-      fi
+    [[ -d $path ]] || continue
+    log "Cleaning $path"
+    (( DRY_RUN )) && { log "[DRY RUN] Would clean files older than 30 days in $path"; continue; }
+    # Use fd or find with -O3 and xargs for better performance
+    if command -v fd &>/dev/null; then
+      fd -t f --changed-before 30d . "$path" -0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
+    else
+      find -O3 "$path" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
     fi
   done
 }
@@ -280,33 +215,17 @@ clean_telegram_media() {
 main() {
   log "Starting Termux Cleaner"
   check_tools
-  
+
   # Parse options (if any were passed)
-  if confirm "Do you want to clean WhatsApp media?"; then
-    CLEAN_WHATSAPP=1
-  fi
-  
-  if confirm "Do you want to clean Telegram media?"; then
-    CLEAN_TELEGRAM=1
-  fi
-  
-  if confirm "Do you want to clean system cache?"; then
-    CLEAN_SYSTEM_CACHE=1
-  fi
-  
+  confirm "Do you want to clean WhatsApp media?" && CLEAN_WHATSAPP=1
+  confirm "Do you want to clean Telegram media?" && CLEAN_TELEGRAM=1
+  confirm "Do you want to clean system cache?" && CLEAN_SYSTEM_CACHE=1
+
   # Perform cleaning operations
-  if [[ $CLEAN_WHATSAPP -eq 1 ]]; then
-    clean_whatsapp_media
-  fi
-  
-  if [[ $CLEAN_TELEGRAM -eq 1 ]]; then
-    clean_telegram_media
-  fi
-  
-  if [[ $CLEAN_SYSTEM_CACHE -eq 1 ]]; then
-    clean_system_cache
-  fi
-  
+  (( CLEAN_WHATSAPP )) && clean_whatsapp_media
+  (( CLEAN_TELEGRAM )) && clean_telegram_media
+  (( CLEAN_SYSTEM_CACHE )) && clean_system_cache
+
   log "Cleaning complete"
 }
 

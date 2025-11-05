@@ -15,7 +15,7 @@ BLU=$'\e[1;34m' GRN=$'\e[1;32m' YLW=$'\e[33m' RED=$'\e[1;31m' DEF=$'\e[0m'
 log() { printf '[%s] %s\n' "$(date '+%T')" "$*"; }
 step() { printf "\n%s==>%s %s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
 has() { command -v "$1" &>/dev/null; }
-ensure_dir() { for dir in "$@"; do [[ -d "$dir" ]] || mkdir -p "$dir"; done; }
+ensure_dir() { for dir; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 
 # --- Safe Remote Script Execution ---
 run_installer() {
@@ -98,7 +98,7 @@ install_packages() {
 install_fonts() {
   step "Installing JetBrains Mono font"
   local font_path="$HOME/.termux/font.ttf"
-  [[ -f "$font_path" ]] && { log "Font already installed."; return 0; }
+  [[ -f $font_path ]] && { log "Font already installed."; return 0; }
   local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
   local tmp_zip
   tmp_zip=$(mktemp --suffix=".zip")
@@ -141,16 +141,18 @@ install_third_party() {
 
 setup_zsh() {
   step "Setting up Zsh and Antidote"
-  [[ "$(basename "$SHELL")" != "zsh" ]] && chsh -s zsh
+  [[ $(basename "$SHELL") != zsh ]] && chsh -s zsh
   local antidote_dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
-  if [[ ! -d "$antidote_dir" ]]; then
+  if [[ ! -d $antidote_dir ]]; then
     log "Cloning Antidote..."
-    git clone --depth=1 --filter='blob:none' https://github.com/mattmc3/antidote.git "$antidote_dir"
+    has gix && gix clone --depth=1 https://github.com/mattmc3/antidote.git "$antidote_dir" || \
+      git clone --depth=1 --filter='blob:none' --no-tags https://github.com/mattmc3/antidote.git "$antidote_dir"
   fi
 }
 
 link_dotfiles() {
   step "Linking dotfiles and scripts"
+  local src tgt
   for item in "${DOTFILES[@]}"; do
     IFS=: read -r src tgt <<<"$item"
     [[ -e $tgt || -L $tgt ]] && mv -f "$tgt" "${tgt}.bak"
@@ -158,9 +160,10 @@ link_dotfiles() {
     log "Linked $tgt"
   done
   ensure_dir "$HOME/bin"
+  local script target
   for script in "$REPO_PATH/bin"/*.sh; do
     [[ -f $script ]] || continue
-    local target="$HOME/bin/$(basename "$script" .sh)"
+    target="$HOME/bin/${script##*/}"; target="${target%.sh}"
     ln -sf "$script" "$target"
     chmod +x "$target"
   done
@@ -191,7 +194,11 @@ EOF
 # --- Main Execution ---
 main() {
   cd "$HOME"
-  [[ -d "$REPO_PATH" ]] && git -C "$REPO_PATH" pull --rebase -p || git clone --depth=1 --filter='blob:none' "$REPO_URL" "$REPO_PATH"
+  if [[ -d $REPO_PATH ]]; then
+    has gix && gix -C "$REPO_PATH" fetch || git -C "$REPO_PATH" pull --rebase -p --no-tags
+  else
+    has gix && gix clone --depth=1 "$REPO_URL" "$REPO_PATH" || git clone --depth=1 --filter='blob:none' --no-tags "$REPO_URL" "$REPO_PATH"
+  fi
   setup_environment
   configure_apt
   install_packages
