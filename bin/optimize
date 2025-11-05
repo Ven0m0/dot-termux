@@ -25,15 +25,15 @@ JOBS=0
 
 # --- Helper Functions ---
 log() {
-  printf '🚀 %s\\n' "$*"
+  printf '[%s] %s\\n' "$(date '+%H:%M:%S')" "$*"
 }
 
 warn() {
-  printf '⚠️ %s\\n' "$*" >&2
+  printf 'WARNING: %s\\n' "$*" >&2
 }
 
 err() {
-  printf '❌ %s\\n' "$*" >&2
+  printf 'ERROR: %s\\n' "$*" >&2
   exit 1
 }
 
@@ -103,7 +103,7 @@ optimize_single_image() {
   local original_size
   original_size=$(get_size "$file")
 
-  log "🖼️ Processing Image: $base_name"
+  log "Processing Image: $base_name"
 
   local temp_file
   temp_file=$(mktemp -p "${TMPDIR:-/tmp}" "opt-img.XXXXXX")
@@ -173,7 +173,7 @@ optimize_single_image() {
       mv "$temp_file" "$out_file"
       local saved=$((original_size - new_size))
       local percent=$((saved * 100 / original_size))
-      printf '✅ Saved %s (%s -> %s, %d%%) -> %s\n' \
+      printf 'Saved %s (%s -> %s, %d%%) -> %s\n' \
         "$(format_bytes "$saved")" \
         "$(format_bytes "$original_size")" \
         "$(format_bytes "$new_size")" \
@@ -184,9 +184,9 @@ optimize_single_image() {
       # If optimized is larger, just copy original if format is same
       if [[ $to_webp -eq 0 ]]; then
         cp "$file" "$out_file"
-        printf '➖ No savings for %s, copied original.\n' "$base_name"
+        printf 'No savings for %s, copied original.\n' "$base_name"
       else
-        printf '➖ No savings for %s, skipping.\n' "$base_name"
+        printf 'No savings for %s, skipping.\n' "$base_name"
       fi
       rm -f "$temp_file"
     fi
@@ -219,7 +219,7 @@ optimize_single_video() {
   local original_size
   original_size=$(get_size "$file")
 
-  log "🎬 Processing Video: $base_name"
+  log "Processing Video: $base_name"
 
   if ffmpeg -i "$file" -c:v libx265 -preset medium -crf "$crf" -c:a copy -tag:v hvc1 -y "$out_file" -loglevel error; then
     local new_size
@@ -227,7 +227,7 @@ optimize_single_video() {
     if ((new_size > 0 && new_size < original_size)); then
       local saved=$((original_size - new_size))
       local percent=$((saved * 100 / original_size))
-      printf '✅ Saved %s (%s -> %s, %d%%) -> %s\n' \
+      printf 'Saved %s (%s -> %s, %d%%) -> %s\n' \
         "$(format_bytes "$saved")" \
         "$(format_bytes "$original_size")" \
         "$(format_bytes "$new_size")" \
@@ -235,7 +235,7 @@ optimize_single_video() {
         "$out_file"
       [[ $keep_original -eq 0 ]] && rm -f "$file"
     else
-      printf '➖ No savings for %s. Deleting temp file.\n' "$base_name"
+      printf 'No savings for %s. Deleting temp file.\n' "$base_name"
       rm -f "$out_file"
     fi
   else
@@ -361,7 +361,7 @@ main() {
     if [[ -d $item ]]; then
       local search_path
       search_path=$(realpath "$item")
-      log "🔍 Searching in: $search_path"
+      log "Searching in: $search_path"
 
       local patterns=()
       if [[ $type == "image" || $type == "all" ]]; then
@@ -374,11 +374,22 @@ main() {
       # Remove first '-o'
       [[ ${#patterns[@]} -gt 0 ]] && patterns=("${patterns[@]:1}")
 
-      if has fd; then
+      # Use tool preference: fdf -> fd -> find
+      if has fdf; then
         local fd_exts=()
         [[ $type == "image" || $type == "all" ]] && for ext in "${image_exts//,/ }"; do fd_exts+=(-e "$ext"); done
         [[ $type == "video" || $type == "all" ]] && for ext in "${video_exts//,/ }"; do fd_exts+=(-e "$ext"); done
-        mapfile -t -d '' found_files < <(fd -0 -t f "${fd_exts[@]}" . "$search_path")
+        local max_depth_flag=()
+        [[ $recursive -eq 0 ]] && max_depth_flag=(-d 1)
+        mapfile -t -d '' found_files < <(fdf -0 -t f "${max_depth_flag[@]}" "${fd_exts[@]}" . "$search_path")
+        for f in "${found_files[@]}"; do all_files+=("$f"); done
+      elif has fd; then
+        local fd_exts=()
+        [[ $type == "image" || $type == "all" ]] && for ext in "${image_exts//,/ }"; do fd_exts+=(-e "$ext"); done
+        [[ $type == "video" || $type == "all" ]] && for ext in "${video_exts//,/ }"; do fd_exts+=(-e "$ext"); done
+        local max_depth_flag=()
+        [[ $recursive -eq 0 ]] && max_depth_flag=(-d 1)
+        mapfile -t -d '' found_files < <(fd -0 -t f "${max_depth_flag[@]}" "${fd_exts[@]}" . "$search_path")
         for f in "${found_files[@]}"; do all_files+=("$f"); done
       else
         mapfile -t found_files < <(find "$search_path" "${find_args[@]}" -type f \( "${patterns[@]}" \))
@@ -435,9 +446,16 @@ main() {
   }
   export -f process_file
 
-  printf '%s\\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -I {} bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+  # Use tool preference: rust-parallel -> parallel -> xargs
+  if has rust-parallel; then
+    printf '%s\\0' "${all_files[@]}" | rust-parallel -0 -j "$JOBS" bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+  elif has parallel; then
+    printf '%s\\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+  else
+    printf '%s\\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -I {} bash -c 'process_file "{}" "$0" "$1" "$2" "$3" "$4"' "$output_dir" "$quality" "$crf" "$to_webp" "$keep_original"
+  fi
 
-  log "🎉 Optimization complete!"
+  log "Optimization complete!"
 }
 
 # Run main function if script is executed directly

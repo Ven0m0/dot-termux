@@ -250,9 +250,13 @@ opt_vid() {
     local enc_cmd
     case "$codec" in
     av1)
-      if ffmpeg -encoders 2>/dev/null | grep -q libsvtav1; then
+      # Tool preference: rg -> grep
+      local grep_cmd="grep"
+      has rg && grep_cmd="rg"
+
+      if ffmpeg -encoders 2>/dev/null | $grep_cmd -q libsvtav1; then
         enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$crf" -g 240)
-      elif ffmpeg -encoders 2>/dev/null | grep -q libaom-av1; then
+      elif ffmpeg -encoders 2>/dev/null | $grep_cmd -q libaom-av1; then
         enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$crf" -g 240)
       else
         enc_cmd=(-c:v libx265 -preset medium -crf "$crf")
@@ -314,7 +318,12 @@ collect() {
       _files+=("$item")
     elif [[ -d $item ]]; then
       if [[ $RECURSIVE -eq 1 ]]; then
-        if has fd; then
+        # Tool preference: fdf -> fd -> find
+        if has fdf; then
+          while IFS= read -r -d '' f; do _files+=("$f"); done < <(
+            fdf -t f -e jpg -e jpeg -e png -e gif -e webp -e avif -e mp4 -e mkv -e mov -e webm -e avi . "$item" -0
+          )
+        elif has fd; then
           while IFS= read -r -d '' f; do _files+=("$f"); done < <(
             fd -t f -e jpg -e jpeg -e png -e gif -e webp -e avif -e mp4 -e mkv -e mov -e webm -e avi . "$item" -0
           )
@@ -379,7 +388,14 @@ main() {
   export -f process opt_img opt_gif opt_vid opt_png get_out get_size fmt_bytes log has die
   export QUALITY VIDEO_CRF VIDEO_CODEC OUT_DIR KEEP_ORIG INPLACE CONVERT
 
-  printf '%s\0' "${files[@]}" | xargs -0 -n1 -P"$JOBS" bash -c "process \"\$0\" \"$fmt\""
+  # Tool preference: rust-parallel -> parallel -> xargs
+  if has rust-parallel; then
+    printf '%s\0' "${files[@]}" | rust-parallel -0 -j "$JOBS" bash -c "process \"\$0\" \"$fmt\""
+  elif has parallel; then
+    printf '%s\0' "${files[@]}" | parallel -0 -j "$JOBS" bash -c "process \"\$0\" \"$fmt\""
+  else
+    printf '%s\0' "${files[@]}" | xargs -0 -n1 -P"$JOBS" bash -c "process \"\$0\" \"$fmt\""
+  fi
 
   log "Complete"
 }
