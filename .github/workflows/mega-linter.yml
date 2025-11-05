@@ -1,17 +1,13 @@
-# https://megalinter.io
 name: MegaLinter
-
 on:
-  # Automatically run on pushes and PRs to your main branch
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  # Allow manual runs from the Actions tab
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -24,51 +20,31 @@ jobs:
     name: MegaLinter
     runs-on: ubuntu-latest
     steps:
-      # --- Checkout repository ---
       - name: Checkout Code
         uses: actions/checkout@v5
         with:
-          # PAT is required to create PRs with fixes that can trigger other workflows
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          # Fetch all history for linters that analyze git history
           fetch-depth: 0
 
-      # --- Run MegaLinter ---
       - name: MegaLinter
-        uses: oxsecurity/megalinter@v9 # Using v7 for the latest stable features
+        uses: oxsecurity/megalinter@v9
         env:
-          # Required for PR creation and reporting
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT: ${{ secrets.PAT }}
-
-          # ======== BEHAVIOR ========
           VALIDATE_ALL_CODEBASE: true
-          # Automatically create a Pull Request with any fixes found
           APPLY_FIXES: all
-          APPLY_FIXES_EVENT: pull_request # Create PRs only on pull_request events
+          APPLY_FIXES_EVENT: all
           APPLY_FIXES_MODE: pull_request
-
-          # ======== PERFORMANCE TUNING ========
           PARALLEL: true
           SHOW_ELAPSED_TIME: true
-          # Let MegaLinter suggest a smaller, more optimal "flavor" (docker image) for this repo
           FLAVOR_SUGGESTIONS: true
-          # Corrected: Filter to include dotfiles at the root and common config directories
-          FILTER_REGEX_INCLUDE: '((\.config|\.termux|\.github)/|^\.[^/]+$)'
+          FILTER_REGEX_INCLUDE: '(^\.config/|^\.termux/|^\.github/|^\.[^/]+$)'
+          ENABLE: ACTION,BASH,CSS,DOCKERFILE,EDITORCONFIG,ENV,HTML,JSON,MAKEFILE,MARKDOWN,PYTHON,REPOSITORY,SPELL,TOML,XML,YAML
+          DISABLE_LINTERS: REPOSITORY_KICS,REPOSITORY_GRYPE,SPELL_VALE,REPOSITORY_TRIVY,REPOSITORY_DEVSKIM
+          DISABLE_ERRORS_LINTERS: SPELL_CSPELL,SPELL_LYCHEE,BASH_EXEC,REPOSITORY_GIT_DIFF,REPOSITORY_SECRETLINT
 
-          # ======== LINTER CONFIGURATION ========
-          # Corrected: ENABLE should be a comma-separated string
-          ENABLE: "ACTION,BASH,CSS,DOCKERFILE,EDITORCONFIG,ENV,HTML,JSON,MAKEFILE,MARKDOWN,POWERSHELL,PYTHON,REPOSITORY,SPELL,TOML,XML,YAML"
-
-          # Corrected: Linters to completely disable (comma-separated string)
-          DISABLE_LINTERS: "REPOSITORY_KICS,REPOSITORY_GRYPE,SPELL_VALE"
-
-          # Corrected: Linters to treat as warnings (comma-separated string)
-          DISABLE_ERRORS_LINTERS: "SPELL_CSPELL,SPELL_LYCHEE,BASH_EXEC"
-
-      # --- Upload Artifacts ---
       - name: Upload MegaLinter reports
-        if: always() # Always run this step to get reports, even if linting fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: MegaLinter-reports

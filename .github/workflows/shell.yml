@@ -1,0 +1,82 @@
+name: Shell CI
+on:
+  push:
+    branches: [main, master]
+    paths: ['**.sh', '**.bash', '.bashrc', 'bash_*']
+  pull_request:
+    branches: [main, master]
+    paths: ['**.sh', '**.bash', '.bashrc', 'bash_*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell-check:
+    name: ShellCheck & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install tools
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update -yqq
+          sudo apt-get install -y shellcheck shfmt
+          curl -sL https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv shellharden /usr/local/bin/
+
+      - name: Run ShellCheck via Reviewdog
+        uses: reviewdog/action-shellcheck@v1.32.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-check
+          path: "."
+          pattern: |
+            *.sh
+            *.bash
+            .bashrc
+            bash_*
+          exclude: |
+            */.git/*
+            ./.cache/*
+            ./Linux-Settings/*
+          check_all_files_with_shebangs: true
+          shellcheck_flags: "-x -a -s bash"
+
+      - name: Format & fix shell files
+        env:
+          SHELLCHECK_OPTS: "--shell=bash --source-path=SCRIPTDIR --external-sources --check-sourced"
+        run: |
+          {
+            find . -name '*.sh' -o -name '*.bash' -o -name '.bashrc' -o -name 'bash_*' || :
+            find . -type f -exec grep -l '^#!/.*sh' {} + || :
+          } | sort -u | while IFS= read -r f; do
+            [[ $f =~ \.git/|\.cache/|Linux-Settings/ ]] && continue
+            sed -i 's/() {/(){/g' "$f"
+            sed -i 's/|| true/|| :/g' "$f"
+            sed -i '/^#[[:space:]]*-\{5,\}/d' "$f"
+            sed -i '/^$/{N;/^\n$/D;}' "$f"
+            shellharden --replace "$f" || :
+            shellcheck -f diff "$f" | patch -p1 || :
+            shfmt -i 2 -s -bn -ln bash -w "$f" || :
+          done
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || {
+            git add -A
+            git commit -m "🔧 Auto-fix shell scripts [skip ci]"
+            git push
+          }
