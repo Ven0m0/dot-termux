@@ -96,7 +96,7 @@ main(){
   install_mise
   install_soar
   install_pkgx
-  uv pip install TUIFIManager
+  uv pip install TUIFIManager requests beautifulsoup4
   { curl -fsL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; }
   print_step "Linking dotfiles"
   local -a dotfiles=("$REPO_PATH/.zshrc:$HOME/.zshrc" "$REPO_PATH/.zshenv:$HOME/.zshenv" "$REPO_PATH/.p10k.zsh:$HOME/.p10k.zsh")
