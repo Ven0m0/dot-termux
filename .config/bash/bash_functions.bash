@@ -10,7 +10,7 @@ fe() {
 # cd to the selected directory
 fcd() {
   local dir
-  dir=$(find "${1:-.}" -path '*/\.*' -prune \
+  dir=$(find "${1:-.}" -maxdepth 5 -path '*/\.*' -prune \
       -o -type d -print 2> /dev/null | fzf +m) \
       && cd "$dir" || return 1
 }

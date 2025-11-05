@@ -136,7 +136,7 @@ install_third_party() {
     curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"
     log "apk.sh installed"
   }
-  git clone --depth=1 --filter='blob:none' --no-tags https://github.com/Gameye98/DTL-X.git && bash DTL-X/termux_install.sh
+  git clone --depth=1 --filter='blob:none' --no-tags https://github.com/Gameye98/DTL-X.git "$HOME/DTL-X" && bash "$HOME/DTL-X/termux_install.sh" || log "${YLW}DTL-X installation failed${DEF}"
 }
 
 setup_zsh() {
@@ -191,7 +191,7 @@ EOF
 # --- Main Execution ---
 main() {
   cd "$HOME"
-  [[ -d "$REPO_PATH" ]] && git -C "$REPO_PATH" pull --rebase -p || git clone --depth=1 "$REPO_URL" "$REPO_PATH"
+  [[ -d "$REPO_PATH" ]] && git -C "$REPO_PATH" pull --rebase -p || git clone --depth=1 --filter='blob:none' "$REPO_URL" "$REPO_PATH"
   setup_environment
   configure_apt
   install_packages
@@ -206,85 +206,4 @@ main() {
   finalize
 }
 
-main "$@"setup_antidote(){ print_step "Setting up Antidote"
-  local dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
-  [[ -d $dir ]] || { ensure_dir "${dir%/*}"; git clone --depth 1 --filter='blob:none' --no-tags https://github.com/mattmc3/antidote "$dir" &>/dev/null || :; }
-  log "Antidote ready"
-}
-install_rust_tools_fallback(){ print_step "Installing Rust tools (fallback)"
-  [[ -x "$HOME/.cargo/bin/cargo-binstall" ]] || { curl -fsL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &>/dev/null; }
-  local -a tools=(oxipng cargo-update)
-  for tool in "${tools[@]}"; do has "$tool" || { "$HOME/.cargo/bin/cargo-binstall" "$tool" || cargo install "$tool"; }; done
-  log "Rust fallback tools installing"
-}
-install_node_tools(){ print_step "Installing bun"
-  { has bun || { curl -fsL https://bun.sh/install | bash &>/dev/null; log "bun done"; } } &
-}
-install_mise(){ print_step "Installing mise"; has mise || { curl -fsL https://mise.run | sh &>/dev/null; log "mise done"; }; }
-install_soar(){ print_step "Installing SOAR"; has soar || { curl -fsL https://soar.qaidvoid.dev/install.sh | sh &>/dev/null; log "SOAR done"; }; }
-install_pkgx(){ print_step "Installing pkgx"; has pkgx || { curl -fsL https://pkgx.sh | sh &>/dev/null; log "pkgx done"; }; }
-
-setup_revanced_tools(){ print_step "Setting up ReVanced tools"; ensure_dir "$HOME/bin"
-  { curl -sfL "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh" | bash &>/dev/null && [[ -d $HOME/revancify-xisr ]] && ln -sf "$HOME/revancify-xisr/revancify.sh" "$HOME/bin/revancify-xisr" || :; log "Revancify done"; } &
-  { curl -sfL -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh" && ln -sf "$HOME/.Simplify.sh" "$HOME/bin/simplify" && log "Simplify done"; } &
-  { curl -fsL https://get.x-cmd.com | bash &>/dev/null && log "X-CMD done"; } &
-  log "ReVanced tools installing"
-}
-install_wapatch(){ git clone --depth=1 --filter='blob:none' --no-tags https://github.com/Schwartzblat/WhatsAppPatcher.git && uv pip install -r WhatsAppPatcher/requirements.txt; }
-setup_adb_rish(){ print_step "Setting up ADB/RISH"; curl -sL https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash &>/dev/null || :; log "ADB/RISH done"; }
-
-create_welcome(){ cat >"$HOME/.welcome.msg"<<EOF
-${BLUE}╔════════════════════════════════════════════════╗${RESET}
-${BLUE}║  Welcome to optimized Termux environment      ║${RESET}
-${BLUE}╚════════════════════════════════════════════════╝${RESET}
-Tools: ${GREEN}revancify-xisr simplify gix soar mise bun pnpm${RESET}
-Type ${GREEN}help${RESET} for more.
-EOF
-log "Welcome created"; }
-
-optimize_zsh(){ print_step "Optimizing Zsh"
-  zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f "$f" ]] && zrecompile -pq "$f"; done' &>/dev/null || :
-  log "Zsh optimized"
-}
-
-main(){
-  : >"$LOG_FILE"; log "Starting setup..."
-  check_internet
-  mkdir -p ~/.ssh && chmod 700 ~/.ssh
-  # Generate SSH key if not exists
-  if [ ! -f ~/.ssh/id_rsa ]; then
-    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-    echo "SSH key generated at ~/.ssh/id_rsa"
-  fi
-  print_step "Updating packages, adding repos and installing packages"
-  install_pkgs
-  install_jetbrains_mono
-  print_step "Setting Zsh as default"; [[ "$(basename "$SHELL")" != "zsh" ]] && chsh -s zsh
-  print_step "Managing repo"
-  if [[ -d "$REPO_PATH" ]]; then git -C "$REPO_PATH" pull -r -p; else git clone --depth=1 "$REPO_URL" "$REPO_PATH"; fi
-  setup_antidote
-  install_rust_tools_fallback
-  install_node_tools
-  install_mise
-  install_soar
-  install_pkgx
-  uv pip install TUIFIManager requests beautifulsoup4
-  { curl -fsL https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; }
-  print_step "Linking dotfiles"
-  local -a dotfiles=("$REPO_PATH/.zshrc:$HOME/.zshrc" "$REPO_PATH/.zshenv:$HOME/.zshenv" "$REPO_PATH/.p10k.zsh:$HOME/.p10k.zsh")
-  for item in "${dotfiles[@]}"; do IFS=: read -r src tgt <<<"$item"; symlink_dotfile "$src" "$tgt"; done
-  print_step "Linking scripts"; ensure_dir "$HOME/bin"
-  for script in "$REPO_PATH/bin"/*.sh; do [[ -f $script ]] || continue; ln -sf "$script" "$HOME/bin/$(basename "$script" .sh)" && chmod +x "$script"; done
-  setup_adb_rish
-  setup_revanced_tools
-  ensure_dir "$HOME/.zsh/cache" "${XDG_CACHE_HOME:-$HOME/.cache}" "$HOME/.config/zsh"
-  optimize_zsh
-  create_welcome
-  print_step "🚀 Setup Complete! 🚀"
-  cat <<EOF
-Restart Termux. Installed: Antidote, OMZ snippets, Powerlevel10k, ReVanced tools, soar, mise, bun, pnpm
-Background jobs installing. Check $LOG_FILE
-EOF
-  log "Setup complete"
-}
 main "$@"

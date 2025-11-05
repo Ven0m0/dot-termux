@@ -9,7 +9,7 @@
 		set +f
 		[ -n "$d" ] || d=.
 		for f in "$d"/. "$d"/..?* "$d"/*; do
-			[ -f "$f" ] && [ -x "$f" ] && printf '%s\n' "${f##*/}"
+			[ -f "$f" ] && [ -x "$f" ] && printf '%s\0' "${f##*/}"
 		done
 	done
-} | sort
+} | sort -uz | tr '\0' '\n'

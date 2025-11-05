@@ -240,8 +240,8 @@ clean_whatsapp_media() {
         if [[ $DRY_RUN -eq 1 ]]; then
           log "[DRY RUN] Would clean files older than 30 days in $path"
         else
-          # Use find to delete files older than 30 days
-          find "$path" -type f -mtime +30 -delete 2>/dev/null || log "Failed to clean $path"
+          # Use find with -print0 and xargs for better performance on large directories
+          find "$path" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
         fi
       fi
     done
@@ -267,8 +267,8 @@ clean_telegram_media() {
       if [[ $DRY_RUN -eq 1 ]]; then
         log "[DRY RUN] Would clean files older than 30 days in $path"
       else
-        # Use find to delete files older than 30 days
-        find "$path" -type f -mtime +30 -delete 2>/dev/null || log "Failed to clean $path"
+        # Use find with -print0 and xargs for better performance on large directories
+        find "$path" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P 4 rm -f 2>/dev/null || log "Failed to clean $path"
       fi
     fi
   done
