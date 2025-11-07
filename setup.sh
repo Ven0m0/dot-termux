@@ -21,8 +21,12 @@ ensure_dir() { for dir; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 run_installer() {
   local name=$1 url=$2
   step "Installing $name..."
-  has "${name%%-*}" && { log "$name already installed."; return 0; }
-  local script; script=$(mktemp --suffix=".sh")
+  has "${name%%-*}" && {
+    log "$name already installed."
+    return 0
+  }
+  local script
+  script=$(mktemp --suffix=".sh")
   if curl -fsSL --http2 --tcp-fastopen --connect-timeout 5 "$url" -o "$script"; then
     log "Downloaded $name. Executing..."
     (bash "$script" &>>"$LOG_FILE") || log "${RED}Failed to install $name${DEF}"
@@ -38,7 +42,10 @@ setup_environment() {
   : >"$LOG_FILE"
   ensure_dir "$HOME/.ssh" "$HOME/bin" "$HOME/.termux" "${XDG_DATA_HOME:-$HOME/.local/share}" "${XDG_CACHE_HOME:-$HOME/.cache}"
   chmod 700 "$HOME/.ssh"
-  [[ -f $HOME/.ssh/id_rsa ]] || { log "Generating SSH key..."; ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N ""; };
+  [[ -f $HOME/.ssh/id_rsa ]] || {
+    log "Generating SSH key..."
+    ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N ""
+  }
 }
 
 configure_apt() {
@@ -68,9 +75,13 @@ install_packages() {
 install_fonts() {
   step "Installing JetBrains Mono font"
   local font_path="$HOME/.termux/font.ttf"
-  [[ -f $font_path ]] && { log "Font already installed."; return 0; }
+  [[ -f $font_path ]] && {
+    log "Font already installed."
+    return 0
+  }
   local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-  local tmp_zip; tmp_zip=$(mktemp --suffix=".zip")
+  local tmp_zip
+  tmp_zip=$(mktemp --suffix=".zip")
   curl -sL "$url" -o "$tmp_zip"
   unzip -jo "$tmp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null
   mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font_path"
@@ -121,7 +132,7 @@ link_dotfiles() {
 
 finalize() {
   step "Finalizing setup"
-  zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null ||:
+  zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
   cat >"$HOME/.welcome.msg" <<<"${BLU}🚀 Welcome to your optimized Termux environment 🚀${DEF}"
   step "✅ Setup Complete!"
   printf 'Restart Termux to apply all changes.\nLogs are in %s\n' "${YLW}$LOG_FILE${DEF}"
@@ -140,9 +151,15 @@ main() {
 
   local -i pid_count=0
   local -a pids
-  install_rust_tools & pids+=($!); ((pid_count++))
-  install_third_party & pids+=($!); ((pid_count++))
-  uv pip install -U TUIFIManager & pids+=($!); ((pid_count++))
+  install_rust_tools &
+  pids+=($!)
+  ((pid_count++))
+  install_third_party &
+  pids+=($!)
+  ((pid_count++))
+  uv pip install -U TUIFIManager &
+  pids+=($!)
+  ((pid_count++))
 
   setup_zsh
   link_dotfiles

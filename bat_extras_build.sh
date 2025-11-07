@@ -3,7 +3,10 @@ set -euo pipefail
 shopt -s nullglob globstar
 IFS=$'\n\t'
 
-git_cmd=$(command -v gix || command -v git || { echo "git or gix required" >&2; exit 1; })
+git_cmd=$(command -v gix || command -v git || {
+  echo "git or gix required" >&2
+  exit 1
+})
 repo=https://github.com/eth-p/bat-extras.git
 dest=bat-extras
 
@@ -28,7 +31,10 @@ while IFS= read -r -d '' file; do
   ((count++))
 done < <(find . -maxdepth 2 -type f -executable -print0)
 
-((count == 0)) && { echo "no executables found to symlink" >&2; exit 1; }
+((count == 0)) && {
+  echo "no executables found to symlink" >&2
+  exit 1
+}
 
 printf 'symlinked %d executables to %s\n' "$count" "$inst_dir"
 printf 'ensure %s is on your PATH\n' "$inst_dir"
