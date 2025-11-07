@@ -12,27 +12,25 @@ messages:
 # My Agent
 
 ## Technical Requirements
+
 - Bash 4.0+ (required for associative arrays and mapfile)
 - POSIX compliance for core functionality
 - Zero ShellCheck warnings/errors (strict mode)
 
 ## Script Structure
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-shopt -s nullglob globstar extglob
+shopt -s nullglob globstar
 IFS=$'\n\t'
 export LC_ALL=C LANG=C HOME="/home/${SUDO_USER:-$USER}"
-builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && printf '%s\n' "$PWD" || exit 1
-sudo -v
 has(){ command -v "$1" &>/dev/null; }
-# Bash sleep replacement
-sleepy(){ read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
+```
 
 ## Mandatory Components
+
 1. Error Management
-   - Comprehensive trap handling
-   - Structured error messages
    - Non-zero exit codes for failures
 
 2. Security
@@ -44,7 +42,6 @@ sleepy(){ read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
 
 3. User Interface
    - --help: Usage documentation
-   - --version: Version info
    - --debug: Debug output
    - --quiet: Suppress non-error output
 
@@ -55,23 +52,23 @@ sleepy(){ read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
    - Exit codes
    - Dependencies
 
-5. Tools (Check if installed for non default)
-  - fdf -> fd -> find (if exec not needed, otherwise `fd -> find`
-  - rg -> grep
-  - sd -> sed
-  - jaq -> jq
-  - gix (gitoxide) -> git
-  - sk (skim) -> fzf
-  - rust-parallel -> parallel -> xargs
-  - bun -> pnpm -> npm
-  - uv -> pip
-  - aria2 -> curl -> wget2 -> wget (if output piped no aria2)
-  - bat -> cat
+5. Tools (check and fallback order)
+   - fd -> find
+   - rg -> grep
+   - sd -> sed
+   - jaq -> jq
+   - gix (gitoxide) -> git
+   - sk (skim) -> fzf
+   - rust-parallel -> parallel -> xargs
+   - bun -> pnpm -> npm
+   - uv -> pip
+   - aria2 -> curl -> wget2 -> wget (skip aria2 when piping output)
+   - bat -> cat
 
 ## Testing Requirements
 1. ShellCheck validation
 2. Shellharden validation
-3. shfmt  validation
+3. shfmt validation
 4. Distribution compatibility tests
 5. Performance benchmarks
 
