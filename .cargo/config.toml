@@ -1,10 +1,9 @@
 [unstable]
 unstable-options = true
-git = { shallow_index = true, shallow_deps = true }
-gitoxide = { fetch = true, internal_use_git2 = true }
-trim-paths = true
+git = true
+gitoxide = true
 no-embed-metadata = true
-profile-rustflags = true
+avoid-dev-deps = true
 
 [alias]
 b = "build"
@@ -12,13 +11,10 @@ i = "install"
 
 [build]
 rustc-wrapper = "sccache"
+rustflags = ["-C", "target-cpu=native", "-C"]
 
 [env]
-CARGO_CACHE_RUSTC_INFO = { value = "1", force = true }
-GITOXIDE_CORE_MULTIPACKINDEX = { value = "true", force = true }
-GITOXIDE_HTTP_SSLVERSIONMAX = { value = "tls1.3", force = true }
-GITOXIDE_HTTP_SSLVERSIONMIN = { value = "tls1.2", force = true }
-RUSTC_BOOTSTRAP = { value = "1", force = true }
+CARGO_CACHE_RUSTC_INFO = "1"
 
 [http]
 debug = false
@@ -38,30 +34,31 @@ incompatible-rust-versions = "allow"
 
 [profile.release]
 opt-level = 3
+lto = "fat"
+panic = "abort"
 strip = "symbols"
 debug = false
 debug-assertions = false
 overflow-checks = false
-rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=mold"]
 
 [profile.release.build-override]
 opt-level = 0
+lto = false
+codegen-units = 256
 incremental = true
 debug = false
 
 [profile.dev]
 opt-level = 0
+lto = false
+codegen-units = 256
 incremental = true
 debug = false
-lto = false
 
 [target.aarch64-linux-android]
 linker = "clang"
-rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=mold"]
+rustflags = ["-C", "target-cpu=native"]
 
 [term]
-quiet = true
-verbose = false
-unicode = false
 color = 'auto'
 progress.when = 'auto'
