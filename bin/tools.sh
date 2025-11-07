@@ -49,7 +49,7 @@ list_execs() {
     for f in "$d"/* "$d"/..?*; do
       [[ -f $f && -x $f ]] || continue
       base=${f##*/}
-      
+
       # Skip based on duplication settings
       if [[ $allow_dupe -eq 0 ]]; then
         if [[ $show_path -eq 1 ]]; then
@@ -71,7 +71,7 @@ list_execs() {
     done
     shopt -u nullglob
   done
-  
+
   printf '%s\n' "${out[@]}"
 }
 

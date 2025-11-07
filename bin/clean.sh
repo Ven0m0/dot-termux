@@ -152,20 +152,20 @@ clean_quick() {
   log "Cleaning temp files"
   [[ $DRY_RUN -eq 0 ]] && {
     local termux_home="/data/data/com.termux/files/home"
-    
+
     # Combine related find operations for efficiency (only existing dirs)
     local -a temp_dirs=()
     for d in "${HOME}/.cache" "${HOME}/tmp" "${TMPDIR:-/tmp}"; do
       [[ -d $d ]] && temp_dirs+=("$d")
     done
     [[ ${#temp_dirs[@]} -gt 0 ]] && find "${temp_dirs[@]}" -type f -delete >/dev/null 2>&1 || :
-    
+
     local -a termux_dirs=()
     for d in "${termux_home}/.cache/" /data/data/com.termux/cache "${termux_home}/tmp/"; do
       [[ -d $d ]] && termux_dirs+=("$d")
     done
     [[ ${#termux_dirs[@]} -gt 0 ]] && find "${termux_dirs[@]}" -type f -delete -print 2>/dev/null || :
-    
+
     [[ -d $termux_home ]] && find "$termux_home" -type f \( -name "*.bak" -o -name "*.log" \) -delete -print 2>/dev/null || :
   }
 
