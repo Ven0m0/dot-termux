@@ -20,7 +20,7 @@ export ADB_PORT
 
 ifconfig | grep -o '\b192\.168\.[0-9]\+\.[0-9]\+\b' | grep -v '255' >~/adbip.txt && chmod 777 ~/adbip.txt
 index=1
-while read ip; do
+while read -r ip; do
   eval ADB"$index=${ip}:${ADB_PORT}"
   ((index++))
 done <~/adbip.txt

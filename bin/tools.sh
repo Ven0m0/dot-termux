@@ -2,7 +2,10 @@
 # tools.sh - Consolidated helper functions
 # Source: source /path/tools.sh
 
-[[ ${BASH_SOURCE[0]:-${(%):-%x}} == "$0" ]] && set -euo pipefail
+# Detect if script is being sourced or executed
+if [[ -n ${BASH_SOURCE[0]:-} && ${BASH_SOURCE[0]} == "${0}" ]]; then
+  set -euo pipefail
+fi
 export LC_ALL=C LANG=C
 
 _shell=${BASH_VERSION:+bash}
@@ -188,4 +191,7 @@ Available functions:
 E
 }
 
-[[ ${BASH_SOURCE[0]:-${(%):-%x}} == "$0" ]] && tools_help
+# Show help if executed directly (not sourced)
+if [[ -n ${BASH_SOURCE[0]:-} && ${BASH_SOURCE[0]} == "${0}" ]]; then
+  tools_help
+fi
