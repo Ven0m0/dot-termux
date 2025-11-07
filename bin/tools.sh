@@ -37,36 +37,37 @@ list_execs() {
   done
   shift $((OPTIND - 1))
 
-  local IFS=: d f
+  local IFS=: d f base
   local -a path_arr out=()
   local -A seen
   read -ra path_arr <<<"$PATH"
+
   for d in "${path_arr[@]}"; do
-    [[ -n $d ]] || d=.
-    for f in "$d"/. "$d"/..?* "$d"/*; do
+    [[ -z $d ]] && d=.
+    # Use more efficient globbing with nullglob enabled
+    shopt -s nullglob
+    for f in "$d"/* "$d"/..?*; do
       [[ -f $f && -x $f ]] || continue
-      if ((show_path)); then
-        if ((allow_dupe)); then
+      base=${f##*/}
+      
+      # Skip based on duplication settings
+      if [[ $allow_dupe -eq 0 ]]; then
+        if [[ $show_path -eq 1 ]]; then
+          [[ -n ${seen["$f"]:-} ]] && continue
+          seen["$f"]=1
           out+=("$f")
         else
-          [[ -z ${seen["$f"]:-} ]] && {
-            out+=("$f")
-            seen["$f"]=1
-          }
+          [[ -n ${seen["$base"]:-} ]] && continue
+          seen["$base"]=1
+          out+=("$base")
         fi
       else
-        local base=${f##*/}
-        if ((allow_dupe)); then
-          out+=("$base")
-        else
-          [[ -z ${seen["$base"]:-} ]] && {
-            out+=("$base")
-            seen["$base"]=1
-          }
-        fi
+        out+=("$([[ $show_path -eq 1 ]] && echo "$f" || echo "$base")")
       fi
     done
+    shopt -u nullglob
   done
+  
   printf '%s\n' "${out[@]}"
 }
 

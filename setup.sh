@@ -149,26 +149,21 @@ main() {
   install_fonts &
   wait # Wait for packages and fonts before proceeding
 
-  local -i pid_count=0
   local -a pids
   install_rust_tools &
   pids+=($!)
-  ((pid_count++))
   install_third_party &
   pids+=($!)
-  ((pid_count++))
   uv pip install -U TUIFIManager &
   pids+=($!)
-  ((pid_count++))
 
   setup_zsh
   link_dotfiles
 
-  log "Waiting for $pid_count background installations to finish..."
-  while ((pid_count > 0)); do
-    wait -n "${pids[@]}"
-    ((pid_count--))
-    log "A background task finished. Remaining: $pid_count"
+  log "Waiting for ${#pids[@]} background installations to finish..."
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+    log "Background task finished"
   done
 
   finalize

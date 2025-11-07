@@ -73,36 +73,41 @@ git() {
 
 # Curl -> Aria2 wrapper
 curl() {
-  local -a args=() out_file=""
-  if has aria2c; then
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-      -o | --output)
-        out_file="$2"
-        shift 2
-        ;;
-      -L | --location | -s | --silent | -S | --show-error | -f | --fail)
-        shift
-        ;;
-      http* | ftp*)
-        args+=("$1")
-        shift
-        ;;
-      *)
-        args+=("$1")
-        shift
-        ;;
-      esac
-    done
-    if [[ ${#args[@]} -gt 0 ]]; then
-      if [[ -n $out_file ]]; then
-        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 -d "$(dirname "$out_file")" -o "$(basename "$out_file")" "${args[@]}"
-      else
-        aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 "${args[@]}"
-      fi
-    else
-      command curl "$@"
+  if ! has aria2c; then
+    command curl "$@"
+    return
+  fi
+
+  local -a args=() aria_args=()
+  local out_file="" out_dir="" url=""
+
+  # Parse arguments more efficiently
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -o | --output)
+      out_file="$2"
+      shift 2
+      ;;
+    -L | --location | -s | --silent | -S | --show-error | -f | --fail)
+      shift # Skip curl-specific flags
+      ;;
+    http* | ftp*)
+      url="$1"
+      shift
+      ;;
+    *)
+      args+=("$1")
+      shift
+      ;;
+    esac
+  done
+
+  if [[ -n $url ]]; then
+    aria_args=(-x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0)
+    if [[ -n $out_file ]]; then
+      aria_args+=(-d "$(dirname "$out_file")" -o "$(basename "$out_file")")
     fi
+    aria2c "${aria_args[@]}" "$url" "${args[@]}"
   else
     command curl "$@"
   fi

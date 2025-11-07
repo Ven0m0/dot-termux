@@ -47,6 +47,29 @@ has() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Tool availability cache
+declare -A TOOL_CACHE
+cache_tool() {
+  local tool=$1
+  if [[ -z ${TOOL_CACHE[$tool]:-} ]]; then
+    if has "$tool"; then
+      TOOL_CACHE[$tool]=1
+    else
+      TOOL_CACHE[$tool]=0
+    fi
+  fi
+  return $((1 - TOOL_CACHE[$tool]))
+}
+
+# Cached nproc
+NPROC_CACHED=""
+get_nproc() {
+  if [[ -z $NPROC_CACHED ]]; then
+    NPROC_CACHED=$(nproc 2>/dev/null || echo 4)
+  fi
+  echo "$NPROC_CACHED"
+}
+
 log() {
   printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
 }
@@ -132,24 +155,24 @@ optimize_png() {
   tmp="${out}.tmp"
 
   # Tool preference: oxipng > optipng > pngcrush
-  if has oxipng; then
+  if cache_tool oxipng; then
     cp "$src" "$tmp"
     if [[ $LOSSLESS -eq 1 ]]; then
       oxipng -o6 --strip safe -q "$tmp" 2>/dev/null && success=1
     else
       oxipng -o6 --strip safe -q "$tmp" 2>/dev/null || :
-      if has pngquant; then
+      if cache_tool pngquant; then
         pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$tmp" -o "${tmp}.2" 2>/dev/null && mv "${tmp}.2" "$tmp" && success=1 || success=1
       else
         success=1
       fi
     fi
-  elif has optipng; then
+  elif cache_tool optipng; then
     cp "$src" "$tmp"
     if [[ $LOSSLESS -eq 1 ]]; then
       optipng -o7 -strip all -quiet "$tmp" 2>/dev/null && success=1
     else
-      if has pngquant; then
+      if cache_tool pngquant; then
         pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" 2>/dev/null || cp "$src" "$tmp"
         optipng -o2 -strip all -quiet "$tmp" 2>/dev/null || :
       else
@@ -157,7 +180,7 @@ optimize_png() {
       fi
       success=1
     fi
-  elif has pngcrush; then
+  elif cache_tool pngcrush; then
     pngcrush -rem alla -reduce "$src" "$tmp" 2>/dev/null && success=1 || cp "$src" "$tmp"
   else
     cp "$src" "$tmp"
@@ -181,13 +204,13 @@ optimize_jpeg() {
   tmp="${out}.tmp"
 
   # Tool preference: jpegoptim > mozjpeg
-  if has jpegoptim; then
+  if cache_tool jpegoptim; then
     if [[ $LOSSLESS -eq 1 ]]; then
       jpegoptim --strip-all --stdout "$src" >"$tmp" 2>/dev/null && success=1
     else
       jpegoptim --max="$QUALITY" --strip-all --stdout "$src" >"$tmp" 2>/dev/null && success=1
     fi
-  elif has mozjpeg || has cjpeg; then
+  elif cache_tool mozjpeg || cache_tool cjpeg; then
     local jpeg_tool=$(has cjpeg && echo "cjpeg" || echo "convert")
     "$jpeg_tool" -quality "$QUALITY" -optimize "$src" >"$tmp" 2>/dev/null && success=1
   else
@@ -294,19 +317,19 @@ optimize_image() {
 
     case "$CONVERT_FORMAT" in
     webp)
-      if has cwebp; then
+      if cache_tool cwebp; then
         cwebp -q "$QUALITY" -m 6 -mt -af "$src" -o "$tmp" 2>/dev/null && success=1
       elif [[ -n $convert_tool ]]; then
         "$convert_tool" "$src" -quality "$QUALITY" "$tmp" 2>/dev/null && success=1
       fi
       ;;
     avif)
-      if has avifenc; then
-        avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1
+      if cache_tool avifenc; then
+        avifenc -s 6 -j "$(get_nproc)" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1
       fi
       ;;
     jxl)
-      if has cjxl; then
+      if cache_tool cjxl; then
         if [[ $LOSSLESS -eq 1 ]]; then
           cjxl "$src" "$tmp" -d 0 -e 7 2>/dev/null && success=1
         else
@@ -369,8 +392,8 @@ optimize_image() {
       fi
       ;;
     avif)
-      if has avifenc; then
-        avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1
+      if cache_tool avifenc; then
+        avifenc -s 6 -j "$(get_nproc)" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1
       else
         cp "$src" "$out"
       fi
@@ -674,28 +697,26 @@ collect_files() {
         local exts=("jpg" "jpeg" "png" "gif" "svg" "webp" "avif" "jxl" "tiff" "tif" "bmp" "mp4" "mkv" "mov" "webm" "avi" "flv" "opus" "flac" "mp3" "m4a" "aac" "ogg" "wav")
 
         # Tool preference: fdf -> fd -> find
-        if has fdf; then
+        if cache_tool fdf; then
           local fd_args=(-t f)
           for e in "${exts[@]}"; do fd_args+=(-e "$e"); done
           [[ $RECURSIVE -eq 0 ]] && fd_args+=(-d 1)
           mapfile -t -d '' found_files < <(fdf "${fd_args[@]}" . "$search_path" -0 2>/dev/null || :)
-        elif has fd; then
+        elif cache_tool fd; then
           local fd_args=(-t f)
           for e in "${exts[@]}"; do fd_args+=(-e "$e"); done
           [[ $RECURSIVE -eq 0 ]] && fd_args+=(-d 1)
           mapfile -t -d '' found_files < <(fd "${fd_args[@]}" . "$search_path" -0 2>/dev/null || :)
         else
-          local find_args=()
+          local find_args=(-type f)
           [[ $RECURSIVE -eq 0 ]] && find_args+=(-maxdepth 1)
           local patterns=()
           for e in "${exts[@]}"; do patterns+=(-o -iname "*.$e"); done
           patterns=("${patterns[@]:1}") # Remove first -o
-          mapfile -t found_files < <(find "$search_path" "${find_args[@]}" -type f \( "${patterns[@]}" \) 2>/dev/null || :)
+          mapfile -t found_files < <(find "$search_path" "${find_args[@]}" \( "${patterns[@]}" \) 2>/dev/null || :)
         fi
 
-        for f in "${found_files[@]}"; do
-          [[ -n $f ]] && files+=("$f")
-        done
+        files+=("${found_files[@]}")
       fi
     done
   fi
@@ -867,7 +888,7 @@ main() {
 
   # Auto-detect jobs
   if [[ $JOBS -eq 0 ]]; then
-    JOBS=$(nproc 2>/dev/null || echo 2)
+    JOBS=$(get_nproc)
   fi
 
   # Collect files

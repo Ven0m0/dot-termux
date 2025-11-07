@@ -82,7 +82,14 @@ EOF
 # PRIVILEGE DETECTION
 # ============================================================================
 
+# Cache privilege detection results
+PRIVILEGES_CHECKED=0
+
 detect_privileges() {
+  # Only check once
+  [[ $PRIVILEGES_CHECKED -eq 1 ]] && return
+  PRIVILEGES_CHECKED=1
+
   # Check for Shizuku
   if has rish; then
     if rish id >/dev/null 2>&1; then
@@ -144,14 +151,10 @@ clean_quick() {
   # Clean temp files
   log "Cleaning temp files"
   [[ $DRY_RUN -eq 0 ]] && {
-    find "${HOME}/.cache" -type f -delete >/dev/null 2>&1 || :
-    find "${HOME}/tmp" -type f -delete >/dev/null 2>&1 || :
-    find "${TMPDIR:-/tmp}" -type f -user "$(id -u)" -delete >/dev/null 2>&1 || :
-    find /data/data/com.termux/files/home/.cache/ -type f -delete -print 2>/dev/null
-    find /data/data/com.termux/cache -type f -delete -print 2>/dev/null
-    find /data/data/com.termux/files/home/tmp/ -type f -delete -print 2>/dev/null
-    find /data/data/com.termux/files/home/ -type f -name "*.bak" -delete -print 2>/dev/null
-    find /data/data/com.termux/files/home -type f -name "*.log" -delete -print 2>/dev/null
+    # Combine related find operations for efficiency
+    find "${HOME}/.cache" "${HOME}/tmp" "${TMPDIR:-/tmp}" -type f -delete >/dev/null 2>&1 || :
+    find /data/data/com.termux/files/home/.cache/ /data/data/com.termux/cache /data/data/com.termux/files/home/tmp/ -type f -delete -print 2>/dev/null || :
+    find /data/data/com.termux/files/home -type f \( -name "*.bak" -o -name "*.log" \) -delete -print 2>/dev/null || :
   }
 
   # Clean log files
