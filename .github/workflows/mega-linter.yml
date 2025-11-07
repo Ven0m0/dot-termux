@@ -41,9 +41,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT: ${{ secrets.PAT }}
           VALIDATE_ALL_CODEBASE: true
-          APPLY_FIXES: all
-          APPLY_FIXES_EVENT: all
-          APPLY_FIXES_MODE: commit
+          APPLY_FIXES: "all"
+          APPLY_FIXES_EVENT: "all"
+          APPLY_FIXES_MODE: "commit"
           PARALLEL: true
           SHOW_ELAPSED_TIME: true
           FLAVOR_SUGGESTIONS: true
@@ -51,14 +51,15 @@ jobs:
           BASH_SHELLCHECK_ARGUMENTS: '-s bash -P SCRIPTDIR -x -a -S warning -o all'
           SHELLCHECK_OPTS: "-s bash -P SCRIPTDIR -x -a -S warning -o all"
           BASH_SHFMT_ARGUMENTS: "-ln bash -s -i 2 -bn"
+          BASH_SHFMT_CLI_LINT_MODE: "file"
           FILTER_REGEX_INCLUDE: '((\.config|\.termux|\.github)/|^\.[^/]+$|^scripts/|^bin/|.*)'
           FILTER_REGEX_EXCLUDE: '(^Linux-Settings/|^\.cache/|^node_modules/|^vendor/|^dist/|^build/|^third_party/|^\.venv/|^venv/|^__pycache__/|^\.git/)'
-          ENABLE: ACTION,BASH,CSS,DOCKERFILE,EDITORCONFIG,ENV,HTML,JSON,MAKEFILE,MARKDOWN,PYTHON,REPOSITORY,SPELL,TOML,XML,YAML
-          DISABLE_LINTERS: REPOSITORY_KICS,REPOSITORY_GRYPE,SPELL_VALE,REPOSITORY_TRIVY,REPOSITORY_DEVSKIM,YAML_V8R,BASH_EXEC,SPELL_CSPELL
-          DISABLE_ERRORS_LINTERS: SPELL_CSPELL,SPELL_LYCHEE,BASH_EXEC,REPOSITORY_GIT_DIFF,REPOSITORY_SECRETLINT,EDITORCONFIG,SPELL,MARKDOWN,SPELL_LYCHEE
-          LC_ALL: C
-          DEBIAN_FRONTEND: noninteractive
-          
+          ENABLE: "ACTION,BASH,CSS,DOCKERFILE,EDITORCONFIG,ENV,HTML,JSON,MAKEFILE,MARKDOWN,PYTHON,REPOSITORY,SPELL,TOML,XML,YAML"
+          DISABLE_LINTERS: "REPOSITORY_KICS,REPOSITORY_GRYPE,SPELL_VALE,REPOSITORY_TRIVY,REPOSITORY_DEVSKIM,YAML_V8R,BASH_EXEC,SPELL_CSPELL"
+          DISABLE_ERRORS_LINTERS: "SPELL_CSPELL,SPELL_LYCHEE,BASH_EXEC,REPOSITORY_GIT_DIFF,REPOSITORY_SECRETLINT,EDITORCONFIG_EDITORCONFIG_CHECKER,MARKDOWN,SPELL_LYCHEE"
+          LC_ALL: "C"
+          DEBIAN_FRONTEND: "noninteractive"
+
       - name: Upload MegaLinter reports
         if: always()
         uses: actions/upload-artifact@v4
