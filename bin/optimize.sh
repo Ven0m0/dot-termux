@@ -19,6 +19,27 @@ set -euo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
 
+# --- Cache System Capabilities ---
+_NPROC_CACHED=$(nproc 2>/dev/null || echo 2)
+
+# Detect and cache stat variant
+if stat -c%s /dev/null &>/dev/null 2>&1; then
+  _STAT_FMT="-c%s"
+elif stat -f%z /dev/null &>/dev/null 2>&1; then
+  _STAT_FMT="-f%z"
+else
+  _STAT_FMT=""
+fi
+
+# Detect and cache convert tool
+if has gm; then
+  _CONVERT_TOOL="gm convert"
+elif has convert; then
+  _CONVERT_TOOL="convert"
+else
+  _CONVERT_TOOL=""
+fi
+
 # --- Configuration Defaults ---
 QUALITY=85        # Image quality (1-100)
 VIDEO_CRF=27      # Video CRF (0-51, lower is better quality)
@@ -48,7 +69,7 @@ has() {
 }
 
 log() {
-  printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
+  printf '[%(%H:%M:%S)T] %s\n' -1 "$*"
 }
 
 warn() {
@@ -61,32 +82,32 @@ err() {
 }
 
 get_size() {
-  stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null || echo 0
+  [[ -n $_STAT_FMT ]] && stat "$_STAT_FMT" "$1" 2>/dev/null || echo 0
 }
 
 format_bytes() {
   local bytes=$1
   if has numfmt; then
     numfmt --to=iec-i --suffix=B --format="%.2f" "$bytes"
+  elif ((bytes < 1024)); then
+    printf '%dB' "$bytes"
+  elif ((bytes < 1048576)); then
+    # Calculate KB: bytes * 10 / 1024, then divide by 10 for one decimal
+    local kb=$((bytes * 10 / 1024))
+    printf '%d.%dKB' $((kb / 10)) $((kb % 10))
   else
-    if ((bytes < 1024)); then
-      printf '%dB' "$bytes"
-    elif ((bytes < 1048576)); then
-      printf '%.1fKB' "$(awk "BEGIN {print $bytes/1024}")"
-    else
-      printf '%.2fMB' "$(awk "BEGIN {print $bytes/1048576}")"
-    fi
+    # Calculate MB: bytes * 100 / 1048576, then divide by 100 for two decimals
+    local mb=$((bytes * 100 / 1048576))
+    printf '%d.%02dMB' $((mb / 100)) $((mb % 100))
   fi
 }
 
 get_output_path() {
   local src=$1
   local fmt=$2
-  local base_name ext name
-
-  base_name=$(basename "$src")
-  name="${base_name%.*}"
-  ext="${base_name##*.}"
+  local base_name="${src##*/}"
+  local name="${base_name%.*}"
+  local ext="${base_name##*.}"
 
   # Handle MKV to MP4 conversion
   if [[ $MKV_TO_MP4 -eq 1 && ${ext,,} == "mkv" ]]; then
@@ -103,24 +124,19 @@ get_output_path() {
     fi
   else
     if [[ -n $fmt && $fmt != "${ext,,}" ]]; then
-      echo "$(dirname "$src")/${name}.${fmt}"
+      echo "${src%/*}/${name}.${fmt}"
     elif [[ $INPLACE -eq 1 ]]; then
       echo "$src"
     else
-      echo "$(dirname "$src")/${name}${SUFFIX}.${ext}"
+      echo "${src%/*}/${name}${SUFFIX}.${ext}"
     fi
   fi
 }
 
 # Get preferred image manipulation tool: gm (GraphicsMagick) > convert (ImageMagick)
 get_convert_tool() {
-  if has gm; then
-    echo "gm convert"
-  elif has convert; then
-    echo "convert"
-  else
-    return 1
-  fi
+  echo "$_CONVERT_TOOL"
+  [[ -n $_CONVERT_TOOL ]]
 }
 
 # --- Image Optimization Functions ---
@@ -302,7 +318,7 @@ optimize_image() {
       ;;
     avif)
       if has avifenc; then
-        avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1
+        avifenc -s 6 -j "$_NPROC_CACHED" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1
       fi
       ;;
     jxl)
@@ -370,7 +386,7 @@ optimize_image() {
       ;;
     avif)
       if has avifenc; then
-        avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1
+        avifenc -s 6 -j "$_NPROC_CACHED" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1
       else
         cp "$src" "$out"
       fi
@@ -867,7 +883,7 @@ main() {
 
   # Auto-detect jobs
   if [[ $JOBS -eq 0 ]]; then
-    JOBS=$(nproc 2>/dev/null || echo 2)
+    JOBS=$_NPROC_CACHED
   fi
 
   # Collect files

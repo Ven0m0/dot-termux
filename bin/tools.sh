@@ -112,10 +112,9 @@ E
   [[ -n ${topic:-} ]] && shift || :
   if [[ -z $topic ]]; then
     has fzf || return 1
-    topic=$(cat "$CHT_SH_LIST_CACHE" \
-      | fzf --reverse --height 75% --border -m --ansi --nth 2..,.. \
+    topic=$(fzf --reverse --height 75% --border -m --ansi --nth 2..,.. \
         --prompt='CHT.SH> ' --preview='curl -fsSL cht.sh/{-1}' \
-        --preview-window=right:60%) || :
+        --preview-window=right:60% < "$CHT_SH_LIST_CACHE") || :
     [[ -z $topic ]] && return 0
   fi
 
