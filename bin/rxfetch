@@ -23,12 +23,12 @@ c8=${black}
 c9=${bgyellow}
 c10=${bgwhite}
 
-getCodeName(){ codename="$(getprop ro.product.board)"; }
-getClientBase(){ client_base="$(getprop ro.com.google.clientidbase)"; }
-getModel(){ model="$(getprop ro.product.brand) $(getprop ro.product.model)"; }
-getDistro(){ os="$(uname -o) $(uname -m)"; }
-getKernel(){ kernel="$(uname -r)"; }
-getTotalPackages(){
+getCodeName() { codename="$(getprop ro.product.board)"; }
+getClientBase() { client_base="$(getprop ro.com.google.clientidbase)"; }
+getModel() { model="$(getprop ro.product.brand) $(getprop ro.product.model)"; }
+getDistro() { os="$(uname -o) $(uname -m)"; }
+getKernel() { kernel="$(uname -r)"; }
+getTotalPackages() {
   package_manager="$(which {apt,dpkg} 2>/dev/null | grep -v "not found" | awk -F/ 'NR==1{print $NF}')"
   case "$package_manager" in
   "apt") packages=$(apt list --installed 2>/dev/null | wc -l) ;;
@@ -36,9 +36,9 @@ getTotalPackages(){
   "") packages="Unknown" ;;
   esac
 }
-getShell(){ shell="$(basename "$SHELL")"; }
-getUptime(){ uptime="$(uptime --pretty | sed 's/up//')"; }
-getMemoryUsage(){
+getShell() { shell="$(basename "$SHELL")"; }
+getUptime() { uptime="$(uptime --pretty | sed 's/up//')"; }
+getMemoryUsage() {
   #memory="$(free --mega | sed -n -E '2s/^[^0-9]*([0-9]+) *([0-9]+).*/'"${space}"'\2 \/ \1MB/p')"
   _MEM="Mem:"
   _GREP_ONE_ROW="$(free --mega | grep "$_MEM")"
@@ -46,7 +46,7 @@ getMemoryUsage(){
   _USED="$(echo "$_GREP_ONE_ROW" | awk '{print $3}')"
   memory="${_USED}MB / ${_TOTAL}MB"
 }
-getDiskUsage(){
+getDiskUsage() {
   _MOUNTED_ON="/data"
   _GREP_ONE_ROW="$(df -h | grep "$_MOUNTED_ON")"
   _SIZE="$(echo "$_GREP_ONE_ROW" | awk '{print $2}')"
@@ -56,7 +56,7 @@ getDiskUsage(){
   _MOUNTED="$(echo "$_GREP_ONE_ROW" | awk '{print $6}')"
   storage="${_USED}B / ${_SIZE}B = ${_AVAIL}B (${_USE}%)"
 }
-main(){
+main() {
   getCodeName
   getClientBase
   getModel
