@@ -6,10 +6,6 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
-env:
-  LC_ALL: C
-  DEBIAN_FRONTEND: noninteractive
-  SHELLCHECK_OPTS: "-s bash -P SCRIPTDIR -x -a -S warning -C auto -o all"
 permissions:
   contents: write
   pull-requests: write
@@ -30,6 +26,15 @@ jobs:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 1
 
+      # Validate and fix config files first
+      - name: Validate and Fix Config Files
+        uses: kehoecj/validate-configs-action@v4.0.1
+        with:
+          group-by: "pass-fail"
+          exclude-dirs: ".github,.git,.cache,go,node_modules,.var,.rustup,.wine,.zim,.void-editor"
+          AUTO_FIX: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: MegaLinter
         uses: oxsecurity/megalinter@v9
         env:
@@ -44,13 +49,16 @@ jobs:
           FLAVOR_SUGGESTIONS: true
           BASH_SHELLCHECK_DISABLE_ERRORS: true
           BASH_SHELLCHECK_ARGUMENTS: '-s bash -P SCRIPTDIR -x -a -S warning -C auto -o all'
+          SHELLCHECK_OPTS: "-s bash -P SCRIPTDIR -x -a -S warning -C auto -o all"
           BASH_SHFMT_ARGUMENTS: "-ln bash -s -i 2 -bn"
           FILTER_REGEX_INCLUDE: '((\.config|\.termux|\.github)/|^\.[^/]+$|^scripts/|^bin/|.*)'
           FILTER_REGEX_EXCLUDE: '(^Linux-Settings/|^\.cache/|^node_modules/|^vendor/|^dist/|^build/|^third_party/|^\.venv/|^venv/|^__pycache__/|^\.git/)'
           ENABLE: ACTION,BASH,CSS,DOCKERFILE,EDITORCONFIG,ENV,HTML,JSON,MAKEFILE,MARKDOWN,PYTHON,REPOSITORY,SPELL,TOML,XML,YAML
           DISABLE_LINTERS: REPOSITORY_KICS,REPOSITORY_GRYPE,SPELL_VALE,REPOSITORY_TRIVY,REPOSITORY_DEVSKIM
           DISABLE_ERRORS_LINTERS: SPELL_CSPELL,SPELL_LYCHEE,BASH_EXEC,REPOSITORY_GIT_DIFF,REPOSITORY_SECRETLINT
-
+          LC_ALL: C
+          DEBIAN_FRONTEND: noninteractive
+          
       - name: Upload MegaLinter reports
         if: always()
         uses: actions/upload-artifact@v4
