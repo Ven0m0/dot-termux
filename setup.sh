@@ -13,7 +13,7 @@ DOTFILES=("$REPO_PATH/.zshrc:$HOME/.zshrc" "$REPO_PATH/.zshenv:$HOME/.zshenv" "$
 # --- Colors and Helpers ---
 BLU=$'\e[1;34m' GRN=$'\e[1;32m' YLW=$'\e[33m' RED=$'\e[1;31m' DEF=$'\e[0m'
 log() { printf '[%s] %s\n' "$(date '+%T')" "$*" >>"$LOG_FILE"; }
-step() { printf "\n%s==>%s %s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
+step() { printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
 has() { command -v "$1" &>/dev/null; }
 ensure_dir() { for dir; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 
