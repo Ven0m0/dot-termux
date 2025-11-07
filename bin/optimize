@@ -20,23 +20,23 @@ IFS=$'\n\t'
 export LC_ALL=C
 
 # --- Configuration Defaults ---
-QUALITY=85          # Image quality (1-100)
-VIDEO_CRF=27        # Video CRF (0-51, lower is better quality)
-VIDEO_CODEC="vp9"   # Default video codec (vp9, av1, h265, h264)
-AUDIO_BITRATE=128   # Audio bitrate for Opus (kbps)
-JOBS=0              # Parallel jobs (0 = auto-detect)
-SUFFIX="_opt"       # Suffix for optimized files
+QUALITY=85        # Image quality (1-100)
+VIDEO_CRF=27      # Video CRF (0-51, lower is better quality)
+VIDEO_CODEC="vp9" # Default video codec (vp9, av1, h265, h264)
+AUDIO_BITRATE=128 # Audio bitrate for Opus (kbps)
+JOBS=0            # Parallel jobs (0 = auto-detect)
+SUFFIX="_opt"     # Suffix for optimized files
 
 # Mode flags
-KEEP_ORIGINAL=0     # Keep original files
-INPLACE=0           # Replace originals in-place
-RECURSIVE=0         # Process directories recursively
-CONVERT_FORMAT=""   # Convert to specific format (webp, avif, jxl, png, jpg)
-LOSSLESS=1          # Default to lossless mode
-OUTPUT_DIR=""       # Output directory
-MEDIA_TYPE="all"    # all, image, video, audio
-MKV_TO_MP4=0        # Convert MKV to MP4
-GIF_TO_WEBP=1       # Convert GIFs to animated WebP (default enabled)
+KEEP_ORIGINAL=0   # Keep original files
+INPLACE=0         # Replace originals in-place
+RECURSIVE=0       # Process directories recursively
+CONVERT_FORMAT="" # Convert to specific format (webp, avif, jxl, png, jpg)
+LOSSLESS=1        # Default to lossless mode
+OUTPUT_DIR=""     # Output directory
+MEDIA_TYPE="all"  # all, image, video, audio
+MKV_TO_MP4=0      # Convert MKV to MP4
+GIF_TO_WEBP=1     # Convert GIFs to animated WebP (default enabled)
 
 # Codec priority for image conversion (best compression/compatibility balance)
 # Priority: webp (best compatibility) -> avif -> jxl -> jpg -> png
@@ -137,7 +137,7 @@ optimize_png() {
     if [[ $LOSSLESS -eq 1 ]]; then
       oxipng -o6 --strip safe -q "$tmp" 2>/dev/null && success=1
     else
-      oxipng -o6 --strip safe -q "$tmp" 2>/dev/null || true
+      oxipng -o6 --strip safe -q "$tmp" 2>/dev/null || :
       if has pngquant; then
         pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$tmp" -o "${tmp}.2" 2>/dev/null && mv "${tmp}.2" "$tmp" && success=1 || success=1
       else
@@ -151,9 +151,9 @@ optimize_png() {
     else
       if has pngquant; then
         pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" 2>/dev/null || cp "$src" "$tmp"
-        optipng -o2 -strip all -quiet "$tmp" 2>/dev/null || true
+        optipng -o2 -strip all -quiet "$tmp" 2>/dev/null || :
       else
-        optipng -o7 -strip all -quiet "$tmp" 2>/dev/null || true
+        optipng -o7 -strip all -quiet "$tmp" 2>/dev/null || :
       fi
       success=1
     fi
@@ -189,11 +189,11 @@ optimize_jpeg() {
     fi
   elif has mozjpeg || has cjpeg; then
     local jpeg_tool=$(has cjpeg && echo "cjpeg" || echo "convert")
-    $jpeg_tool -quality "$QUALITY" -optimize "$src" > "$tmp" 2>/dev/null && success=1
+    "$jpeg_tool" -quality "$QUALITY" -optimize "$src" >"$tmp" 2>/dev/null && success=1
   else
     local convert_tool=$(get_convert_tool)
     if [[ -n $convert_tool ]]; then
-      $convert_tool "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
+      "$convert_tool" "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
     else
       cp "$src" "$tmp"
       success=1
@@ -297,7 +297,7 @@ optimize_image() {
       if has cwebp; then
         cwebp -q "$QUALITY" -m 6 -mt -af "$src" -o "$tmp" 2>/dev/null && success=1
       elif [[ -n $convert_tool ]]; then
-        $convert_tool "$src" -quality "$QUALITY" "$tmp" 2>/dev/null && success=1
+        "$convert_tool" "$src" -quality "$QUALITY" "$tmp" 2>/dev/null && success=1
       fi
       ;;
     avif)
@@ -316,12 +316,12 @@ optimize_image() {
       ;;
     jpg | jpeg)
       if [[ -n $convert_tool ]]; then
-        $convert_tool "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
+        "$convert_tool" "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
       fi
       ;;
     png)
       if [[ -n $convert_tool ]]; then
-        $convert_tool "$src" PNG:"$tmp" 2>/dev/null && success=1
+        "$convert_tool" "$src" PNG:"$tmp" 2>/dev/null && success=1
       fi
       ;;
     esac
@@ -405,7 +405,7 @@ optimize_image() {
 
     # Remove original if inplace or not keeping
     if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
-      [[ "$src" != "$out" ]] && rm -f "$src"
+      [[ $src != "$out" ]] && rm -f "$src"
     fi
   elif ((new_sz >= orig_sz)); then
     if [[ $CONVERT_FORMAT == "" ]]; then
@@ -471,9 +471,9 @@ optimize_video() {
       local grep_cmd="grep"
       has rg && grep_cmd="rg"
 
-      if ffmpeg -encoders 2>/dev/null | $grep_cmd -q libsvtav1; then
+      if ffmpeg -encoders 2>/dev/null | "$grep_cmd" -q libsvtav1; then
         enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240)
-      elif ffmpeg -encoders 2>/dev/null | $grep_cmd -q libaom-av1; then
+      elif ffmpeg -encoders 2>/dev/null | "$grep_cmd" -q libaom-av1; then
         enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240)
       else
         warn "AV1 encoder not found, falling back to VP9"
@@ -514,7 +514,7 @@ optimize_video() {
 
       # Remove original if inplace or not keeping
       if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
-        [[ "$src" != "$tmp_out" ]] && rm -f "$src"
+        [[ $src != "$tmp_out" ]] && rm -f "$src"
       fi
     else
       warn "No savings for $(basename "$src")"
@@ -564,7 +564,7 @@ optimize_audio() {
             "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
 
           if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
-            [[ "$src" != "$out" ]] && rm -f "$src"
+            [[ $src != "$out" ]] && rm -f "$src"
           fi
         fi
       fi
@@ -586,7 +586,7 @@ optimize_audio() {
           "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
 
         if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then
-          [[ "$src" != "$out" ]] && rm -f "$src"
+          [[ $src != "$out" ]] && rm -f "$src"
         fi
       fi
     else
@@ -678,19 +678,19 @@ collect_files() {
           local fd_args=(-t f)
           for e in "${exts[@]}"; do fd_args+=(-e "$e"); done
           [[ $RECURSIVE -eq 0 ]] && fd_args+=(-d 1)
-          mapfile -t -d '' found_files < <(fdf "${fd_args[@]}" . "$search_path" -0 2>/dev/null || true)
+          mapfile -t -d '' found_files < <(fdf "${fd_args[@]}" . "$search_path" -0 2>/dev/null || :)
         elif has fd; then
           local fd_args=(-t f)
           for e in "${exts[@]}"; do fd_args+=(-e "$e"); done
           [[ $RECURSIVE -eq 0 ]] && fd_args+=(-d 1)
-          mapfile -t -d '' found_files < <(fd "${fd_args[@]}" . "$search_path" -0 2>/dev/null || true)
+          mapfile -t -d '' found_files < <(fd "${fd_args[@]}" . "$search_path" -0 2>/dev/null || :)
         else
           local find_args=()
           [[ $RECURSIVE -eq 0 ]] && find_args+=(-maxdepth 1)
           local patterns=()
           for e in "${exts[@]}"; do patterns+=(-o -iname "*.$e"); done
-          patterns=("${patterns[@]:1}")  # Remove first -o
-          mapfile -t found_files < <(find "$search_path" "${find_args[@]}" -type f \( "${patterns[@]}" \) 2>/dev/null || true)
+          patterns=("${patterns[@]:1}") # Remove first -o
+          mapfile -t found_files < <(find "$search_path" "${find_args[@]}" -type f \( "${patterns[@]}" \) 2>/dev/null || :)
         fi
 
         for f in "${found_files[@]}"; do
@@ -879,7 +879,7 @@ main() {
   log "Processing ${#all_files[@]} file(s) with $JOBS parallel jobs"
   [[ $LOSSLESS -eq 1 ]] && log "Mode: Lossless" || log "Mode: Lossy (Q=$QUALITY)"
   [[ -n $CONVERT_FORMAT ]] && log "Convert to: $CONVERT_FORMAT"
-  [[ $VIDEO_CODEC ]] && log "Video codec: $VIDEO_CODEC (Opus audio @ ${AUDIO_BITRATE}kbps)"
+  [[ -n $VIDEO_CODEC ]] && log "Video codec: $VIDEO_CODEC (Opus audio @ ${AUDIO_BITRATE}kbps)"
 
   # Export functions for parallel processing
   export -f process_file optimize_image optimize_video optimize_audio
