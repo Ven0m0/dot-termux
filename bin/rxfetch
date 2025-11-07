@@ -23,62 +23,30 @@ c8=${black}
 c9=${bgyellow}
 c10=${bgwhite}
 
-function getCodeName() {
-  codename="$(getprop ro.product.board)"
-}
-
-function getClientBase() {
-  client_base="$(getprop ro.com.google.clientidbase)"
-}
-
-function getModel() {
-  model="$(getprop ro.product.brand) $(getprop ro.product.model)"
-}
-
-function getDistro() {
-  os="$(uname -o) $(uname -m)"
-}
-
-function getKernel() {
-  kernel="$(uname -r)"
-}
-
-function getTotalPackages() {
+getCodeName(){ codename="$(getprop ro.product.board)"; }
+getClientBase(){ client_base="$(getprop ro.com.google.clientidbase)"; }
+getModel(){ model="$(getprop ro.product.brand) $(getprop ro.product.model)"; }
+getDistro(){ os="$(uname -o) $(uname -m)"; }
+getKernel(){ kernel="$(uname -r)"; }
+getTotalPackages(){
   package_manager="$(which {apt,dpkg} 2>/dev/null | grep -v "not found" | awk -F/ 'NR==1{print $NF}')"
   case "$package_manager" in
-  "apt")
-    packages=$(apt list --installed 2>/dev/null | wc -l)
-    ;;
-
-  "dpkg")
-    packages=$(dpkg-query -l | wc -l)
-    ;;
-
-  "")
-    packages="Unknown"
-    ;;
+  "apt") packages=$(apt list --installed 2>/dev/null | wc -l) ;;
+  "dpkg") packages=$(dpkg-query -l | wc -l) ;;
+  "") packages="Unknown" ;;
   esac
 }
-
-function getShell() {
-  shell="$(basename "$SHELL")"
-}
-
-function getUptime() {
-  uptime="$(uptime --pretty | sed 's/up//')"
-}
-
-function getMemoryUsage() {
+getShell(){ shell="$(basename "$SHELL")"; }
+getUptime(){ uptime="$(uptime --pretty | sed 's/up//')"; }
+getMemoryUsage(){
   #memory="$(free --mega | sed -n -E '2s/^[^0-9]*([0-9]+) *([0-9]+).*/'"${space}"'\2 \/ \1MB/p')"
   _MEM="Mem:"
   _GREP_ONE_ROW="$(free --mega | grep "$_MEM")"
   _TOTAL="$(echo "$_GREP_ONE_ROW" | awk '{print $2}')"
   _USED="$(echo "$_GREP_ONE_ROW" | awk '{print $3}')"
-
   memory="${_USED}MB / ${_TOTAL}MB"
 }
-
-function getDiskUsage() {
+getDiskUsage(){
   _MOUNTED_ON="/data"
   _GREP_ONE_ROW="$(df -h | grep "$_MOUNTED_ON")"
   _SIZE="$(echo "$_GREP_ONE_ROW" | awk '{print $2}')"
@@ -86,11 +54,9 @@ function getDiskUsage() {
   _AVAIL="$(echo "$_GREP_ONE_ROW" | awk '{print $4}')"
   _USE="$(echo "$_GREP_ONE_ROW" | awk '{print $5}' | sed 's/%//')"
   _MOUNTED="$(echo "$_GREP_ONE_ROW" | awk '{print $6}')"
-
   storage="${_USED}B / ${_SIZE}B = ${_AVAIL}B (${_USE}%)"
 }
-
-function main() {
+main(){
   getCodeName
   getClientBase
   getModel
@@ -102,7 +68,6 @@ function main() {
   getMemoryUsage
   getDiskUsage
 }
-
 main
 
 echo -e "\n\n"
@@ -119,8 +84,3 @@ echo -e "  ┃   android ${c1}${c0} termux   ┃  ${c1}ram${c0}    ${memory}"
 echo -e "  ┃                      ┃  ${c2}disk${c0}   ${storage}"
 echo -e "  ┗━━━━━━━━━━━━━━━━━━━━━━┛  ${c1}━━━${c2}━━━${c3}━━━${c4}━━━${c5}━━━${c6}━━━${c7}━━━"
 echo -e "\n\n"
-
-#echo -e "     •_•       "
-#echo -e "     oo|       "
-#echo -e "    / '\'"
-#echo -e "   (\_;/)"
