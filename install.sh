@@ -1,28 +1,37 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
+shopt -s nullglob globstar extglob dotglob
+IFS=$'\n\t'
+export LC_ALL=C LANG=C
 
 BLU=$'\e[1;34m' GRN=$'\e[1;32m' DEF=$'\e[0m'
 REPO_URL="https://github.com/Ven0m0/dot-termux.git"
 REPO_PATH="$HOME/dot-termux"
 
-echo -e "${BLU}🚀 Starting optimized Termux environment setup...${DEF}"
+log() { printf '%s\n' "$*"; }
 
-# Ensure essential packages are present
-echo -e "${GRN}📦 Ensuring git and curl are installed...${DEF}"
+log "${BLU}🚀 Starting optimized Termux environment setup...${DEF}"
+
+log "${GRN}📦 Ensuring essential tools are installed...${DEF}"
 pkg update -y &>/dev/null
-pkg install -y git curl gitoxide uv yadm stow &>/dev/null
+pkg install -y git curl gix uv &>/dev/null
 
-# Clone or update the repository
-if [[ -d $REPO_PATH ]]; then
-  echo -e "${GRN}📁 Updating existing dot-termux repository...${DEF}"
-  git -C "$REPO_PATH" pull --rebase --autostash
+# Clone/update repo in parallel with package installs
+if [[ -d $REPO_PATH/.git ]]; then
+  log "${GRN}📁 Updating existing dot-termux repository...${DEF}"
+  (cd "$REPO_PATH" && git pull --rebase --autostash &)
 else
-  echo -e "${GRN}📥 Cloning dot-termux repository...${DEF}"
-  git clone --depth=1 --filter='blob:none' "$REPO_URL" "$REPO_PATH"
+  log "${GRN}📥 Cloning dot-termux repository...${DEF}"
+  (git clone --depth=1 --filter='blob:none' "$REPO_URL" "$REPO_PATH" &)
+fi
+wait # Wait for clone/pull to finish
+
+log "${GRN}⚙️ Running main setup script...${DEF}"
+if [[ -f "$REPO_PATH/setup.sh" ]]; then
+  bash "$REPO_PATH/setup.sh"
+else
+  log "\e[1;31mERROR: setup.sh not found in repository.${DEF}" >&2
+  exit 1
 fi
 
-# Execute the main setup script
-echo -e "${GRN}⚙️ Running main setup script...${DEF}"
-bash "$REPO_PATH/setup.sh"
-
-echo -e "${GRN}✅ Initial setup complete! Restart Termux to apply changes.${DEF}"
+log "${GRN}✅ Initial setup complete! Restart Termux to apply changes.${DEF}"
