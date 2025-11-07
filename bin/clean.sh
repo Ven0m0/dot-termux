@@ -82,7 +82,14 @@ EOF
 # PRIVILEGE DETECTION
 # ============================================================================
 
+# Cache privilege detection results
+PRIVILEGES_CHECKED=0
+
 detect_privileges() {
+  # Only check once
+  [[ $PRIVILEGES_CHECKED -eq 1 ]] && return
+  PRIVILEGES_CHECKED=1
+
   # Check for Shizuku
   if has rish; then
     if rish id >/dev/null 2>&1; then
