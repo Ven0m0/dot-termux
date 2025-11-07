@@ -114,7 +114,7 @@ avifenc -s 6 -j "$(nproc 2>/dev/null || echo 4)" ...
 **After**:
 ```bash
 # At startup:
-_NPROC_CACHED=$(nproc 2>/dev/null || echo 2)
+_NPROC_CACHED=$(nproc 2>/dev/null || echo 4)
 
 # In functions:
 avifenc -s 6 -j "$_NPROC_CACHED" ...

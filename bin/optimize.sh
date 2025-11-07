@@ -19,6 +19,11 @@ set -euo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
 
+# --- Helper Functions (defined early for use in caching) ---
+has() {
+  command -v "$1" >/dev/null 2>&1
+}
+
 # --- Cache System Capabilities ---
 _NPROC_CACHED=$(nproc 2>/dev/null || echo 4)
 
@@ -63,10 +68,7 @@ GIF_TO_WEBP=1     # Convert GIFs to animated WebP (default enabled)
 # Priority: webp (best compatibility) -> avif -> jxl -> jpg -> png
 IMAGE_CODEC_PRIORITY=("webp" "avif" "jxl" "jpg" "png")
 
-# --- Helper Functions ---
-has() {
-  command -v "$1" >/dev/null 2>&1
-}
+# --- Additional Helper Functions ---
 
 log() {
   printf '[%(%H:%M:%S)T] %s\n' -1 "$*"
