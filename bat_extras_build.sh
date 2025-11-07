@@ -15,8 +15,7 @@ fi
 
 cd "$dest"
 
-chmod +x build.sh
-./build.sh --minify=all
+chmod +x build.sh && bash build.sh --minify=all
 
 # Compute install dir and ensure it exists
 inst_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
