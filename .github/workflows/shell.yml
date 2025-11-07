@@ -8,11 +8,15 @@ on:
     paths: ['**.sh', '**.bash', '.bashrc', 'bash_*']
   workflow_dispatch:
 
+env:
+  LC_ALL: C
+  DEBIAN_FRONTEND: noninteractive
+  SHELLCHECK_OPTS: "--shell=bash --source-path=SCRIPTDIR --external-sources --check-sourced"
 permissions:
   contents: write
   pull-requests: write
   checks: write
-
+  issues: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
