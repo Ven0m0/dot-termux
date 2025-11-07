@@ -44,7 +44,7 @@ get_size() {
 # At script startup:
 if stat -c%s /dev/null &>/dev/null 2>&1; then
   _STAT_FMT="-c%s"
-elif stat -f%z /dev/null &>/dev/null 2>&1; then
+elif stat -f%z /dev/null &>/dev/null; then
   _STAT_FMT="-f%z"
 else
   _STAT_FMT=""
