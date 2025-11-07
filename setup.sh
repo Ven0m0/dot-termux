@@ -12,7 +12,7 @@ DOTFILES=("$REPO_PATH/.zshrc:$HOME/.zshrc" "$REPO_PATH/.zshenv:$HOME/.zshenv" "$
 
 # --- Colors and Helpers ---
 BLU=$'\e[1;34m' GRN=$'\e[1;32m' YLW=$'\e[33m' RED=$'\e[1;31m' DEF=$'\e[0m'
-log() { printf '[%s] %s\n' "$(date '+%T')" "$*" >>"$LOG_FILE"; }
+log() { printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
 step() { printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
 has() { command -v "$1" &>/dev/null; }
 ensure_dir() { for dir; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
@@ -94,7 +94,9 @@ install_rust_tools() {
   export PATH="$HOME/.cargo/bin:$PATH"
   run_installer "cargo-binstall" "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh"
   local -a tools=(cargo-update oxipng)
-  for tool in "${tools[@]}"; do has "$tool" || cargo binstall -y "$tool" || cargo install "$tool"; done
+  local -a missing=()
+  for tool in "${tools[@]}"; do has "$tool" || missing+=("$tool"); done
+  [[ ${#missing[@]} -gt 0 ]] && { cargo binstall -y "${missing[@]}" || cargo install "${missing[@]}"; }
 }
 
 install_third_party() {
@@ -110,7 +112,7 @@ install_third_party() {
 
 setup_zsh() {
   step "Setting up Zsh and Antidote"
-  [[ $(basename "$SHELL") != zsh ]] && chsh -s zsh
+  [[ ${SHELL##*/} != zsh ]] && chsh -s zsh
   local antidote_dir="${XDG_DATA_HOME:-$HOME/.local/share}/antidote"
   [[ -d $antidote_dir ]] || gix clone --depth=1 https://github.com/mattmc3/antidote.git "$antidote_dir"
 }
@@ -124,7 +126,8 @@ link_dotfiles() {
   done
   ensure_dir "$HOME/bin"
   for script in "$REPO_PATH/bin"/*.sh; do
-    local target="$HOME/bin/$(basename "$script" .sh)"
+    local base="${script##*/}"
+    local target="$HOME/bin/${base%.sh}"
     ln -sf "$script" "$target"
     chmod +x "$target"
   done

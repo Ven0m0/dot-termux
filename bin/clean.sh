@@ -151,22 +151,20 @@ clean_quick() {
   # Clean temp files
   log "Cleaning temp files"
   [[ $DRY_RUN -eq 0 ]] && {
-    local termux_home="/data/data/com.termux/files/home"
-
-    # Combine related find operations for efficiency (only existing dirs)
-    local -a temp_dirs=()
-    for d in "${HOME}/.cache" "${HOME}/tmp" "${TMPDIR:-/tmp}"; do
-      [[ -d $d ]] && temp_dirs+=("$d")
-    done
-    [[ ${#temp_dirs[@]} -gt 0 ]] && find "${temp_dirs[@]}" -type f -delete >/dev/null 2>&1 || :
-
-    local -a termux_dirs=()
-    for d in "${termux_home}/.cache/" /data/data/com.termux/cache "${termux_home}/tmp/"; do
-      [[ -d $d ]] && termux_dirs+=("$d")
-    done
-    [[ ${#termux_dirs[@]} -gt 0 ]] && find "${termux_dirs[@]}" -type f -delete -print 2>/dev/null || :
-
-    [[ -d $termux_home ]] && find "$termux_home" -type f \( -name "*.bak" -o -name "*.log" \) -delete -print 2>/dev/null || :
+    # Consolidate cache and temp cleaning (with existence checks)
+    [[ -d ${HOME}/.cache ]] && find "${HOME}/.cache" -type f -delete 2>/dev/null || :
+    [[ -d ${HOME}/tmp ]] && find "${HOME}/tmp" -type f -delete 2>/dev/null || :
+    find "${TMPDIR:-/tmp}" -type f -user "$(id -u)" -delete 2>/dev/null || :
+    # Termux-specific paths (with existence checks)
+    [[ -d /data/data/com.termux/files/home/.cache ]] && \
+      find /data/data/com.termux/files/home/.cache/ -type f -delete 2>/dev/null || :
+    [[ -d /data/data/com.termux/cache ]] && \
+      find /data/data/com.termux/cache -type f -delete 2>/dev/null || :
+    [[ -d /data/data/com.termux/files/home/tmp ]] && \
+      find /data/data/com.termux/files/home/tmp/ -type f -delete 2>/dev/null || :
+    # Clean backup and log files in termux home (with existence check)
+    [[ -d /data/data/com.termux/files/home ]] && \
+      find /data/data/com.termux/files/home/ -type f \( -name "*.bak" -o -name "*.log" \) -delete 2>/dev/null || :
   }
 
   # Clean log files
@@ -193,7 +191,7 @@ clean_deep() {
   clean_quick
 
   echo "Cleaning up broken symlinks in: $PWD"
-  find "$PWD" -type l -exec sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
+  find "$PWD" -xtype l -delete 2>/dev/null || :
 
   # Clean download directories
   log "Cleaning downloads"

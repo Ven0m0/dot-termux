@@ -2,9 +2,9 @@
 
 # Open the selected file in the default editor
 fe() {
-  local IFS=$'\n' line
-  local files=()
-  while IFS='' read -r line; do files+=("$line"); done < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
+  local IFS=$'\n' 
+  local -a files=()
+  mapfile -t files < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
   [[ -n ${files[0]} ]] && "${EDITOR:-nano}" "${files[@]}"
 }
 
@@ -14,7 +14,7 @@ fcd() {
   if has fd; then
     dir=$(fd -t d -d 5 . "${1:-.}" 2>/dev/null | fzf +m) && cd "$dir" || exit
   else
-    dir=$(find "${1:-.}" -O3 -maxdepth 5 -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir" || exit
+    dir=$(find "${1:-.}" -maxdepth 5 -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir" || exit
   fi
 }
 
