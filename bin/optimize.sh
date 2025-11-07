@@ -723,7 +723,9 @@ collect_files() {
           mapfile -t found_files < <(find "$search_path" "${find_args[@]}" \( "${patterns[@]}" \) 2>/dev/null || :)
         fi
 
-        files+=("${found_files[@]}")
+        for f in "${found_files[@]}"; do
+          [[ -n $f ]] && files+=("$f")
+        done
       fi
     done
   fi
