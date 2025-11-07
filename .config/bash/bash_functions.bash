@@ -2,7 +2,7 @@
 
 # Open the selected file in the default editor
 fe() {
-  local IFS=$'\n' 
+  local IFS=$'\n'
   local -a files=()
   mapfile -t files < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
   [[ -n ${files[0]} ]] && "${EDITOR:-nano}" "${files[@]}"

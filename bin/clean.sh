@@ -156,15 +156,15 @@ clean_quick() {
     [[ -d ${HOME}/tmp ]] && find "${HOME}/tmp" -type f -delete 2>/dev/null || :
     find "${TMPDIR:-/tmp}" -type f -user "$(id -u)" -delete 2>/dev/null || :
     # Termux-specific paths (with existence checks)
-    [[ -d /data/data/com.termux/files/home/.cache ]] && \
-      find /data/data/com.termux/files/home/.cache/ -type f -delete 2>/dev/null || :
-    [[ -d /data/data/com.termux/cache ]] && \
-      find /data/data/com.termux/cache -type f -delete 2>/dev/null || :
-    [[ -d /data/data/com.termux/files/home/tmp ]] && \
-      find /data/data/com.termux/files/home/tmp/ -type f -delete 2>/dev/null || :
+    [[ -d /data/data/com.termux/files/home/.cache ]] \
+      && find /data/data/com.termux/files/home/.cache/ -type f -delete 2>/dev/null || :
+    [[ -d /data/data/com.termux/cache ]] \
+      && find /data/data/com.termux/cache -type f -delete 2>/dev/null || :
+    [[ -d /data/data/com.termux/files/home/tmp ]] \
+      && find /data/data/com.termux/files/home/tmp/ -type f -delete 2>/dev/null || :
     # Clean backup and log files in termux home (with existence check)
-    [[ -d /data/data/com.termux/files/home ]] && \
-      find /data/data/com.termux/files/home/ -type f \( -name "*.bak" -o -name "*.log" \) -delete 2>/dev/null || :
+    [[ -d /data/data/com.termux/files/home ]] \
+      && find /data/data/com.termux/files/home/ -type f \( -name "*.bak" -o -name "*.log" \) -delete 2>/dev/null || :
   }
 
   # Clean log files
