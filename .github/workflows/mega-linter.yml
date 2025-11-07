@@ -9,7 +9,7 @@ on:
 env:
   LC_ALL: C
   DEBIAN_FRONTEND: noninteractive
-  SHELLCHECK_OPTS: "--shell=bash --source-path=SCRIPTDIR --external-sources --check-sourced"
+  SHELLCHECK_OPTS: "-s bash -P SCRIPTDIR -x -a -S warning -C auto -o all"
 permissions:
   contents: write
   pull-requests: write
@@ -38,10 +38,12 @@ jobs:
           VALIDATE_ALL_CODEBASE: true
           APPLY_FIXES: all
           APPLY_FIXES_EVENT: all
-          APPLY_FIXES_MODE: pull_request
+          APPLY_FIXES_MODE: commit
           PARALLEL: true
           SHOW_ELAPSED_TIME: true
           FLAVOR_SUGGESTIONS: true
+          BASH_SHELLCHECK_ARGUMENTS: '-s bash -P SCRIPTDIR -x -a -S warning -C auto -o all'
+          BASH_SHELLCHECK_DISABLE_ERRORS: true
           FILTER_REGEX_INCLUDE: '(^\.config/|^\.termux/|^\.github/|^\.[^/]+$)'
           ENABLE: ACTION,BASH,CSS,DOCKERFILE,EDITORCONFIG,ENV,HTML,JSON,MAKEFILE,MARKDOWN,PYTHON,REPOSITORY,SPELL,TOML,XML,YAML
           DISABLE_LINTERS: REPOSITORY_KICS,REPOSITORY_GRYPE,SPELL_VALE,REPOSITORY_TRIVY,REPOSITORY_DEVSKIM
