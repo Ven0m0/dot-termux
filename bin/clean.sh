@@ -5,42 +5,64 @@ IFS=$'\n\t'
 export LC_ALL=C LANG=C
 
 R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' D=$'\e[0m'
-has(){ command -v "$1" &>/dev/null; }
-log(){ printf '%b\n' "${G}▸${D} $*"; }
-warn(){ printf '%b\n' "${Y}!${D} $*" >&2; }
-err(){ printf '%b\n' "${R}✗${D} $*" >&2; }
+has() { command -v "$1" &>/dev/null; }
+log() { printf '%b\n' "${G}▸${D} $*"; }
+warn() { printf '%b\n' "${Y}!${D} $*" >&2; }
+err() { printf '%b\n' "${R}✗${D} $*" >&2; }
 
 DRY=0 VERB=0
 P_RISH=0 P_ADB=0
 
-_detect(){
-  has rish&&rish id &>/dev/null&&P_RISH=1
-  has adb&&{
+_detect() {
+  has rish && rish id &>/dev/null && P_RISH=1
+  has adb && {
     local out
     out=$(adb devices 2>/dev/null)
-    has rg&&rg -q device<<<"$out"||grep -q device<<<"$out"
-  }&&P_ADB=1||:
+    has rg && rg -q device <<<"$out" || grep -q device <<<"$out"
+  } && P_ADB=1 || :
 }
-_storage(){
-  [[ -d /sdcard && -w /sdcard ]]&&{ echo "/sdcard"; return 0; }
-  has termux-setup-storage&&{
-    termux-setup-storage &>/dev/null
-    [[ -d $HOME/storage/shared && -w $HOME/storage/shared ]]&&{ echo "$HOME/storage/shared"; return 0; }
+_storage() {
+  [[ -d /sdcard && -w /sdcard ]] && {
+    echo "/sdcard"
+    return 0
   }
-  ((P_ADB))&&{ echo "adb"; return 0; }
-  ((P_RISH))&&{ echo "rish"; return 0; }
+  has termux-setup-storage && {
+    termux-setup-storage &>/dev/null
+    [[ -d $HOME/storage/shared && -w $HOME/storage/shared ]] && {
+      echo "$HOME/storage/shared"
+      return 0
+    }
+  }
+  ((P_ADB)) && {
+    echo "adb"
+    return 0
+  }
+  ((P_RISH)) && {
+    echo "rish"
+    return 0
+  }
   return 1
 }
-_run(){
-  ((DRY))&&{ ((VERB))&&warn "[dry] $*"; return 0; }
-  ((VERB))&&log "$*"
-  "$@" &>/dev/null||:
+_run() {
+  ((DRY)) && {
+    ((VERB)) && warn "[dry] $*"
+    return 0
+  }
+  ((VERB)) && log "$*"
+  "$@" &>/dev/null || :
 }
 
-quick(){
+quick() {
   log "Quick clean"
-  has pkg&&{ _run pkg clean; _run pkg autoclean; }
-  has apt&&{ _run apt clean; _run apt autoclean; _run apt-get -y autoremove --purge; }
+  has pkg && {
+    _run pkg clean
+    _run pkg autoclean
+  }
+  has apt && {
+    _run apt clean
+    _run apt autoclean
+    _run apt-get -y autoremove --purge
+  }
   _run rm -f "$HOME"/.zcompdump* "$HOME"/.bash_history.tmp
   _run find "$HOME/.cache" -type f -delete
   _run find "$HOME/tmp" -type f -delete
@@ -53,18 +75,21 @@ quick(){
   _run find "$HOME" -type d -empty -delete
   log "✓"
 }
-deep(){
+deep() {
   log "Deep clean"
   quick
   _run find "$PWD" -xtype l -delete
-  [[ -d $HOME/storage/shared/Download ]]&&_run find "$HOME/storage/shared/Download" -type f -mtime +60 -delete
+  [[ -d $HOME/storage/shared/Download ]] && _run find "$HOME/storage/shared/Download" -type f -mtime +60 -delete
   _run find "$HOME" -type f \( -name "*.tmp" -o -name "*~" -o -name "core" \) -delete
   log "✓"
 }
-whatsapp(){
+whatsapp() {
   log "WhatsApp"
   local s
-  s=$(_storage)||{ warn "No storage"; return 1; }
+  s=$(_storage) || {
+    warn "No storage"
+    return 1
+  }
   if [[ $s == adb ]]; then
     _run adb shell "find /sdcard/WhatsApp/Media -type f \( -name '*.jpg' -o -name '*.mp4' -o -name '*.opus' \) -mtime +30 -delete"
   elif [[ $s == rish ]]; then
@@ -78,20 +103,23 @@ whatsapp(){
       "$s/WhatsApp/Media/WhatsApp Audio"
     )
     for d in "${p[@]}"; do
-      [[ -d $d ]]||continue
+      [[ -d $d ]] || continue
       if has fd; then
-        ((DRY))||fd -t f --changed-before 30d . "$d" -0 2>/dev/null|xargs -0 -P4 rm -f &>/dev/null||:
+        ((DRY)) || fd -t f --changed-before 30d . "$d" -0 2>/dev/null | xargs -0 -P4 rm -f &>/dev/null || :
       else
-        ((DRY))||find "$d" -type f -mtime +30 -print0 2>/dev/null|xargs -0 -P4 rm -f &>/dev/null||:
+        ((DRY)) || find "$d" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P4 rm -f &>/dev/null || :
       fi
     done
   fi
   log "✓"
 }
-telegram(){
+telegram() {
   log "Telegram"
   local s
-  s=$(_storage)||{ warn "No storage"; return 1; }
+  s=$(_storage) || {
+    warn "No storage"
+    return 1
+  }
   local -a p=(
     "$s/Telegram/Telegram Images"
     "$s/Telegram/Telegram Video"
@@ -99,16 +127,16 @@ telegram(){
     "$s/Telegram/Telegram Audio"
   )
   for d in "${p[@]}"; do
-    [[ -d $d ]]||continue
+    [[ -d $d ]] || continue
     if has fd; then
-      ((DRY))||fd -t f --changed-before 30d . "$d" -0 2>/dev/null|xargs -0 -P4 rm -f &>/dev/null||:
+      ((DRY)) || fd -t f --changed-before 30d . "$d" -0 2>/dev/null | xargs -0 -P4 rm -f &>/dev/null || :
     else
-      ((DRY))||find "$d" -type f -mtime +30 -print0 2>/dev/null|xargs -0 -P4 rm -f &>/dev/null||:
+      ((DRY)) || find "$d" -type f -mtime +30 -print0 2>/dev/null | xargs -0 -P4 rm -f &>/dev/null || :
     fi
   done
   log "✓"
 }
-system(){
+system() {
   log "System cache"
   if ((P_RISH)); then
     _run rish pm trim-caches 128G
@@ -128,16 +156,19 @@ system(){
   fi
   log "✓"
 }
-adb_clean(){
+adb_clean() {
   log "ADB"
-  ((P_ADB))||{ err "No ADB"; return 1; }
+  ((P_ADB)) || {
+    err "No ADB"
+    return 1
+  }
   _run adb shell logcat -c
   _run adb shell rm -rf /cache/log/* /data/log/* /data/tombstones/*
   _run adb shell pm trim-caches 999999999M
   log "✓"
 }
 
-usage(){
+usage() {
   cat <<E
 clean - Termux/Android cleaning
 
@@ -162,35 +193,35 @@ E
   exit 0
 }
 
-main(){
+main() {
   local do_q=0 do_d=0 do_w=0 do_t=0 do_s=0 do_a=0
   while getopts "qdwtsanvh" o; do
     case $o in
-      q)do_q=1;;
-      d)do_d=1;;
-      w)do_w=1;;
-      t)do_t=1;;
-      s)do_s=1;;
-      a)do_a=1;;
-      n)DRY=1;;
-      v)VERB=1;;
-      h)usage;;
-      *)usage;;
+    q) do_q=1 ;;
+    d) do_d=1 ;;
+    w) do_w=1 ;;
+    t) do_t=1 ;;
+    s) do_s=1 ;;
+    a) do_a=1 ;;
+    n) DRY=1 ;;
+    v) VERB=1 ;;
+    h) usage ;;
+    *) usage ;;
     esac
   done
-  shift $((OPTIND-1))
-  ((do_q+do_d+do_w+do_t+do_s+do_a==0))&&do_q=1
+  shift $((OPTIND - 1))
+  ((do_q + do_d + do_w + do_t + do_s + do_a == 0)) && do_q=1
   _detect
-  ((VERB))&&{
+  ((VERB)) && {
     log "Priv: rish=$P_RISH adb=$P_ADB"
-    ((DRY))&&warn "DRY RUN"
+    ((DRY)) && warn "DRY RUN"
   }
-  ((do_q))&&quick
-  ((do_d))&&deep
-  ((do_w))&&whatsapp
-  ((do_t))&&telegram
-  ((do_s))&&system
-  ((do_a))&&adb_clean
+  ((do_q)) && quick
+  ((do_d)) && deep
+  ((do_w)) && whatsapp
+  ((do_t)) && telegram
+  ((do_s)) && system
+  ((do_a)) && adb_clean
   log "Done"
 }
 
