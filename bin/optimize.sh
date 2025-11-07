@@ -48,6 +48,7 @@ has() {
 }
 
 # Tool availability cache
+# Stores 1 for available tools, 0 for unavailable tools
 declare -A TOOL_CACHE
 cache_tool() {
   local tool=$1
@@ -58,6 +59,7 @@ cache_tool() {
       TOOL_CACHE[$tool]=0
     fi
   fi
+  # Return 0 (success) if tool is available (TOOL_CACHE=1), 1 (failure) otherwise
   return $((1 - TOOL_CACHE[$tool]))
 }
 

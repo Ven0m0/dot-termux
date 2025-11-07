@@ -78,8 +78,8 @@ curl() {
     return
   fi
 
-  local -a args=() aria_args=()
-  local out_file="" out_dir="" url=""
+  local -a args=()
+  local out_file=""
 
   # Parse arguments more efficiently
   while [[ $# -gt 0 ]]; do
@@ -92,7 +92,7 @@ curl() {
       shift # Skip curl-specific flags
       ;;
     http* | ftp*)
-      url="$1"
+      args+=("$1")
       shift
       ;;
     *)
@@ -102,12 +102,12 @@ curl() {
     esac
   done
 
-  if [[ -n $url ]]; then
-    aria_args=(-x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0)
+  if [[ ${#args[@]} -gt 0 ]]; then
     if [[ -n $out_file ]]; then
-      aria_args+=(-d "$(dirname "$out_file")" -o "$(basename "$out_file")")
+      aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 -d "$(dirname "$out_file")" -o "$(basename "$out_file")" "${args[@]}"
+    else
+      aria2c -x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0 "${args[@]}"
     fi
-    aria2c "${aria_args[@]}" "$url" "${args[@]}"
   else
     command curl "$@"
   fi
