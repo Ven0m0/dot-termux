@@ -146,10 +146,10 @@ find /data/data/com.termux/cache -type f -delete
 
 **After**:
 ```bash
-find "${HOME}/.cache" "${HOME}/tmp" -type f -delete 2>/dev/null || :
-find /data/data/com.termux/files/home/.cache/ \
-     /data/data/com.termux/cache \
-     -type f -delete 2>/dev/null || :
+[ -d "${HOME}/.cache" ] && find "${HOME}/.cache" -type f -delete
+[ -d "${HOME}/tmp" ] && find "${HOME}/tmp" -type f -delete
+[ -d /data/data/com.termux/files/home/.cache/ ] && find /data/data/com.termux/files/home/.cache/ -type f -delete
+[ -d /data/data/com.termux/cache ] && find /data/data/com.termux/cache -type f -delete
 ```
 
 **Benefit**: Fewer find invocations, faster directory traversal
