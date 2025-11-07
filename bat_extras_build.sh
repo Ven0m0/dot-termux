@@ -1,25 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
+shopt -s nullglob globstar extglob dotglob
 IFS=$'\n\t'
 
-# pick git (gix preferred)
-if [[ -x "$(command -v gix)" ]]; then
-  git_cmd=(gix)
-elif [[ -x "$(command -v git)" ]]; then
-  git_cmd=(git)
-else
-  echo "git or gix required" >&2
-  exit 1
-fi
-
+git_cmd=$(command -v gix || command -v git || { echo "git or gix required" >&2; exit 1; })
 repo=https://github.com/eth-p/bat-extras.git
 dest=bat-extras
 
-# clone or update in-place
 if [[ -d "$dest/.git" ]]; then
-  "${git_cmd[@]}" -C "$dest" pull -q --ff-only >/dev/null 2>&1 || :
+  "$git_cmd" -C "$dest" pull -q --ff-only >/dev/null 2>&1 || :
 else
-  "${git_cmd[@]}" clone -q --depth=1 "$repo" "$dest"
+  "$git_cmd" clone -q --depth=1 "$repo" "$dest"
 fi
 
 cd "$dest"
@@ -27,32 +18,18 @@ cd "$dest"
 chmod +x build.sh
 ./build.sh --minify=all
 
-# compute install dir (using nameref, preferred idiom)
-compute_install_dir() {
-  local -n out="$1"
-  if [[ -d "${HOME}/.local/bin" ]]; then
-    out="${HOME}/.local/bin"
-  else
-    out="${HOME}/bin"
-  fi
-  mkdir -p "$out"
-  printf '%s' "$out"
-}
+# Compute install dir and ensure it exists
+inst_dir=${XDG_BIN_HOME:-$HOME/.local/bin}
+mkdir -p "$inst_dir"
 
-ret=$(compute_install_dir inst_dir)
-
-# symlink executables (using while read -r, preferred idiom)
+# Symlink executables
 count=0
 while IFS= read -r -d '' file; do
-  name="$(basename "$file")"
-  ln -sf -- "$PWD/$file" "$ret/$name"
+  ln -sf "$PWD/$file" "$inst_dir/"
   ((count++))
-done < <(find . -maxdepth 2 -type f -perm /111 -print0)
+done < <(find . -maxdepth 2 -type f -executable -print0)
 
-if [[ $count -eq 0 ]]; then
-  echo "no executables found to symlink" >&2
-  exit 1
-fi
+((count == 0)) && { echo "no executables found to symlink" >&2; exit 1; }
 
-printf 'symlinked %d executables to %s\n' "$count" "$ret"
-printf 'ensure %s is on your PATH\n' "$ret"
+printf 'symlinked %d executables to %s\n' "$count" "$inst_dir"
+printf 'ensure %s is on your PATH\n' "$inst_dir"
