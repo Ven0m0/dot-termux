@@ -211,7 +211,12 @@ optimize_jpeg() {
       jpegoptim --max="$QUALITY" --strip-all --stdout "$src" >"$tmp" 2>/dev/null && success=1
     fi
   elif cache_tool mozjpeg || cache_tool cjpeg; then
-    local jpeg_tool=$(has cjpeg && echo "cjpeg" || echo "convert")
+    local jpeg_tool
+    if cache_tool cjpeg; then
+      jpeg_tool="cjpeg"
+    else
+      jpeg_tool="convert"
+    fi
     "$jpeg_tool" -quality "$QUALITY" -optimize "$src" >"$tmp" 2>/dev/null && success=1
   else
     local convert_tool=$(get_convert_tool)

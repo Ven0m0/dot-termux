@@ -62,7 +62,11 @@ list_execs() {
           out+=("$base")
         fi
       else
-        out+=("$([[ $show_path -eq 1 ]] && echo "$f" || echo "$base")")
+        if [[ $show_path -eq 1 ]]; then
+          out+=("$f")
+        else
+          out+=("$base")
+        fi
       fi
     done
     shopt -u nullglob

@@ -151,10 +151,20 @@ clean_quick() {
   # Clean temp files
   log "Cleaning temp files"
   [[ $DRY_RUN -eq 0 ]] && {
-    # Combine related find operations for efficiency
-    find "${HOME}/.cache" "${HOME}/tmp" "${TMPDIR:-/tmp}" -type f -delete >/dev/null 2>&1 || :
-    find /data/data/com.termux/files/home/.cache/ /data/data/com.termux/cache /data/data/com.termux/files/home/tmp/ -type f -delete -print 2>/dev/null || :
-    find /data/data/com.termux/files/home -type f \( -name "*.bak" -o -name "*.log" \) -delete -print 2>/dev/null || :
+    # Combine related find operations for efficiency (only existing dirs)
+    local -a temp_dirs=()
+    for d in "${HOME}/.cache" "${HOME}/tmp" "${TMPDIR:-/tmp}"; do
+      [[ -d $d ]] && temp_dirs+=("$d")
+    done
+    [[ ${#temp_dirs[@]} -gt 0 ]] && find "${temp_dirs[@]}" -type f -delete >/dev/null 2>&1 || :
+    
+    local -a termux_dirs=()
+    for d in /data/data/com.termux/files/home/.cache/ /data/data/com.termux/cache /data/data/com.termux/files/home/tmp/; do
+      [[ -d $d ]] && termux_dirs+=("$d")
+    done
+    [[ ${#termux_dirs[@]} -gt 0 ]] && find "${termux_dirs[@]}" -type f -delete -print 2>/dev/null || :
+    
+    [[ -d /data/data/com.termux/files/home ]] && find /data/data/com.termux/files/home -type f \( -name "*.bak" -o -name "*.log" \) -delete -print 2>/dev/null || :
   }
 
   # Clean log files
