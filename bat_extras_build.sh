@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-shopt -s nullglob globstar extglob dotglob
+shopt -s nullglob globstar
 IFS=$'\n\t'
 
 git_cmd=$(command -v gix || command -v git || { echo "git or gix required" >&2; exit 1; })
