@@ -70,9 +70,9 @@ jobs:
             sed -i 's/|| true/|| :/g' "$f"
             sed -i '/^#[[:space:]]*-\{5,\}/d' "$f"
             sed -i '/^$/{N;/^\n$/D;}' "$f"
-            shellharden --replace "$f" || :
-            shellcheck -f diff "$f" | patch -p1 || :
-            shfmt -i 2 -s -bn -ln bash -w "$f" || :
+            shellharden --replace "$f" 2>/dev/null || :
+            shellcheck -f diff "$f" 2>/dev/null | patch -p1 2>/dev/null || :
+            shfmt -i 2 -s -bn -ln bash -w "$f" 2>/dev/null || :
           done
 
       - name: Commit changes
