@@ -74,3 +74,11 @@ apk's:
 
 - https://github.com/Gameye98/DTL-X
 python3 dtlx.py --rmtrackers --rmads1 --rmads3 --rmads4 --rmssrestrict --paidkw 
+
+
+```bash
+optimizeImages(){
+  find -O2 "${1:-.}" -type f -name "*.jp*g" -print0 | xargs -0 -n1 -P 16 jpegoptim --auto-mode -spr;
+  find -O2 "${1:-.}" -type f -name "*.png" -print0 | xargs -0 -n1 -P 16 optipng -o7 -fix -clobber -keep -preserve -strip all;
+}
+```
