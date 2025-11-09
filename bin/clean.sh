@@ -102,7 +102,7 @@ detect_privileges() {
   if has adb; then
     local grep_cmd='grep'
     has rg && grep_cmd='rg'
-    if adb devices 2>/dev/null | $grep_cmd -q 'device$'; then
+    if adb devices 2>/dev/null | "$grep_cmd" -q 'device$'; then
       HAS_ADB=1
       [[ $VERBOSE -eq 1 ]] && info "ADB access available"
     fi
@@ -112,7 +112,7 @@ detect_privileges() {
   if has su; then
     local grep_cmd='grep'
     has rg && grep_cmd='rg'
-    if su -c id 2>/dev/null | $grep_cmd -q uid=0; then
+    if su -c id 2>/dev/null | "$grep_cmd" -q uid=0; then
       HAS_ROOT=1
       [[ $VERBOSE -eq 1 ]] && info "Root access available"
     fi
