@@ -20,8 +20,12 @@ ensure_dir() { for dir in "$@"; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 run_installer() {
   local name=$1 url=$2
   step "Installing $name..."
-  has "${name%%-*}" && { log "$name already installed."; return 0; }
-  local script; script=$(mktemp --suffix=".sh")
+  has "${name%%-*}" && {
+    log "$name already installed."
+    return 0
+  }
+  local script
+  script=$(mktemp --suffix=".sh")
   if curl -fsSL --http2 --tcp-fastopen --connect-timeout 5 "$url" -o "$script"; then
     log "Downloaded $name. Executing..."
     (bash "$script" &>>"$LOG_FILE") || log "${RED}Failed to install $name${DEF}"
@@ -72,9 +76,13 @@ install_packages() {
 install_fonts() {
   step "Installing JetBrains Mono font"
   local font_path="$HOME/.termux/font.ttf"
-  [[ -f $font_path ]] && { log "Font already installed."; return 0; }
+  [[ -f $font_path ]] && {
+    log "Font already installed."
+    return 0
+  }
   local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-  local tmp_zip; tmp_zip=$(mktemp --suffix=".zip")
+  local tmp_zip
+  tmp_zip=$(mktemp --suffix=".zip")
   log "Downloading font..."
   curl -sL "$url" -o "$tmp_zip"
   unzip -jo "$tmp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null
