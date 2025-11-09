@@ -225,8 +225,8 @@ E
   if [[ -n $region ]]; then
     loc=$region
   else
-    loc=$(curl -fsSL https://ipinfo.io/region 2>/dev/null || echo "")
-    [[ $loc != Bielefeld ]] && loc="Bielefeld"
+    loc=$(curl -fsSL https://ipinfo.io/region 2>/dev/null || :)
+    [[ -z $loc || $loc == Bielefeld ]] && loc="Bielefeld"
   fi
   ((quiet)) || printf 'Weather (%s):\n' "$loc"
   curl -fsSL "https://wttr.in/${loc}?0" || warn "Weather fail"
