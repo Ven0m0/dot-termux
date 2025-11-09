@@ -11,21 +11,17 @@ LOG_FILE="$HOME/termux_setup.log"
 
 # --- Colors and Helpers ---
 BLU=$'\e[1;34m' GRN=$'\e[1;32m' YLW=$'\e[33m' RED=$'\e[1;31m' DEF=$'\e[0m'
-log() { printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
-step() { printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
-has() { command -v "$1" &>/dev/null; }
-ensure_dir() { for dir in "$@"; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
+log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
+step(){ printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
+has(){ command -v "$1" &>/dev/null; }
+ensure_dir(){ for dir in "$@"; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 
 # --- Safe Remote Script Execution ---
-run_installer() {
+run_installer(){
   local name=$1 url=$2
   step "Installing $name..."
-  has "${name%%-*}" && {
-    log "$name already installed."
-    return 0
-  }
-  local script
-  script=$(mktemp --suffix=".sh")
+  has "${name%%-*}" && { log "$name already installed."; return 0; }
+  local script; script=$(mktemp --suffix=".sh")
   if curl -fsSL --http2 --tcp-fastopen --connect-timeout 5 "$url" -o "$script"; then
     log "Downloaded $name. Executing..."
     (bash "$script" &>>"$LOG_FILE") || log "${RED}Failed to install $name${DEF}"
@@ -36,7 +32,7 @@ run_installer() {
 }
 
 # --- Setup Functions ---
-setup_environment() {
+setup_environment(){
   step "Setting up environment"
   ensure_dir "$HOME/.ssh" "$HOME/bin" "$HOME/.termux" "${XDG_CONFIG_HOME:-$HOME/.config}" \
     "${XDG_DATA_HOME:-$HOME/.local/share}" "${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -47,7 +43,7 @@ setup_environment() {
   }
 }
 
-configure_apt() {
+configure_apt(){
   step "Configuring apt"
   local apt_conf_dir="/data/data/com.termux/files/usr/etc/apt/apt.conf.d"
   ensure_dir "$apt_conf_dir"
@@ -59,7 +55,7 @@ Acquire::Retries "3";
 EOF
 }
 
-install_packages() {
+install_packages(){
   step "Updating repos and installing base packages"
   pkg up -y && pkg i -y tur-repo glibc-repo root-repo termux-api termux-services
   local -a pkgs=(
@@ -73,16 +69,12 @@ install_packages() {
   pkg install -y "${pkgs[@]}" || log "${YLW}Some packages failed to install. Continuing...${DEF}"
 }
 
-install_fonts() {
+install_fonts(){
   step "Installing JetBrains Mono font"
   local font_path="$HOME/.termux/font.ttf"
-  [[ -f $font_path ]] && {
-    log "Font already installed."
-    return 0
-  }
+  [[ -f $font_path ]] && { log "Font already installed."; return 0; }
   local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-  local tmp_zip
-  tmp_zip=$(mktemp --suffix=".zip")
+  local tmp_zip; tmp_zip=$(mktemp --suffix=".zip")
   log "Downloading font..."
   curl -sL "$url" -o "$tmp_zip"
   unzip -jo "$tmp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null
@@ -91,7 +83,7 @@ install_fonts() {
   has termux-reload-settings && termux-reload-settings
 }
 
-install_rust_tools() {
+install_rust_tools(){
   step "Installing additional Rust tools"
   export PATH="$HOME/.cargo/bin:$PATH"
   run_installer "cargo-binstall" "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh"
@@ -101,7 +93,7 @@ install_rust_tools() {
   [[ ${#missing[@]} -gt 0 ]] && { cargo binstall -y "${missing[@]}" || cargo install "${missing[@]}"; }
 }
 
-install_third_party() {
+install_third_party(){
   step "Installing third-party tools"
   run_installer "bun" "https://bun.sh/install"
   run_installer "mise" "https://mise.run"
@@ -112,30 +104,56 @@ install_third_party() {
   [[ -d "$HOME/DTL-X" ]] || git clone --depth=1 "https://github.com/Gameye98/DTL-X.git" "$HOME/DTL-X" && bash "$HOME/DTL-X/termux_install.sh"
 }
 
-setup_zsh() {
+install_bat_extras(){
+  step "Building and linking bat-extras"
+  local repo="https://github.com/eth-p/bat-extras.git"
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+  local dest="$cache_dir/bat-extras"
+  local inst_dir="${XDG_BIN_HOME:-$HOME/bin}"
+  ensure_dir "$cache_dir" "$inst_dir"
+
+  local git_cmd; git_cmd=$(command -v gix || command -v git || printf '')
+  [[ -n $git_cmd ]] || { log "git/gix not found; skipping bat-extras"; return 0; }
+
+  if [[ -d "$dest/.git" ]]; then
+    "$git_cmd" -C "$dest" pull -q --ff-only &>/dev/null || :
+  else
+    rm -rf "$dest"
+    "$git_cmd" clone -q --depth=1 "$repo" "$dest" || { log "clone bat-extras failed"; return 0; }
+  fi
+
+  (cd "$dest" && chmod +x build.sh && bash build.sh --minify=all &>>"$LOG_FILE") || { log "build bat-extras failed"; return 0; }
+
+  local -i count=0
+  while IFS= read -r -d '' file; do
+    ln -sf "$dest/${file#./}" "$inst_dir/" || :
+    ((count++))
+  done < <(cd "$dest" && find . -maxdepth 2 -type f -executable -print0)
+
+  ((count > 0)) && log "Symlinked $count bat-extras executables to $inst_dir" || log "No bat-extras executables found"
+}
+
+setup_zsh(){
   step "Setting up Zsh and Sheldon"
   [[ ${SHELL##*/} != "zsh" ]] && chsh -s zsh
   # Sheldon will be configured via dotfiles
 }
 
-link_dotfiles() {
+link_dotfiles(){
   step "Linking dotfiles using Stow"
   log "Stowing dotfiles from $REPO_PATH to $HOME"
-  # Stow packages from the dot-termux repo. Stow acts from the parent dir of the target.
-  # The -d flag specifies the directory containing the stow directories.
-  # The -t flag specifies the target directory for the symlinks.
-  # --no-folding prevents stow from creating subdirectories in the target.
   stow --dir="$REPO_PATH" --target="$HOME" --restow --no-folding zsh termux p10k
+
   log "Stowing scripts from $REPO_PATH/bin to $HOME/bin"
-  find "$REPO_PATH/bin" -type f -name "*.sh" -print0 | while IFS= read -r -d '' script; do
+  while IFS= read -r -d '' script; do
     local base="${script##*/}"
     local target="$HOME/bin/${base%.sh}"
     ln -sf "$script" "$target"
     chmod +x "$target"
-  done
+  done < <(find "$REPO_PATH/bin" -type f -name "*.sh" -print0)
 }
 
-finalize() {
+finalize(){
   step "Finalizing setup"
   log "Applying Sheldon plugins..."
   sheldon lock
@@ -146,9 +164,9 @@ finalize() {
 }
 
 # --- Main Execution ---
-main() {
+main(){
   cd "$HOME"
-  : >"$LOG_FILE" # Clear log file at the start
+  : >"$LOG_FILE"
 
   step "Ensuring essential tools are installed"
   pkg update -y &>/dev/null
@@ -167,15 +185,13 @@ main() {
   configure_apt
   install_packages &
   install_fonts &
-  wait # Wait for packages and fonts before proceeding
+  wait
 
-  local -a pids
-  install_rust_tools &
-  pids+=($!)
-  install_third_party &
-  pids+=($!)
-  uv pip install -U TUIFIManager &
-  pids+=($!)
+  local -a pids=()
+  install_rust_tools & pids+=($!)
+  install_third_party & pids+=($!)
+  install_bat_extras & pids+=($!)
+  uv pip install -U TUIFIManager & pids+=($!)
 
   setup_zsh
   link_dotfiles
