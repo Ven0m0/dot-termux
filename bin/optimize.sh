@@ -515,13 +515,10 @@ optimize_video() {
       enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1 -c:a libopus -b:a "${AUDIO_BITRATE}k")
       ;;
     av1)
-      # Tool preference for grep: rg -> grep
-      local grep_cmd="grep"
-      has rg && grep_cmd="rg"
-
-      if ffmpeg -encoders 2>/dev/null | "$grep_cmd" -q libsvtav1; then
+      # Detect AV1 encoder availability
+      if ffmpeg -encoders 2>/dev/null | { has rg && rg -q libsvtav1 || grep -q libsvtav1; }; then
         enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240)
-      elif ffmpeg -encoders 2>/dev/null | "$grep_cmd" -q libaom-av1; then
+      elif ffmpeg -encoders 2>/dev/null | { has rg && rg -q libaom-av1 || grep -q libaom-av1; }; then
         enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240)
       else
         warn "AV1 encoder not found, falling back to VP9"

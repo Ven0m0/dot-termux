@@ -99,9 +99,15 @@ install_third_party(){
   run_installer "mise" "https://mise.run"
   run_installer "pkgx" "https://pkgx.sh"
   run_installer "revancify" "https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh"
-  curl -fsL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/bin/jaq" && chmod +x "$HOME/bin/jaq"
-  has apk.sh || { curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; }
-  [[ -d "$HOME/DTL-X" ]] || git clone --depth=1 "https://github.com/Gameye98/DTL-X.git" "$HOME/DTL-X" && bash "$HOME/DTL-X/termux_install.sh"
+  if ! has jaq; then
+    curl -fsL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/bin/jaq" && chmod +x "$HOME/bin/jaq"
+  fi
+  if ! has apk.sh; then
+    curl -fsL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"
+  fi
+  if [[ ! -d "$HOME/DTL-X" ]]; then
+    git clone --depth=1 "https://github.com/Gameye98/DTL-X.git" "$HOME/DTL-X" && bash "$HOME/DTL-X/termux_install.sh"
+  fi
 }
 
 install_bat_extras(){
@@ -125,10 +131,17 @@ install_bat_extras(){
   (cd "$dest" && chmod +x build.sh && bash build.sh --minify=all &>>"$LOG_FILE") || { log "build bat-extras failed"; return 0; }
 
   local -i count=0
-  while IFS= read -r -d '' file; do
-    ln -sf "$dest/${file#./}" "$inst_dir/" || :
-    ((count++))
-  done < <(cd "$dest" && find . -maxdepth 2 -type f -executable -print0)
+  if has fd; then
+    while IFS= read -r -d '' file; do
+      ln -sf "$file" "$inst_dir/" || :
+      ((count++))
+    done < <(fd -tf -x -d 2 . "$dest" -0)
+  else
+    while IFS= read -r -d '' file; do
+      ln -sf "$dest/${file#./}" "$inst_dir/" || :
+      ((count++))
+    done < <(cd "$dest" && find . -maxdepth 2 -type f -executable -print0)
+  fi
 
   ((count > 0)) && log "Symlinked $count bat-extras executables to $inst_dir" || log "No bat-extras executables found"
 }
@@ -145,12 +158,21 @@ link_dotfiles(){
   stow --dir="$REPO_PATH" --target="$HOME" --restow --no-folding zsh termux p10k
 
   log "Stowing scripts from $REPO_PATH/bin to $HOME/bin"
-  while IFS= read -r -d '' script; do
-    local base="${script##*/}"
-    local target="$HOME/bin/${base%.sh}"
-    ln -sf "$script" "$target"
-    chmod +x "$target"
-  done < <(find "$REPO_PATH/bin" -type f -name "*.sh" -print0)
+  if has fd; then
+    while IFS= read -r -d '' script; do
+      local base="${script##*/}"
+      local target="$HOME/bin/${base%.sh}"
+      ln -sf "$script" "$target"
+      chmod +x "$target"
+    done < <(fd -tf -e sh . "$REPO_PATH/bin" -0)
+  else
+    while IFS= read -r -d '' script; do
+      local base="${script##*/}"
+      local target="$HOME/bin/${base%.sh}"
+      ln -sf "$script" "$target"
+      chmod +x "$target"
+    done < <(find "$REPO_PATH/bin" -type f -name "*.sh" -print0)
+  fi
 }
 
 finalize(){
