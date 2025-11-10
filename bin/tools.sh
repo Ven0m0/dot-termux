@@ -1,11 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 # tools.sh - Consolidated helper functions
 # Source: source /path/tools.sh
-
-# Detect if script is being sourced or executed
-if [[ -n ${BASH_SOURCE[0]:-} && ${BASH_SOURCE[0]} == "${0}" ]]; then
-  set -euo pipefail
-fi
+set -euo pipefail
 export LC_ALL=C LANG=C
 
 _shell=${BASH_VERSION:+bash}
