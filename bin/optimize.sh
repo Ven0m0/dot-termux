@@ -7,8 +7,7 @@
 
 # -- Strict Mode & Globals --
 set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t'
-export LC_ALL=C LANG=C
+IFS=$'\n\t'; export LC_ALL=C LANG=C
 builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && echo "$PWD"
 # -- Color & Style --
 BLK=$'\e[30m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m'
