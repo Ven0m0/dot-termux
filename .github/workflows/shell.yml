@@ -60,8 +60,8 @@ jobs:
       - name: Format & fix shell files
         run: |
           {
-            find . -name '*.sh' -o -name '*.bash' -o -name '.bashrc' -o -name 'bash_*' || :
-            find . -type f -exec grep -l '^#!/.*sh' {} + || :
+            find -O2 . -name '*.sh' -o -name '*.bash' -o -name '.bashrc' -o -name 'bash_*' || :
+            find -O2 . -type f -exec grep -l '^#!/.*sh' {} + || :
           } | sort -u | while IFS= read -r f; do
             [[ $f =~ \.git/|\.cache/|Linux-Settings/ ]] && continue
             sed -i 's/() {/(){/g' "$f"
