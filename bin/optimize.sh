@@ -1,28 +1,107 @@
 #!/usr/bin/env bash
 #
-# optimize - Unified media optimization script for Termux
-#
-# Comprehensive tool for optimizing images, videos, and audio files with
-# modern codec support and intelligent format conversion priorities.
-#
-# Features:
-# - Lossless and lossy image optimization (including JXL support)
-# - Video re-encoding: AV1, VP9, H.265, H.264 with MKV cleaning
-# - Format conversion with priority: WebP -> AVIF -> JXL -> JPG -> PNG
-# - Audio optimization: Opus (priority), FLAC
-# - Animated GIF to WebP conversion
-# - Parallel processing with modern tool preferences
-# - Flexible input: stdin, files, or directories
-#
+# DESCRIPTION: Unified media optimizer for Termux with aggressive codec routing
+# FEATURES:
+# - Lossless by default with optional lossy conversions
+# - Automatic codec detection and format prioritization for minimal output size
+# - Parallel-capable workflow with smart CPU-aware job scaling
 
-set -euo pipefail
+# -- Strict Mode & Globals --
+set -Eeuo pipefail
+shopt -s nullglob globstar extglob dotglob
 IFS=$'\n\t'
-export LC_ALL=C
+export LC_ALL=C LANG=C HOME="${HOME:-/home/${SUDO_USER:-$USER}}"
+ORIGIN_PWD=$PWD
+SCRIPT_DIR=$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd) || exit 1
 
-# --- Helper Functions (defined early for use in caching) ---
-has() {
-  command -v "$1" >/dev/null 2>&1
+# -- Color & Style --
+BLK=$'\e[30m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m'
+BLU=$'\e[34m' MGN=$'\e[35m' CYN=$'\e[36m' WHT=$'\e[37m'
+LBLU=$'\e[38;5;117m' PNK=$'\e[38;5;218m' BWHT=$'\e[97m'
+DEF=$'\e[0m' BLD=$'\e[1m'
+
+# -- Core Helpers --
+has() { command -v -- "$1" &>/dev/null; }
+die() {
+  printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2
+  exit "${2:-1}"
 }
+
+log() {
+  printf '[%(%H:%M:%S)T] %s\n' -1 "$1"
+}
+
+warn() {
+  printf '%sWARN:%s %s\n' "$YLW" "$DEF" "$1" >&2
+}
+
+err() {
+  printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2
+  exit "${2:-1}"
+}
+
+abs_path() {
+  local target=$1
+  [[ $target == /* ]] || target="$ORIGIN_PWD/$target"
+  if has realpath; then
+    realpath "$target"
+  elif has readlink; then
+    readlink -f "$target"
+  else
+    (builtin cd -P -- "$(dirname -- "$target")" && printf '%s/%s\n' "$PWD" "$(basename -- "$target")")
+  fi
+}
+
+FFMPEG_ENCODERS=""
+ffmpeg_has_encoder() {
+  local encoder=$1
+  has ffmpeg || return 1
+  if [[ -z $FFMPEG_ENCODERS ]]; then
+    FFMPEG_ENCODERS=$(ffmpeg -hide_banner -encoders 2>/dev/null || printf '')
+  fi
+  [[ $FFMPEG_ENCODERS == *"$encoder"* ]]
+}
+
+detect_video_codec() {
+  local requested=${VIDEO_CODEC,,}
+  if [[ -n $requested && $requested != "auto" ]]; then
+    VIDEO_CODEC=$requested
+    return
+  fi
+
+  if ffmpeg_has_encoder "libsvtav1"; then
+    VIDEO_CODEC="av1"
+    return
+  fi
+  if ffmpeg_has_encoder "libaom-av1"; then
+    VIDEO_CODEC="av1"
+    return
+  fi
+  if ffmpeg_has_encoder "libvpx-vp9"; then
+    VIDEO_CODEC="vp9"
+    return
+  fi
+  if ffmpeg_has_encoder "libx265"; then
+    VIDEO_CODEC="h265"
+    return
+  fi
+  if ffmpeg_has_encoder "libx264"; then
+    VIDEO_CODEC="h264"
+    return
+  fi
+
+  # Fallbacks when ffmpeg encoders are unavailable or detection failed
+  if has ffzap; then
+    VIDEO_CODEC="av1"
+  else
+    VIDEO_CODEC="vp9"
+  fi
+}
+
+# -- Tooling Shims --
+FD_CMD=${FD_CMD:-$(command -v fdf || command -v fd || command -v fdfind || echo "find")}
+RG_CMD=${RG_CMD:-$(command -v rg || echo "grep")}
+BAT_CMD=${BAT_CMD:-$(command -v bat || echo "cat")}
 
 # --- Cache System Capabilities ---
 _NPROC_CACHED=$(nproc 2>/dev/null || echo 4)
@@ -46,12 +125,12 @@ else
 fi
 
 # --- Configuration Defaults ---
-QUALITY=85        # Image quality (1-100)
-VIDEO_CRF=27      # Video CRF (0-51, lower is better quality)
-VIDEO_CODEC="vp9" # Default video codec (vp9, av1, h265, h264)
-AUDIO_BITRATE=128 # Audio bitrate for Opus (kbps)
-JOBS=0            # Parallel jobs (0 = auto-detect)
-SUFFIX="_opt"     # Suffix for optimized files
+QUALITY=85         # Image quality (1-100)
+VIDEO_CRF=27       # Video CRF (0-51, lower is better quality)
+VIDEO_CODEC="auto" # Default video codec (auto-detect best available)
+AUDIO_BITRATE=128  # Audio bitrate for Opus (kbps)
+JOBS=0             # Parallel jobs (0 = auto-detect)
+SUFFIX="_opt"      # Suffix for optimized files
 
 # Mode flags
 KEEP_ORIGINAL=0   # Keep original files
@@ -67,6 +146,7 @@ GIF_TO_WEBP=1     # Convert GIFs to animated WebP (default enabled)
 # Codec priority for image conversion (best compression/compatibility balance)
 # Priority: webp (best compatibility) -> avif -> jxl -> jpg -> png
 IMAGE_CODEC_PRIORITY=("webp" "avif" "jxl" "jpg" "png")
+IMAGE_CODEC_PRIORITY_STR="${IMAGE_CODEC_PRIORITY[*]}"
 
 # --- Additional Helper Functions ---
 
@@ -75,6 +155,9 @@ IMAGE_CODEC_PRIORITY=("webp" "avif" "jxl" "jpg" "png")
 declare -A TOOL_CACHE
 cache_tool() {
   local tool=$1
+  if ! declare -p TOOL_CACHE &>/dev/null; then
+    declare -gA TOOL_CACHE=()
+  fi
   if [[ -z ${TOOL_CACHE[$tool]:-} ]]; then
     if has "$tool"; then
       TOOL_CACHE[$tool]=1
@@ -95,17 +178,19 @@ get_nproc() {
   echo "$NPROC_CACHED"
 }
 
-log() {
-  printf '[%(%H:%M:%S)T] %s\n' -1 "$*"
-}
+resolve_job_count() {
+  local requested=$1 total=$2
+  local max_cpu=${3:-$_NPROC_CACHED}
+  [[ -z $max_cpu ]] && max_cpu=$(get_nproc)
 
-warn() {
-  printf 'WARNING: %s\n' "$*" >&2
-}
-
-err() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
+  if ((requested <= 0)); then
+    requested=$max_cpu
+  fi
+  if ((total > 0 && requested > total)); then
+    requested=$total
+  fi
+  ((requested < 1)) && requested=1
+  printf '%s\n' "$requested"
 }
 
 get_size() {
@@ -285,6 +370,64 @@ optimize_jxl() {
   fi
 }
 
+select_image_target_format() {
+  local src_ext=${1,,}
+
+  if [[ -n $CONVERT_FORMAT ]]; then
+    printf '%s\n' "$CONVERT_FORMAT"
+    return
+  fi
+
+  if ((LOSSLESS == 1)); then
+    printf '%s\n' "$src_ext"
+    return
+  fi
+
+  local -a priority=("${IMAGE_CODEC_PRIORITY[@]}")
+  if ((${#priority[@]} == 0)) && [[ -n ${IMAGE_CODEC_PRIORITY_STR:-} ]]; then
+    local IFS=' '
+    read -r -a priority <<<"$IMAGE_CODEC_PRIORITY_STR"
+  fi
+
+  local candidate
+  for candidate in "${priority[@]}"; do
+    case "$candidate" in
+    webp)
+      if cache_tool cwebp; then
+        printf 'webp\n'
+        return
+      fi
+      ;;
+    avif)
+      if has avifenc; then
+        printf 'avif\n'
+        return
+      fi
+      ;;
+    jxl)
+      if cache_tool cjxl; then
+        printf 'jxl\n'
+        return
+      fi
+      ;;
+    jpg)
+      if get_convert_tool >/dev/null; then
+        printf 'jpg\n'
+        return
+      fi
+      ;;
+    png)
+      if get_convert_tool >/dev/null; then
+        printf 'png\n'
+        return
+      fi
+      ;;
+    esac
+  done
+
+  printf '%s\n' "$src_ext"
+}
+
 optimize_image() {
   local src=$1
   local ext="${src##*.}"
@@ -292,11 +435,7 @@ optimize_image() {
   local out fmt
 
   # Determine output format
-  if [[ -n $CONVERT_FORMAT ]]; then
-    fmt="$CONVERT_FORMAT"
-  else
-    fmt="$ext"
-  fi
+  fmt=$(select_image_target_format "$ext")
 
   out=$(get_output_path "$src" "$fmt")
 
@@ -335,12 +474,12 @@ optimize_image() {
   fi
 
   # Format conversion using specialized tools
-  if [[ $CONVERT_FORMAT != "" && $CONVERT_FORMAT != "$ext" ]]; then
+  if [[ $fmt != "$ext" ]]; then
     local tmp="${out}.tmp"
     local success=0
     local convert_tool=$(get_convert_tool)
 
-    case "$CONVERT_FORMAT" in
+    case "$fmt" in
     webp)
       if cache_tool cwebp; then
         cwebp -q "$QUALITY" -m 6 -mt -af "$src" -o "$tmp" 2>/dev/null && success=1
@@ -377,7 +516,7 @@ optimize_image() {
     if [[ $success -eq 1 ]]; then
       mv "$tmp" "$out"
     else
-      warn "Format conversion failed for $(basename "$src")"
+      warn "Format conversion to $fmt failed for $(basename "$src")"
       rm -f "$tmp"
       return 1
     fi
@@ -456,12 +595,12 @@ optimize_image() {
       [[ $src != "$out" ]] && rm -f "$src"
     fi
   elif ((new_sz >= orig_sz)); then
-    if [[ $CONVERT_FORMAT == "" ]]; then
+    if [[ $fmt == "$ext" ]]; then
       warn "No savings for $(basename "$src"), keeping original"
       rm -f "$out"
       return 1
     else
-      log "Converted $(basename "$src") to $CONVERT_FORMAT"
+      log "Converted $(basename "$src") to $fmt"
     fi
   fi
 }
@@ -516,9 +655,9 @@ optimize_video() {
       ;;
     av1)
       # Detect AV1 encoder availability
-      if ffmpeg -encoders 2>/dev/null | { has rg && rg -q libsvtav1 || grep -q libsvtav1; }; then
+      if ffmpeg_has_encoder "libsvtav1"; then
         enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240)
-      elif ffmpeg -encoders 2>/dev/null | { has rg && rg -q libaom-av1 || grep -q libaom-av1; }; then
+      elif ffmpeg_has_encoder "libaom-av1"; then
         enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240)
       else
         warn "AV1 encoder not found, falling back to VP9"
@@ -704,16 +843,16 @@ collect_files() {
   if [[ ${#items[@]} -eq 0 ]]; then
     # Read from stdin
     while IFS= read -r file; do
-      [[ -f $file ]] && files+=("$file")
+      [[ -f $file ]] && files+=("$(abs_path "$file")")
     done
   else
     # Collect from arguments
     for item in "${items[@]}"; do
       if [[ -f $item ]]; then
-        files+=("$(realpath "$item")")
+        files+=("$(abs_path "$item")")
       elif [[ -d $item ]]; then
         local search_path
-        search_path=$(realpath "$item")
+        search_path=$(abs_path "$item")
 
         local -a found_files=()
         local exts=("jpg" "jpeg" "png" "gif" "svg" "webp" "avif" "jxl" "tiff" "tif" "bmp" "mp4" "mkv" "mov" "webm" "avi" "flv" "opus" "flac" "mp3" "m4a" "aac" "ogg" "wav")
@@ -739,7 +878,12 @@ collect_files() {
         fi
 
         for f in "${found_files[@]}"; do
-          [[ -n $f ]] && files+=("$f")
+          [[ -z $f ]] && continue
+          if [[ $f == /* ]]; then
+            files+=("$(abs_path "$f")")
+          else
+            files+=("$(abs_path "$search_path/$f")")
+          fi
         done
       fi
     done
@@ -762,7 +906,7 @@ OPTIONS:
   -t, --type TYPE         Media type: all, image, video, audio (default: all)
   -q, --quality N         Quality for lossy compression (1-100, default: $QUALITY)
   -c, --crf N             Video CRF value (0-51, default: $VIDEO_CRF)
-  -C, --codec CODEC       Video codec: vp9, av1, h265, h264 (default: $VIDEO_CODEC)
+  -C, --codec CODEC       Video codec: auto, vp9, av1, h265, h264 (default: auto)
   -b, --bitrate N         Audio bitrate in kbps (default: $AUDIO_BITRATE)
   -f, --format FMT        Convert to format: webp, avif, jxl, png, jpg, opus
   -o, --output DIR        Output directory (default: same as input)
@@ -833,7 +977,7 @@ main() {
       exit 0
       ;;
     -t | --type)
-      MEDIA_TYPE="$2"
+      MEDIA_TYPE="${2,,}"
       shift 2
       ;;
     -q | --quality)
@@ -845,7 +989,7 @@ main() {
       shift 2
       ;;
     -C | --codec)
-      VIDEO_CODEC="$2"
+      VIDEO_CODEC="${2,,}"
       shift 2
       ;;
     -b | --bitrate)
@@ -853,7 +997,7 @@ main() {
       shift 2
       ;;
     -f | --format)
-      CONVERT_FORMAT="$2"
+      CONVERT_FORMAT="${2,,}"
       LOSSLESS=0
       shift 2
       ;;
@@ -907,39 +1051,54 @@ main() {
   # Create output directory if specified
   if [[ -n $OUTPUT_DIR ]]; then
     mkdir -p "$OUTPUT_DIR" || err "Could not create output directory: $OUTPUT_DIR"
-    OUTPUT_DIR=$(realpath "$OUTPUT_DIR")
+    OUTPUT_DIR=$(abs_path "$OUTPUT_DIR")
   fi
 
   # Auto-detect jobs
-  if [[ $JOBS -eq 0 ]]; then
-    JOBS=$_NPROC_CACHED
-  fi
-
   # Collect files
   local -a all_files=()
   mapfile -t all_files < <(collect_files "$@")
 
   [[ ${#all_files[@]} -eq 0 ]] && err "No files found to process"
 
-  log "Processing ${#all_files[@]} file(s) with $JOBS parallel jobs"
-  [[ $LOSSLESS -eq 1 ]] && log "Mode: Lossless" || log "Mode: Lossy (Q=$QUALITY)"
-  [[ -n $CONVERT_FORMAT ]] && log "Convert to: $CONVERT_FORMAT"
-  [[ -n $VIDEO_CODEC ]] && log "Video codec: $VIDEO_CODEC (Opus audio @ ${AUDIO_BITRATE}kbps)"
+  JOBS=$(resolve_job_count "$JOBS" "${#all_files[@]}")
+  local need_video=0
+  [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && need_video=1
+  ((need_video)) && detect_video_codec
 
-  # Export functions for parallel processing
-  export -f process_file optimize_image optimize_video optimize_audio
-  export -f optimize_png optimize_jpeg optimize_jxl get_output_path get_convert_tool
-  export -f has log warn get_size format_bytes
-  export QUALITY VIDEO_CRF VIDEO_CODEC AUDIO_BITRATE SUFFIX KEEP_ORIGINAL INPLACE
-  export OUTPUT_DIR CONVERT_FORMAT LOSSLESS MEDIA_TYPE MKV_TO_MP4 GIF_TO_WEBP
-
-  # Parallel processing with tool preference: rust-parallel -> parallel -> xargs
-  if has rust-parallel; then
-    printf '%s\0' "${all_files[@]}" | rust-parallel -0 -j "$JOBS" bash -c 'process_file "$0"'
-  elif has parallel; then
-    printf '%s\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "$0"'
+  log "Processing ${#all_files[@]} file(s) with $JOBS worker(s)"
+  if ((LOSSLESS == 1)); then
+    log "Mode: Lossless"
   else
-    printf '%s\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -I {} bash -c 'process_file "$0"' {}
+    log "Mode: Lossy (Q=$QUALITY)"
+    [[ -z $CONVERT_FORMAT ]] && log "Image conversion priority: ${IMAGE_CODEC_PRIORITY_STR}"
+  fi
+  [[ -n $CONVERT_FORMAT ]] && log "Convert to: $CONVERT_FORMAT"
+  if ((need_video)); then
+    log "Video codec: ${VIDEO_CODEC^^} (Opus @ ${AUDIO_BITRATE}kbps)"
+  fi
+
+  if ((JOBS == 1)); then
+    for f in "${all_files[@]}"; do
+      process_file "$f"
+    done
+  else
+    # Export functions for parallel processing
+    export -f process_file optimize_image optimize_video optimize_audio
+    export -f optimize_png optimize_jpeg optimize_jxl get_output_path get_convert_tool
+    export -f has log warn get_size format_bytes cache_tool select_image_target_format ffmpeg_has_encoder
+    export QUALITY VIDEO_CRF VIDEO_CODEC AUDIO_BITRATE SUFFIX KEEP_ORIGINAL INPLACE
+    export OUTPUT_DIR CONVERT_FORMAT LOSSLESS MEDIA_TYPE MKV_TO_MP4 GIF_TO_WEBP
+    export IMAGE_CODEC_PRIORITY_STR
+
+    # Parallel processing with tool preference: rust-parallel -> parallel -> xargs
+    if has rust-parallel; then
+      printf '%s\0' "${all_files[@]}" | rust-parallel -0 -j "$JOBS" bash -c 'process_file "$0"'
+    elif has parallel; then
+      printf '%s\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "$0"'
+    else
+      printf '%s\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -I {} bash -c 'process_file "$0"' {}
+    fi
   fi
 
   log "Optimization complete"

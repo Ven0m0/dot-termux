@@ -55,7 +55,7 @@ Options:
   -a, --adb           Use ADB for cleaning operations
   -s, --system-cache  Clean system cache (requires root/ADB/Shizuku)
   -p, --pkg-cache     Clean package manager cache
-  
+
   -n, --dry-run       Show what would be done without doing it
   -y, --yes           Assume yes to all prompts
   -v, --verbose       Verbose output
