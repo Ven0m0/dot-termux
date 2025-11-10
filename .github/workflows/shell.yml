@@ -58,8 +58,6 @@ jobs:
           shellcheck_flags: "-x -a -s bash"
 
       - name: Format & fix shell files
-        env:
-          SHELLCHECK_OPTS: "--shell=bash --source-path=SCRIPTDIR --external-sources --check-sourced"
         run: |
           {
             find . -name '*.sh' -o -name '*.bash' -o -name '.bashrc' -o -name 'bash_*' || :
@@ -72,7 +70,7 @@ jobs:
             sed -i '/^$/{N;/^\n$/D;}' "$f"
             shellharden --replace "$f" 2>/dev/null || :
             shellcheck -f diff "$f" 2>/dev/null | patch -p1 2>/dev/null || :
-            shfmt -i 2 -s -bn -ln bash -w "$f" 2>/dev/null || :
+            shfmt -i 2 -s -ln bash -w "$f" 2>/dev/null || :
           done
 
       - name: Commit changes
@@ -80,7 +78,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet || {
-            git add -A
-            git commit -m "🔧 Auto-fix shell scripts [skip ci]"
+            git add -A; git commit -m "🔧 Auto-fix shell scripts [skip ci]"
             git push
           }
