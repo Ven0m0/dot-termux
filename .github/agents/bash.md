@@ -19,14 +19,14 @@ messages:
 
 ## Script Structure
 
-```bash
+"$()$(bash
 #!/usr/bin/env bash
 set -euo pipefail
 shopt -s nullglob globstar
 IFS=$'\n\t'
 export LC_ALL=C LANG=C HOME="/home/${SUDO_USER:-$USER}"
 has(){ command -v "$1" &>/dev/null; }
-```
+)$()"
 
 ## Mandatory Components
 

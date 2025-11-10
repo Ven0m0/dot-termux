@@ -21,7 +21,7 @@ Formatting
 
 Bash idioms (must)
 - Prefer Bash-native over external: arrays, assoc arrays, mapfile -t, here-strings <<<, process substitution < <(), parameter expansion, [[ ... ]] and regex with =~, printf over echo.
-- Capture output: ret=$(fn)
+- Capture output: ret="$(fn)"
 - Line loops: while IFS= read -r line; do ...; done
 - Nameref: local -n ref=name
 - Redirection: &>/dev/null; ignore errors with || :
@@ -48,7 +48,7 @@ Privilege and package managers
 - Check before install: pacman -Q pkg, flatpak list, cargo install --list.
 
 Wayland and OS detection
-- Wayland: [[ ${XDG_SESSION_TYPE:-} == wayland || -n ${WAYLAND_DISPLAY:-} ]]
+- Wayland: [[ "${XDG_SESSION_TYPE:-}" == wayland || -n "${WAYLAND_DISPLAY:-}" ]]
 - Arch: have pacman; Debian: have apt; Pi specifics guarded by uname -m.
 
 Logging and UX
@@ -77,7 +77,7 @@ Do not
 Canonical script template
 Use this as the baseline. Adapt minimally per task.
 
-```bash
+"$()$(bash
 #!/usr/bin/env bash
 set -Eeuo pipefail
 shopt -s nullglob globstar extglob dotglob
@@ -107,7 +107,7 @@ get_priv_cmd(){
   done
   [[ $EUID -eq 0 ]] || die "No privilege tool found and not root."
 }
-PRIV_CMD=${PRIV_CMD:-$(get_priv_cmd || true)}
+PRIV_CMD=${PRIV_CMD:-$(get_priv_cmd || :)}
 [[ -n ${PRIV_CMD:-} && $EUID -ne 0 ]] && "$PRIV_CMD" -v || :
 
 run_priv(){ [[ $EUID -eq 0 || -z ${PRIV_CMD:-} ]] && "$@" || "$PRIV_CMD" -- "$@"; }
@@ -123,9 +123,9 @@ pm_detect(){
 PKG_MGR=${PKG_MGR:-$(pm_detect)}
 
 # fd/rg/bat shims
-FD=${FD:-$(command -v fd || command -v fdfind || true)}
-RG=${RG:-$(command -v rg || command -v grep || true)}
-BAT=${BAT:-$(command -v bat || command -v cat || true)}
+FD=${FD:-$(command -v fd || command -v fdfind || :)}
+RG=${RG:-$(command -v rg || command -v grep || :)}
+BAT=${BAT:-$(command -v bat || command -v cat || :)}
 
 # Safe workspace
 WORKDIR=$(mktemp -d)
@@ -133,8 +133,8 @@ cleanup(){
   set +e
   [[ -n ${LOCK_FD:-} ]] && exec {LOCK_FD}>&- || :
   [[ -n ${LOOP_DEV:-} && -b ${LOOP_DEV:-} ]] && losetup -d "$LOOP_DEV" || :
-  [[ -n ${MNT_PT:-} ]] && mountpoint -q -- "${MNT_PT}" && run_priv umount -R "${MNT_PT}" || :
-  [[ -d ${WORKDIR:-} ]] && rm -rf "${WORKDIR}" || :
+  [[ -n ${MNT_PT:-} ]] && mountpoint -q -- "$MNT_PT" && run_priv umount -R "$MNT_PT" || :
+  [[ -d ${WORKDIR:-} ]] && rm -rf "$WORKDIR" || :
 }
 on_err(){ err "failed at line ${1:-?}"; }
 trap 'cleanup' EXIT
@@ -192,7 +192,7 @@ check_deps(){
 
 # File discovery
 find_files(){
-  local -n _out=$1; local pat=${2:-'.*'}; local root=${3:-.}
+  local -n _out="$1"; local pat=${2:-'.*'}; local root=${3:-.}
   if [[ -n $FD ]]; then mapfile -t _out < <("$FD" -H -t f -E .git -g "$pat" "$root")
   else mapfile -t _out < <(find "$root" -type f -regextype posix-extended -regex ".*${pat}"); fi
 }
@@ -200,7 +200,7 @@ find_files(){
 # Show file
 show_file(){
   local f=$1
-  if [[ $(basename "${BAT}") == bat ]]; then "$BAT" --style=plain --paging=never "$f"
+  if [[ $(basename "$BAT") == bat ]]; then "$BAT" --style=plain --paging=never "$f"
   else "$BAT" "$f"; fi
 }
 
@@ -227,33 +227,33 @@ main(){
   dbg "found ${#files[@]} files"
 
   for f in "${files[@]}"; do
-    show_file "$f" | ${RG##*/} -n ${RG##*rg} 'TODO' || :
+    show_file "$f" | "${RG##*/}" -n "${RG##*rg}" 'TODO' || :
   done
 
   log "done"
 }
 
 main "$@"
-```
+)$()"
 
 Arch build environment (CachyOS-style)
 Use when compiling toolchains locally.
 
-```bash
+"$()$(bash
 export CFLAGS="-march=native -mtune=native -O3 -pipe"
 export CXXFLAGS="$CFLAGS"
 export MAKEFLAGS="-j$(nproc)" NINJAFLAGS="-j$(nproc)"
 export AR=llvm-ar CC=clang CXX=clang++ NM=llvm-nm RANLIB=llvm-ranlib
 export RUSTFLAGS="-Copt-level=3 -Ctarget-cpu=native -Ccodegen-units=1 -Cstrip=symbols -Clto=fat"
 command -v ld.lld &>/dev/null && export RUSTFLAGS="${RUSTFLAGS} -Clink-arg=-fuse-ld=lld"
-```
+)$()"
 
 AUR helper flags
 Use minimal, non-interactive flags.
 
-```bash
+"$()$(bash
 AUR_FLAGS=(--needed --noconfirm --removemake --cleanafter --sudoloop --skipreview --batchinstall)
-```
+)$()"
 
 Network operations
 - Use hardened curl: curl -fsSL --proto '=https' --tlsv1.3
@@ -262,7 +262,7 @@ Network operations
   - curl -fsSL https://raw.githubusercontent.com/Ven0m0/repo/main/...
 
 Device and file operations (Pi and imaging)
-- Derive partition suffix: [[ $dev == *@(nvme|mmcblk|loop)* ]] && p="${dev}p1" || p="${dev}1"
+- Derive partition suffix: [[ "$dev" == *@(nvme|mmcblk|loop)* ]] && p="${dev}p1" || p="${dev}1"
 - Wait for device nodes with retry loop; use udevadm settle when needed.
 - Always umount recursively in cleanup; detach loop devices; ignore errors but log.
 
@@ -290,8 +290,8 @@ Style guide highlights
 
 Common helpers (reuse from Shell-book.md)
 - sleepy: read -rt "${1:-1}" -- <> <(:) &>/dev/null || :
-- fcat: printf '%s\n' "$(<${1})"
-- regex extraction: [[ $s =~ re ]] && printf '%s\n' "${BASH_REMATCH[1]}"
+- fcat: printf '%s\n' "$(<"${1}")"
+- regex extraction: [[ "$s" =~ re ]] && printf '%s\n' "${BASH_REMATCH[1]}"
 - split: IFS=$'\n' read -d "" -ra arr <<< "${1//$2/$'\n'}"
 - bname/dname: parameter-expansion implementations; avoid spawning coreutils when hot.
 
