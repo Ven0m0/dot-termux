@@ -1,6 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail
-shopt -s nullglob globstar
+set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'
 export LC_ALL=C LANG=C
 
