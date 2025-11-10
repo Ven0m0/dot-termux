@@ -1,29 +1,36 @@
-name: Shell CI
+name: Shell Lint & Format
 on:
   push:
     branches: [main, master]
-    paths: ['**.sh', '**.bash', '.bashrc', 'bash_*']
+    paths:
+      - "**/*.{sh,bash,bashrc,profile}"
+      - "bash_*"
   pull_request:
     branches: [main, master]
-    paths: ['**.sh', '**.bash', '.bashrc', 'bash_*']
+    paths:
+      - "**/*.{sh,bash,bashrc,profile}"
+      - "bash_*"
   workflow_dispatch:
 
-env:
-  LC_ALL: C
-  DEBIAN_FRONTEND: noninteractive
-  SHELLCHECK_OPTS: "--shell=bash --source-path=SCRIPTDIR --external-sources --check-sourced"
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pull-requests: write
   checks: write
   issues: write
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+
+env:
+  LC_ALL: C
+  DEBIAN_FRONTEND: noninteractive
+  GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+  SHELLCHECK_OPTS: "--source-path=SCRIPTDIR --external-sources --check-sourced --shell=bash --severity=style"
 
 jobs:
-  shell-check:
-    name: ShellCheck & Format
+  lint-format:
+    name: ShellCheck, Format & Auto-fix
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -31,13 +38,11 @@ jobs:
           fetch-depth: 1
 
       - name: Install tools
-        env:
-          DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update -yqq
           sudo apt-get install -y shellcheck shfmt
-          curl -sL https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv shellharden /usr/local/bin/
+          curl -sfL https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv shellharden /usr/local/bin/ || : 
 
       - name: Run ShellCheck via Reviewdog
         uses: reviewdog/action-shellcheck@v1.32.0
@@ -48,7 +53,7 @@ jobs:
           pattern: |
             *.sh
             *.bash
-            .bashrc
+            *.bashrc
             bash_*
           exclude: |
             */.git/*
@@ -57,17 +62,20 @@ jobs:
           check_all_files_with_shebangs: true
           shellcheck_flags: "-x -a -s bash"
 
-      - name: Format & fix shell files
+      - name: Find & fix shell files
+        shell: bash
         run: |
+          set -euo pipefail
+          IFS=$'\n\t'
           {
-            find -O2 . -name '*.sh' -o -name '*.bash' -o -name '.bashrc' -o -name 'bash_*' || :
-            find -O2 . -type f -exec grep -l '^#!/.*sh' {} + || :
+            find -O2 . -type f \( -name '*.sh' -o -name '*.bash' -o -name '*bashrc' -o -name '*profile' -o -name 'bash_*' \) -print 2>/dev/null || :
+            find -O2 . -type f -exec grep -Il '^#!/.*sh' {} + 2>/dev/null || :
           } | sort -u | while IFS= read -r f; do
-            [[ $f =~ \.git/|\.cache/|Linux-Settings/ ]] && continue
-            sed -i 's/() {/(){/g' "$f"
-            sed -i 's/|| true/|| :/g' "$f"
-            sed -i '/^#[[:space:]]*-\{5,\}/d' "$f"
-            sed -i '/^$/{N;/^\n$/D;}' "$f"
+            [[ $f =~ (^|/)\.git/|(^|/)\.cache/|(^|/)(Linux-Settings)/ ]] && continue
+            sed -i 's/() {/(){/g' "$f" || :
+            sed -i 's/|| true/|| :/g' "$f" || :
+            sed -i '/^#[[:space:]]*-\{5,\}/d' "$f" || :
+            sed -i '/^$/{N;/^\n$/D;}' "$f" || :
             shellharden --replace "$f" 2>/dev/null || :
             shellcheck -f diff "$f" 2>/dev/null | patch -p1 2>/dev/null || :
             shfmt -i 2 -s -ln bash -w "$f" 2>/dev/null || :
@@ -78,6 +86,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet || {
-            git add -A; git commit -m "🔧 Auto-fix shell scripts [skip ci]"
-            git push
+            git add -A
+            git commit -m "🔧 Auto-fix shell scripts [skip ci]" || :
+            git push || :
           }
