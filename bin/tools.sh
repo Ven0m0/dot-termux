@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # tools.sh - Consolidated helper functions
 # Source: source /path/tools.sh
 
