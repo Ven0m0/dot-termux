@@ -6,8 +6,10 @@
 # - Parallel-capable workflow with smart CPU-aware job scaling
 
 # -- Strict Mode & Globals --
-set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t'; export LC_ALL=C LANG=C
+set -euo pipefail
+shopt -s nullglob globstar
+IFS=$'\n\t'
+export LC_ALL=C LANG=C
 builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && echo "$PWD"
 # -- Color & Style --
 BLK=$'\e[30m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m'
@@ -16,14 +18,20 @@ LBLU=$'\e[38;5;117m' PNK=$'\e[38;5;218m' BWHT=$'\e[97m'
 DEF=$'\e[0m' BLD=$'\e[1m'
 
 # -- Core Helpers --
-has(){ command -v -- "$1" &>/dev/null; }
-die(){ printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2; exit "${2:-1}"; }
+has() { command -v -- "$1" &>/dev/null; }
+die() {
+  printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2
+  exit "${2:-1}"
+}
 
-log(){ printf '[%(%H:%M:%S)T] %s\n' -1 "$1"; }
-warn(){ printf '%sWARN:%s %s\n' "$YLW" "$DEF" "$1" >&2; }
-err(){ printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2; exit "${2:-1}"; }
+log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$1"; }
+warn() { printf '%sWARN:%s %s\n' "$YLW" "$DEF" "$1" >&2; }
+err() {
+  printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2
+  exit "${2:-1}"
+}
 
-abs_path(){
+abs_path() {
   local target=$1
   [[ $target == /* ]] || target="$ORIGIN_PWD/$target"
   if has realpath; then
@@ -36,7 +44,7 @@ abs_path(){
 }
 
 FFMPEG_ENCODERS=""
-ffmpeg_has_encoder(){
+ffmpeg_has_encoder() {
   local encoder=$1
   has ffmpeg || return 1
   if [[ -z $FFMPEG_ENCODERS ]]; then
@@ -45,17 +53,32 @@ ffmpeg_has_encoder(){
   [[ $FFMPEG_ENCODERS == *"$encoder"* ]]
 }
 
-detect_video_codec(){
+detect_video_codec() {
   local requested=${VIDEO_CODEC,,}
   if [[ -n $requested && $requested != "auto" ]]; then
     VIDEO_CODEC=$requested
     return
   fi
-  if ffmpeg_has_encoder "libsvtav1"; then VIDEO_CODEC="av1"; return; fi
-  if ffmpeg_has_encoder "libaom-av1"; then VIDEO_CODEC="av1"; return; fi
-  if ffmpeg_has_encoder "libvpx-vp9"; then VIDEO_CODEC="vp9"; return; fi
-  if ffmpeg_has_encoder "libx265"; then VIDEO_CODEC="h265"; return; fi
-  if ffmpeg_has_encoder "libx264"; then VIDEO_CODEC="h264"; return; fi
+  if ffmpeg_has_encoder "libsvtav1"; then
+    VIDEO_CODEC="av1"
+    return
+  fi
+  if ffmpeg_has_encoder "libaom-av1"; then
+    VIDEO_CODEC="av1"
+    return
+  fi
+  if ffmpeg_has_encoder "libvpx-vp9"; then
+    VIDEO_CODEC="vp9"
+    return
+  fi
+  if ffmpeg_has_encoder "libx265"; then
+    VIDEO_CODEC="h265"
+    return
+  fi
+  if ffmpeg_has_encoder "libx264"; then
+    VIDEO_CODEC="h264"
+    return
+  fi
   if has ffzap; then VIDEO_CODEC="av1"; else VIDEO_CODEC="vp9"; fi
 }
 
@@ -95,7 +118,7 @@ RECURSIVE=0
 CONVERT_FORMAT=""
 LOSSLESS=1
 OUTPUT_DIR=""
-MEDIA_TYPE="all"  # all, image, video, audio
+MEDIA_TYPE="all" # all, image, video, audio
 MKV_TO_MP4=0
 GIF_TO_WEBP=1
 
@@ -107,7 +130,7 @@ IMAGE_CODEC_PRIORITY_STR="${IMAGE_CODEC_PRIORITY[*]}"
 
 # Tool availability cache
 declare -A TOOL_CACHE
-cache_tool(){
+cache_tool() {
   local tool=$1
   if ! declare -p TOOL_CACHE &>/dev/null; then declare -gA TOOL_CACHE=(); fi
   if [[ -z ${TOOL_CACHE[$tool]:-} ]]; then
@@ -116,7 +139,7 @@ cache_tool(){
   return $((1 - TOOL_CACHE[$tool]))
 }
 
-resolve_job_count(){
+resolve_job_count() {
   local requested=$1 total=$2
   local max_cpu=${3:-$NPROC}
   ((requested <= 0)) && requested=$max_cpu
@@ -125,9 +148,9 @@ resolve_job_count(){
   printf '%s\n' "$requested"
 }
 
-get_size(){ [[ -n $_STAT_FMT ]] && stat "$_STAT_FMT" "$1" 2>/dev/null || echo 0; }
+get_size() { [[ -n $_STAT_FMT ]] && stat "$_STAT_FMT" "$1" 2>/dev/null || echo 0; }
 
-format_bytes(){
+format_bytes() {
   local bytes=$1
   if has numfmt; then
     numfmt --to=iec-i --suffix=B --format="%.2f" "$bytes"
@@ -142,7 +165,7 @@ format_bytes(){
   fi
 }
 
-get_output_path(){
+get_output_path() {
   local src=$1 fmt=$2
   local base_name="${src##*/}" name="${base_name%.*}" ext="${base_name##*.}"
   if [[ $MKV_TO_MP4 -eq 1 && ${ext,,} == "mkv" ]]; then fmt="mp4"; fi
@@ -166,13 +189,17 @@ get_output_path(){
 }
 
 # Get preferred image manipulation tool: gm (GraphicsMagick) > convert (ImageMagick)
-get_convert_tool(){ echo "$_CONVERT_TOOL"; [[ -n $_CONVERT_TOOL ]]; }
+get_convert_tool() {
+  echo "$_CONVERT_TOOL"
+  [[ -n $_CONVERT_TOOL ]]
+}
 
 # --- Image Optimization Functions ---
-optimize_png(){
+optimize_png() {
   local src=$1 out=$2
   local orig_sz tmp success=0
-  orig_sz=$(get_size "$src"); tmp="${out}.tmp"
+  orig_sz=$(get_size "$src")
+  tmp="${out}.tmp"
 
   if cache_tool oxipng; then
     cp "$src" "$tmp"
@@ -202,21 +229,24 @@ optimize_png(){
   elif cache_tool pngcrush; then
     pngcrush -rem alla -reduce "$src" "$tmp" 2>/dev/null && success=1 || cp "$src" "$tmp"
   else
-    cp "$src" "$tmp"; success=1
+    cp "$src" "$tmp"
+    success=1
   fi
 
   if [[ $success -eq 1 ]]; then
     mv "$tmp" "$out"
     echo "$((orig_sz - $(get_size "$out")))"
   else
-    rm -f "$tmp"; return 1
+    rm -f "$tmp"
+    return 1
   fi
 }
 
-optimize_jpeg(){
+optimize_jpeg() {
   local src=$1 out=$2
   local orig_sz tmp success=0
-  orig_sz=$(get_size "$src"); tmp="${out}.tmp"
+  orig_sz=$(get_size "$src")
+  tmp="${out}.tmp"
 
   if cache_tool jpegoptim; then
     if [[ $LOSSLESS -eq 1 ]]; then
@@ -229,11 +259,13 @@ optimize_jpeg(){
     if cache_tool cjpeg; then jpeg_tool="cjpeg"; else jpeg_tool="convert"; fi
     "$jpeg_tool" -quality "$QUALITY" -optimize "$src" >"$tmp" 2>/dev/null && success=1
   else
-    local convert_tool; convert_tool=$(get_convert_tool)
+    local convert_tool
+    convert_tool=$(get_convert_tool)
     if [[ -n $convert_tool ]]; then
       "$convert_tool" "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1
     else
-      cp "$src" "$tmp"; success=1
+      cp "$src" "$tmp"
+      success=1
     fi
   fi
 
@@ -241,14 +273,16 @@ optimize_jpeg(){
     mv "$tmp" "$out"
     echo "$((orig_sz - $(get_size "$out")))"
   else
-    rm -f "$tmp"; return 1
+    rm -f "$tmp"
+    return 1
   fi
 }
 
-optimize_jxl(){
+optimize_jxl() {
   local src=$1 out=$2
   local orig_sz tmp success=0
-  orig_sz=$(get_size "$src"); tmp="${out}.tmp"
+  orig_sz=$(get_size "$src")
+  tmp="${out}.tmp"
 
   if has cjxl; then
     if [[ $LOSSLESS -eq 1 ]]; then
@@ -257,43 +291,68 @@ optimize_jxl(){
       cjxl "$src" "$tmp" -q "$QUALITY" -e 7 2>/dev/null && success=1
     fi
   else
-    warn "cjxl not found, cannot optimize JXL"; return 1
+    warn "cjxl not found, cannot optimize JXL"
+    return 1
   fi
 
   if [[ $success -eq 1 ]]; then
     mv "$tmp" "$out"
     echo "$((orig_sz - $(get_size "$out")))"
   else
-    rm -f "$tmp"; return 1
+    rm -f "$tmp"
+    return 1
   fi
 }
 
-select_image_target_format(){
+select_image_target_format() {
   local src_ext=${1,,}
-  if [[ -n $CONVERT_FORMAT ]]; then printf '%s\n' "$CONVERT_FORMAT"; return; fi
-  if ((LOSSLESS == 1)); then printf '%s\n' "$src_ext"; return; fi
+  if [[ -n $CONVERT_FORMAT ]]; then
+    printf '%s\n' "$CONVERT_FORMAT"
+    return
+  fi
+  if ((LOSSLESS == 1)); then
+    printf '%s\n' "$src_ext"
+    return
+  fi
 
   local -a priority=("${IMAGE_CODEC_PRIORITY[@]}")
   if ((${#priority[@]} == 0)) && [[ -n ${IMAGE_CODEC_PRIORITY_STR:-} ]]; then
-    local IFS=' '; read -r -a priority <<<"$IMAGE_CODEC_PRIORITY_STR"
+    local IFS=' '
+    read -r -a priority <<<"$IMAGE_CODEC_PRIORITY_STR"
   fi
 
   local candidate
   for candidate in "${priority[@]}"; do
     case "$candidate" in
-      webp) cache_tool cwebp   && { printf 'webp\n'; return; } ;;
-      avif) has avifenc        && { printf 'avif\n'; return; } ;;
-      jxl)  cache_tool cjxl    && { printf 'jxl\n'; return; } ;;
-      jpg)  get_convert_tool >/dev/null && { printf 'jpg\n'; return; } ;;
-      png)  get_convert_tool >/dev/null && { printf 'png\n'; return; } ;;
+    webp) cache_tool cwebp && {
+      printf 'webp\n'
+      return
+    } ;;
+    avif) has avifenc && {
+      printf 'avif\n'
+      return
+    } ;;
+    jxl) cache_tool cjxl && {
+      printf 'jxl\n'
+      return
+    } ;;
+    jpg) get_convert_tool >/dev/null && {
+      printf 'jpg\n'
+      return
+    } ;;
+    png) get_convert_tool >/dev/null && {
+      printf 'png\n'
+      return
+    } ;;
     esac
   done
   printf '%s\n' "$src_ext"
 }
 
-optimize_image(){
+optimize_image() {
   local src=$1
-  local ext="${src##*.}"; ext="${ext,,}"
+  local ext="${src##*.}"
+  ext="${ext,,}"
   local out fmt
 
   fmt=$(select_image_target_format "$ext")
@@ -308,13 +367,15 @@ optimize_image(){
 
   # GIF → animated WebP
   if [[ $ext == "gif" && $GIF_TO_WEBP -eq 1 && ($CONVERT_FORMAT == "" || $CONVERT_FORMAT == "webp") ]]; then
-    local tmp="${out%.gif}.webp"; out="$tmp"
+    local tmp="${out%.gif}.webp"
+    out="$tmp"
     if has gif2webp; then
       gif2webp -q "$QUALITY" -m 6 -mt "$src" -o "$tmp" 2>/dev/null
       if [[ -f $tmp ]]; then
         new_sz=$(get_size "$tmp")
         if ((new_sz > 0 && new_sz < orig_sz)); then
-          saved=$((orig_sz - new_sz)); pct=$((saved * 100 / orig_sz))
+          saved=$((orig_sz - new_sz))
+          pct=$((saved * 100 / orig_sz))
           printf '%s -> %s | %s -> %s (%d%%) [animated]\n' \
             "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
           if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then rm -f "$src"; fi
@@ -326,68 +387,81 @@ optimize_image(){
 
   if [[ $fmt != "$ext" ]]; then
     local tmp="${out}.tmp" success=0
-    local convert_tool; convert_tool=$(get_convert_tool)
+    local convert_tool
+    convert_tool=$(get_convert_tool)
     case "$fmt" in
-      webp)
-        if cache_tool cwebp; then
-          cwebp -q "$QUALITY" -m 6 -mt -af "$src" -o "$tmp" 2>/dev/null && success=1
-        elif [[ -n $convert_tool ]]; then
-          "$convert_tool" "$src" -quality "$QUALITY" "$tmp" 2>/dev/null && success=1
-        fi
-        ;;
-      avif)
-        if has avifenc; then avifenc -s 6 -j "$NPROC" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1; fi
-        ;;
-      jxl)
-        if cache_tool cjxl; then
-          if [[ $LOSSLESS -eq 1 ]]; then cjxl "$src" "$tmp" -d 0 -e 7 2>/dev/null && success=1
-          else cjxl "$src" "$tmp" -q "$QUALITY" -e 7 2>/dev/null && success=1; fi
-        fi
-        ;;
-      jpg|jpeg)
-        if [[ -n $convert_tool ]]; then "$convert_tool" "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1; fi
-        ;;
-      png)
-        if [[ -n $convert_tool ]]; then "$convert_tool" "$src" PNG:"$tmp" 2>/dev/null && success=1; fi
-        ;;
+    webp)
+      if cache_tool cwebp; then
+        cwebp -q "$QUALITY" -m 6 -mt -af "$src" -o "$tmp" 2>/dev/null && success=1
+      elif [[ -n $convert_tool ]]; then
+        "$convert_tool" "$src" -quality "$QUALITY" "$tmp" 2>/dev/null && success=1
+      fi
+      ;;
+    avif)
+      if has avifenc; then avifenc -s 6 -j "$NPROC" --min 0 --max "$QUALITY" "$src" "$tmp" 2>/dev/null && success=1; fi
+      ;;
+    jxl)
+      if cache_tool cjxl; then
+        if [[ $LOSSLESS -eq 1 ]]; then
+          cjxl "$src" "$tmp" -d 0 -e 7 2>/dev/null && success=1
+        else cjxl "$src" "$tmp" -q "$QUALITY" -e 7 2>/dev/null && success=1; fi
+      fi
+      ;;
+    jpg | jpeg)
+      if [[ -n $convert_tool ]]; then "$convert_tool" "$src" -quality "$QUALITY" -strip "$tmp" 2>/dev/null && success=1; fi
+      ;;
+    png)
+      if [[ -n $convert_tool ]]; then "$convert_tool" "$src" PNG:"$tmp" 2>/dev/null && success=1; fi
+      ;;
     esac
     if [[ $success -eq 1 ]]; then
       mv "$tmp" "$out"
     else
       warn "Format conversion to $fmt failed for $(basename "$src")"
-      rm -f "$tmp"; return 1
+      rm -f "$tmp"
+      return 1
     fi
   else
     case "$ext" in
-      png)  optimize_png  "$src" "$out" >/dev/null || return 1 ;;
-      jpg|jpeg) optimize_jpeg "$src" "$out" >/dev/null || return 1 ;;
-      jxl)  optimize_jxl  "$src" "$out" >/dev/null || return 1 ;;
-      gif)  if has gifsicle; then gifsicle -O3 "$src" -o "$out" 2>/dev/null || return 1; else cp "$src" "$out"; fi ;;
-      svg)  if has svgcleaner; then svgcleaner "$src" "$out" 2>/dev/null || return 1
-            elif has svgo; then svgo -i "$src" -o "$out" 2>/dev/null || return 1
-            else cp "$src" "$out"; fi ;;
-      webp) if has cwebp; then cwebp -q "$QUALITY" -m 6 -mt "$src" -o "$out" 2>/dev/null || return 1; else cp "$src" "$out"; fi ;;
-      avif) if has avifenc; then avifenc -s 6 -j "$NPROC" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1; else cp "$src" "$out"; fi ;;
-      tiff|tif|bmp)
-        if has image-optimizer; then image-optimizer -i "$src" -o "$(dirname "$out")" -q "$QUALITY" 2>/dev/null || cp "$src" "$out"
-        elif has imgc; then imgc "$src" "$ext" -q "$QUALITY" -o "$(dirname "$out")" 2>/dev/null || cp "$src" "$out"
-        elif has rimage; then rimage -q "$QUALITY" "$src" -o "$out" 2>/dev/null || cp "$src" "$out"
-        else cp "$src" "$out"; fi
-        ;;
-      *) warn "Unsupported image format: $ext"; return 1 ;;
+    png) optimize_png "$src" "$out" >/dev/null || return 1 ;;
+    jpg | jpeg) optimize_jpeg "$src" "$out" >/dev/null || return 1 ;;
+    jxl) optimize_jxl "$src" "$out" >/dev/null || return 1 ;;
+    gif) if has gifsicle; then gifsicle -O3 "$src" -o "$out" 2>/dev/null || return 1; else cp "$src" "$out"; fi ;;
+    svg) if has svgcleaner; then
+      svgcleaner "$src" "$out" 2>/dev/null || return 1
+    elif has svgo; then
+      svgo -i "$src" -o "$out" 2>/dev/null || return 1
+    else cp "$src" "$out"; fi ;;
+    webp) if has cwebp; then cwebp -q "$QUALITY" -m 6 -mt "$src" -o "$out" 2>/dev/null || return 1; else cp "$src" "$out"; fi ;;
+    avif) if has avifenc; then avifenc -s 6 -j "$NPROC" --min 0 --max "$QUALITY" "$src" "$out" 2>/dev/null || return 1; else cp "$src" "$out"; fi ;;
+    tiff | tif | bmp)
+      if has image-optimizer; then
+        image-optimizer -i "$src" -o "$(dirname "$out")" -q "$QUALITY" 2>/dev/null || cp "$src" "$out"
+      elif has imgc; then
+        imgc "$src" "$ext" -q "$QUALITY" -o "$(dirname "$out")" 2>/dev/null || cp "$src" "$out"
+      elif has rimage; then
+        rimage -q "$QUALITY" "$src" -o "$out" 2>/dev/null || cp "$src" "$out"
+      else cp "$src" "$out"; fi
+      ;;
+    *)
+      warn "Unsupported image format: $ext"
+      return 1
+      ;;
     esac
   fi
 
   new_sz=$(get_size "$out")
   if ((new_sz > 0 && new_sz < orig_sz)); then
-    saved=$((orig_sz - new_sz)); pct=$((saved * 100 / orig_sz))
+    saved=$((orig_sz - new_sz))
+    pct=$((saved * 100 / orig_sz))
     printf '%s -> %s | %s -> %s (%d%%)\n' \
       "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
     if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then [[ $src != "$out" ]] && rm -f "$src"; fi
   elif ((new_sz >= orig_sz)); then
     if [[ $fmt == "$ext" ]]; then
       warn "No savings for $(basename "$src"), keeping original"
-      rm -f "$out"; return 1
+      rm -f "$out"
+      return 1
     else
       log "Converted $(basename "$src") to $fmt"
     fi
@@ -395,12 +469,13 @@ optimize_image(){
 }
 
 # --- Video Optimization Functions ---
-optimize_video(){
+optimize_video() {
   local src=$1
   local ext="${src##*.}"
   local out dest_ext
   out=$(get_output_path "$src" "$ext")
-  dest_ext="${out##*.}"; dest_ext="${dest_ext,,}"
+  dest_ext="${out##*.}"
+  dest_ext="${dest_ext,,}"
 
   if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then return 0; fi
 
@@ -422,39 +497,39 @@ optimize_video(){
   if has ffzap; then
     video_tool="ffzap"
     case "$VIDEO_CODEC" in
-      vp9)  enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1) ;;
-      av1)  enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240) ;;
-      h265|hevc) enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF" -tag:v hvc1) ;;
-      h264) enc_cmd=(-c:v libx264 -preset medium -crf "$VIDEO_CRF") ;;
-      *)    enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1) ;;
+    vp9) enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1) ;;
+    av1) enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240) ;;
+    h265 | hevc) enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF" -tag:v hvc1) ;;
+    h264) enc_cmd=(-c:v libx264 -preset medium -crf "$VIDEO_CRF") ;;
+    *) enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1) ;;
     esac
     enc_cmd+=("${ac_flags[@]}")
     ffzap -i "$src" -f "${enc_cmd[*]}" -o "$tmp_out" -t 1 2>/dev/null && success=1
   elif has ffmpeg; then
     video_tool="ffmpeg"
     case "$VIDEO_CODEC" in
-      vp9)
+    vp9)
+      enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1)
+      ;;
+    av1)
+      if ffmpeg_has_encoder "libsvtav1"; then
+        enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240)
+      elif ffmpeg_has_encoder "libaom-av1"; then
+        enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240)
+      else
+        warn "AV1 encoder not found, falling back to VP9"
         enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1)
-        ;;
-      av1)
-        if ffmpeg_has_encoder "libsvtav1"; then
-          enc_cmd=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240)
-        elif ffmpeg_has_encoder "libaom-av1"; then
-          enc_cmd=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240)
-        else
-          warn "AV1 encoder not found, falling back to VP9"
-          enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1)
-        fi
-        ;;
-      h265|hevc)
-        enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF" -tag:v hvc1)
-        ;;
-      h264)
-        enc_cmd=(-c:v libx264 -preset medium -crf "$VIDEO_CRF")
-        ;;
-      *)
-        enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1)
-        ;;
+      fi
+      ;;
+    h265 | hevc)
+      enc_cmd=(-c:v libx265 -preset medium -crf "$VIDEO_CRF" -tag:v hvc1)
+      ;;
+    h264)
+      enc_cmd=(-c:v libx264 -preset medium -crf "$VIDEO_CRF")
+      ;;
+    *)
+      enc_cmd=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1)
+      ;;
     esac
     enc_cmd+=("${ac_flags[@]}")
     ffmpeg -i "$src" "${enc_cmd[@]}" -y "$tmp_out" -loglevel error && success=1
@@ -474,23 +549,26 @@ optimize_video(){
   if [[ $success -eq 1 ]]; then
     new_sz=$(get_size "$tmp_out")
     if ((new_sz > 0 && new_sz < orig_sz)); then
-      saved=$((orig_sz - new_sz)); pct=$((saved * 100 / orig_sz))
+      saved=$((orig_sz - new_sz))
+      pct=$((saved * 100 / orig_sz))
       printf '%s -> %s | %s -> %s (%d%%) [%s/%s]\n' \
         "$(basename "$src")" "$(basename "$tmp_out")" \
         "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct" "$video_tool" "$VIDEO_CODEC"
       if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then [[ $src != "$tmp_out" ]] && rm -f "$src"; fi
     else
       warn "No savings for $(basename "$src")"
-      rm -f "$tmp_out"; return 1
+      rm -f "$tmp_out"
+      return 1
     fi
   else
     warn "Video optimization failed for $(basename "$src")"
-    rm -f "$tmp_out"; return 1
+    rm -f "$tmp_out"
+    return 1
   fi
 }
 
 # --- Audio Optimization Functions ---
-optimize_audio(){
+optimize_audio() {
   local src=$1 ext="${src##*.}" out
   out=$(get_output_path "$src" "$ext")
   if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then return 0; fi
@@ -500,85 +578,92 @@ optimize_audio(){
   log "Processing audio: $(basename "$src")"
 
   case "${ext,,}" in
-    opus)
-      if has opusenc; then
-        local tmp="${out}.tmp"
-        opusenc --bitrate "$AUDIO_BITRATE" --vbr "$src" "$tmp" 2>/dev/null || return 1
-        if [[ -f $tmp ]]; then
-          mv "$tmp" "$out"
-          new_sz=$(get_size "$out")
-          if ((new_sz < orig_sz)); then
-            saved=$((orig_sz - new_sz)); pct=$((saved * 100 / orig_sz))
-            printf '%s -> %s | %s -> %s (%d%%)\n' \
-              "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
-            if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then [[ $src != "$out" ]] && rm -f "$src"; fi
-          fi
-        fi
-      else
-        warn "opusenc not found, skipping Opus optimization"; return 1
-      fi
-      ;;
-    flac)
-      if has flaca; then
-        cp "$src" "$out" || return 1
-        flaca --best "$out" 2>/dev/null || return 1
+  opus)
+    if has opusenc; then
+      local tmp="${out}.tmp"
+      opusenc --bitrate "$AUDIO_BITRATE" --vbr "$src" "$tmp" 2>/dev/null || return 1
+      if [[ -f $tmp ]]; then
+        mv "$tmp" "$out"
         new_sz=$(get_size "$out")
         if ((new_sz < orig_sz)); then
-          saved=$((orig_sz - new_sz)); pct=$((saved * 100 / orig_sz))
+          saved=$((orig_sz - new_sz))
+          pct=$((saved * 100 / orig_sz))
           printf '%s -> %s | %s -> %s (%d%%)\n' \
             "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
           if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then [[ $src != "$out" ]] && rm -f "$src"; fi
         fi
-      else
-        warn "flaca not found, skipping FLAC optimization"; return 1
       fi
-      ;;
-    mp3|m4a|aac|ogg|wav)
-      if has ffmpeg && [[ -n $CONVERT_FORMAT && $CONVERT_FORMAT == "opus" ]]; then
-        local opus_out="${out%.*}.opus"
-        ffmpeg -i "$src" -c:a libopus -b:a "${AUDIO_BITRATE}k" -vbr on -y "$opus_out" -loglevel error
-        if [[ -f $opus_out ]]; then
-          out="$opus_out"
-          new_sz=$(get_size "$out")
-          saved=$((orig_sz - new_sz)); pct=$((saved * 100 / orig_sz))
-          printf '%s -> %s | %s -> %s (%d%%) [opus]\n' \
-            "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
-          if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then rm -f "$src"; fi
-        fi
-      else
-        warn "Unsupported audio format for optimization: $ext (try -f opus for conversion)"
-        return 1
+    else
+      warn "opusenc not found, skipping Opus optimization"
+      return 1
+    fi
+    ;;
+  flac)
+    if has flaca; then
+      cp "$src" "$out" || return 1
+      flaca --best "$out" 2>/dev/null || return 1
+      new_sz=$(get_size "$out")
+      if ((new_sz < orig_sz)); then
+        saved=$((orig_sz - new_sz))
+        pct=$((saved * 100 / orig_sz))
+        printf '%s -> %s | %s -> %s (%d%%)\n' \
+          "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
+        if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then [[ $src != "$out" ]] && rm -f "$src"; fi
       fi
-      ;;
-    *)
-      warn "Unsupported audio format: $ext"; return 1
-      ;;
+    else
+      warn "flaca not found, skipping FLAC optimization"
+      return 1
+    fi
+    ;;
+  mp3 | m4a | aac | ogg | wav)
+    if has ffmpeg && [[ -n $CONVERT_FORMAT && $CONVERT_FORMAT == "opus" ]]; then
+      local opus_out="${out%.*}.opus"
+      ffmpeg -i "$src" -c:a libopus -b:a "${AUDIO_BITRATE}k" -vbr on -y "$opus_out" -loglevel error
+      if [[ -f $opus_out ]]; then
+        out="$opus_out"
+        new_sz=$(get_size "$out")
+        saved=$((orig_sz - new_sz))
+        pct=$((saved * 100 / orig_sz))
+        printf '%s -> %s | %s -> %s (%d%%) [opus]\n' \
+          "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
+        if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then rm -f "$src"; fi
+      fi
+    else
+      warn "Unsupported audio format for optimization: $ext (try -f opus for conversion)"
+      return 1
+    fi
+    ;;
+  *)
+    warn "Unsupported audio format: $ext"
+    return 1
+    ;;
   esac
 }
 
 # --- File Processing ---
-process_file(){
+process_file() {
   local file=$1
-  local ext="${file##*.}"; ext="${ext,,}"
+  local ext="${file##*.}"
+  ext="${ext,,}"
   if [[ $INPLACE -eq 0 && $file == *"$SUFFIX"* ]]; then return 0; fi
   case "$ext" in
-    jpg|jpeg|png|gif|svg|webp|avif|jxl|tiff|tif|bmp)
-      [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "image" ]] && optimize_image "$file"
-      ;;
-    mp4|mkv|mov|webm|avi|flv)
-      [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && optimize_video "$file"
-      ;;
-    opus|flac|mp3|m4a|aac|ogg|wav)
-      [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "audio" ]] && optimize_audio "$file"
-      ;;
-    *)
-      warn "Skipping unsupported file: $file"
-      ;;
+  jpg | jpeg | png | gif | svg | webp | avif | jxl | tiff | tif | bmp)
+    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "image" ]] && optimize_image "$file"
+    ;;
+  mp4 | mkv | mov | webm | avi | flv)
+    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && optimize_video "$file"
+    ;;
+  opus | flac | mp3 | m4a | aac | ogg | wav)
+    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "audio" ]] && optimize_audio "$file"
+    ;;
+  *)
+    warn "Skipping unsupported file: $file"
+    ;;
   esac
 }
 
 # --- File Collection ---
-collect_files(){
+collect_files() {
   local -a files=()
   local items=("$@")
 
@@ -591,7 +676,8 @@ collect_files(){
       if [[ -f $item ]]; then
         files+=("$(abs_path "$item")")
       elif [[ -d $item ]]; then
-        local search_path; search_path=$(abs_path "$item")
+        local search_path
+        search_path=$(abs_path "$item")
         local -a found_files=()
         local exts=("jpg" "jpeg" "png" "gif" "svg" "webp" "avif" "jxl" "tiff" "tif" "bmp" "mp4" "mkv" "mov" "webm" "avi" "flv" "opus" "flac" "mp3" "m4a" "aac" "ogg" "wav")
         if cache_tool fd; then
@@ -624,7 +710,7 @@ collect_files(){
 }
 
 # --- Usage ---
-show_help(){
+show_help() {
   cat <<EOF
 optimize - Unified media optimization tool for Termux
 
@@ -665,26 +751,73 @@ EOF
 }
 
 # --- Main ---
-main(){
+main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -h|--help) show_help; exit 0 ;;
-      -t|--type) MEDIA_TYPE="${2,,}"; shift 2 ;;
-      -q|--quality) QUALITY="$2"; shift 2 ;;
-      -c|--crf) VIDEO_CRF="$2"; shift 2 ;;
-      -C|--codec) VIDEO_CODEC="${2,,}"; shift 2 ;;
-      -b|--bitrate) AUDIO_BITRATE="$2"; shift 2 ;;
-      -f|--format) CONVERT_FORMAT="${2,,}"; LOSSLESS=0; shift 2 ;;
-      -o|--output) OUTPUT_DIR="$2"; shift 2 ;;
-      -k|--keep) KEEP_ORIGINAL=1; shift ;;
-      -i|--inplace) INPLACE=1; KEEP_ORIGINAL=0; shift ;;
-      -r|--recursive) RECURSIVE=1; shift ;;
-      -j|--jobs) JOBS="$2"; shift 2 ;;
-      -l|--lossy) LOSSLESS=0; shift ;;
-      -m|--mkv-to-mp4) MKV_TO_MP4=1; shift ;;
-      --no-gif-webp) GIF_TO_WEBP=0; shift ;;
-      -*) err "Unknown option: $1 (use -h for help)" ;;
-      *) break ;;
+    -h | --help)
+      show_help
+      exit 0
+      ;;
+    -t | --type)
+      MEDIA_TYPE="${2,,}"
+      shift 2
+      ;;
+    -q | --quality)
+      QUALITY="$2"
+      shift 2
+      ;;
+    -c | --crf)
+      VIDEO_CRF="$2"
+      shift 2
+      ;;
+    -C | --codec)
+      VIDEO_CODEC="${2,,}"
+      shift 2
+      ;;
+    -b | --bitrate)
+      AUDIO_BITRATE="$2"
+      shift 2
+      ;;
+    -f | --format)
+      CONVERT_FORMAT="${2,,}"
+      LOSSLESS=0
+      shift 2
+      ;;
+    -o | --output)
+      OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    -k | --keep)
+      KEEP_ORIGINAL=1
+      shift
+      ;;
+    -i | --inplace)
+      INPLACE=1
+      KEEP_ORIGINAL=0
+      shift
+      ;;
+    -r | --recursive)
+      RECURSIVE=1
+      shift
+      ;;
+    -j | --jobs)
+      JOBS="$2"
+      shift 2
+      ;;
+    -l | --lossy)
+      LOSSLESS=0
+      shift
+      ;;
+    -m | --mkv-to-mp4)
+      MKV_TO_MP4=1
+      shift
+      ;;
+    --no-gif-webp)
+      GIF_TO_WEBP=0
+      shift
+      ;;
+    -*) err "Unknown option: $1 (use -h for help)" ;;
+    *) break ;;
     esac
   done
 
@@ -707,13 +840,18 @@ main(){
   ((need_video)) && detect_video_codec
 
   log "Processing ${#all_files[@]} file(s) with $JOBS worker(s)"
-  if ((LOSSLESS == 1)); then log "Mode: Lossless"
-  else log "Mode: Lossy (Q=$QUALITY)"; [[ -z $CONVERT_FORMAT ]] && log "Image conversion priority: ${IMAGE_CODEC_PRIORITY_STR}"; fi
+  if ((LOSSLESS == 1)); then
+    log "Mode: Lossless"
+  else
+    log "Mode: Lossy (Q=$QUALITY)"
+    [[ -z $CONVERT_FORMAT ]] && log "Image conversion priority: ${IMAGE_CODEC_PRIORITY_STR}"
+  fi
   [[ -n $CONVERT_FORMAT ]] && log "Convert to: $CONVERT_FORMAT"
   ((need_video)) && log "Video codec: ${VIDEO_CODEC^^} (audio @ ${AUDIO_BITRATE}kbps)"
 
   if ((JOBS == 1)); then
-    local f; for f in "${all_files[@]}"; do process_file "$f"; done
+    local f
+    for f in "${all_files[@]}"; do process_file "$f"; done
   else
     export -f process_file optimize_image optimize_video optimize_audio
     export -f optimize_png optimize_jpeg optimize_jxl get_output_path get_convert_tool

@@ -143,7 +143,7 @@ trap ':' INT TERM
 
 # Config (assoc array)
 declare -A cfg=([dry_run]=0 [debug]=0 [quiet]=0 [assume_yes]=0)
-run(){ if (( cfg[dry_run] )); then log "[DRY] $*"; else "$@"; fi; }
+run(){ if (( cfg[dry_run] )); then log "[DRY] "$@""; else ""$@; fi; }
 
 # Usage
 usage(){ cat <<'EOF'
@@ -159,7 +159,7 @@ EOF
 OUT=
 parse_args(){
   while (($#)); do
-    case "$1" in
+    case ""$1 in
       -q) cfg[quiet]=1;;
       -v) cfg[debug]=1; DEBUG=1;;
       -y) cfg[assume_yes]=1;;
@@ -167,55 +167,55 @@ parse_args(){
       --help|-h) usage; exit 0;;
       --version) printf '%s\n' "1.0.0"; exit 0;;
       --) shift; break;;
-      -*) usage; die "invalid option: $1";;
+      -*) usage; die "invalid option: "$1;;
       *) break;;
     esac
     shift
   done
-  ARGS=("$@")
+  ARGS=(""$@)
 }
 
 # Deps
 check_deps(){
   local missing=()
-  local deps=("$@")
-  for d in "${deps[@]}"; do has "$d" || missing+=("$d"); done
+  local deps=(""$@)
+  for d in ""${deps[@]}; do has ""$d || missing+=(""$d); done
   ((${#missing[@]}==0)) && return 0
-  warn "Missing: ${missing[*]}"
+  warn "Missing: "${missing[@]}
   if [[ $PKG_MGR == pacman || $PKG_MGR == paru || $PKG_MGR == yay ]]; then
-    warn "(Arch) install: sudo pacman -S --needed ${missing[*]}"
+    warn "(Arch) install: sudo pacman -S --needed "${missing[@]}
   elif [[ $PKG_MGR == apt ]]; then
-    warn "(Debian) install: sudo apt update && sudo apt install -y ${missing[*]}"
+    warn "(Debian) install: sudo apt update && sudo apt install -y "${missing[@]}
   fi
   return 1
 }
 
 # File discovery
 find_files(){
-  local -n _out="$1"; local pat=${2:-'.*'}; local root=${3:-.}
-  if [[ -n $FD ]]; then mapfile -t _out < <("$FD" -H -t f -E .git -g "$pat" "$root")
-  else mapfile -t _out < <(find "$root" -type f -regextype posix-extended -regex ".*${pat}"); fi
+  local -n _out=""$1; local pat=${2:-'.*'}; local root=${3:-.}
+  if [[ -n $FD ]]; then mapfile -t _out < <(""$FD -H -t f -E .git -g ""$pat ""$root)
+  else mapfile -t _out < <(find ""$root -type f -regextype posix-extended -regex ".*"$pat); fi
 }
 
 # Show file
 show_file(){
   local f=$1
-  if [[ $(basename "$BAT") == bat ]]; then "$BAT" --style=plain --paging=never "$f"
-  else "$BAT" "$f"; fi
+  if [[ $(basename "$BAT") == bat ]]; then ""$BAT --style=plain --paging=never ""$f
+  else ""$BAT ""$f; fi
 }
 
 # Locking
 lock(){
   local key=${1:?}
-  exec {LOCK_FD}>"/run/lock/${key//[^[:alnum:]]/_}.lock" || die "lock fd"
-  flock -n "$LOCK_FD" || die "lock taken: $key"
+  exec {LOCK_FD}>"/run/lock/"${key//[^[:alnum:]]/_}.lock || die "lock fd"
+  flock -n ""$LOCK_FD || die "lock taken: "$key
 }
 
 # Wayland check
 is_wayland(){ [[ ${XDG_SESSION_TYPE:-} == wayland || -n ${WAYLAND_DISPLAY:-} ]]; }
 
 main(){
-  parse_args "$@"
+  parse_args ""$@
   (( cfg[quiet] )) && exec >/dev/null
   (( cfg[debug] )) && dbg "verbose on"
 
@@ -226,14 +226,14 @@ main(){
   find_files files '\.sh$'
   dbg "found ${#files[@]} files"
 
-  for f in "${files[@]}"; do
-    show_file "$f" | "${RG##*/}" -n "${RG##*rg}" 'TODO' || :
+  for f in ""${files[@]}; do
+    show_file ""$f | ""${RG##*/} -n ""${RG##*rg} 'TODO' || :
   done
 
   log "done"
 }
 
-main "$@"
+main ""$@
 )$()"
 
 Arch build environment (CachyOS-style)
