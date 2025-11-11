@@ -1,25 +1,21 @@
 #!/data/data/com.termux/files/usr/bin/env zsh
 # other.zsh - Additional Zsh-specific functions and configurations
 
-# Source common library for wrapper functions
-if [[ -f "$HOME/dot-termux/lib/common.sh" ]]; then
-  source "$HOME/dot-termux/lib/common.sh"
-elif [[ -f "$HOME/lib/common.sh" ]]; then
-  source "$HOME/lib/common.sh"
-fi
+has(){ command -v -- "$1" &>/dev/null; }
 
 quick-clean() {
   pkg clean && pkg autoclean
-  command -v apt >/dev/null && {
-    apt clean
-    apt autoclean
+  command -v apt &>/dev/null && {
+    apt clean; apt autoclean
   }
-  rm -f "$HOME"/.zcompdump* >/dev/null
-  rm -f "${XDG_CACHE_HOME:-$HOME/.cache}"/.zcompdump* >/dev/null
+  rm -f "$HOME"/.zcompdump* &>/dev/null
+  rm -f "${XDG_CACHE_HOME:-$HOME/.cache}"/.zcompdump* &>/dev/null
   find "$HOME" -type f -name "*.log" -mtime +7 -delete
   find "$HOME" -type d -empty -delete && find "$HOME" -type f -empty -delete
   printf 'Quick clean finished\n'
 }
+
+
 
 # revancify / simplify bootstrappers (light wrappers)
 revancify() {
