@@ -4,6 +4,14 @@
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'; export LC_ALL=C LANG=C
 
+# ---- Source common library ----
+readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
+if [[ -f "${LIB_DIR}/common.sh" ]]; then
+  # shellcheck source=../lib/common.sh
+  source "${LIB_DIR}/common.sh"
+fi
+
 # ---- Environment Detection ----
 if [[ -n ${TERMUX_VERSION:-} || -d /data/data/com.termux ]]; then
   ENV="termux"
@@ -16,7 +24,7 @@ fi
 if [[ -t 1 ]]; then
   R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m' X=$'\e[0m'
 else
-  R= G= Y= B= X=
+  R='' G='' Y='' B='' X=''
 fi
 
 # ---- Tool Cache & Wrappers ----
@@ -27,44 +35,22 @@ cache_tool(){
   T[$tool]=$(command -v "$tool" 2>/dev/null || command -v "$alt" 2>/dev/null || echo "")
   [[ -n ${T[$tool]} ]]
 }
+
+# Override has() from common.sh to use our cache
 has(){ cache_tool "$1"; }
 
-# Pre-cache critical tools
-for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg; do
+# Pre-cache critical tools once at startup
+for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg \
+            oxipng pngquant jpegoptim cjpeg flaca rimage cwebp avifenc cjxl \
+            gifsicle svgo scour opusenc identify; do
   IFS=: read -r name fallback <<<"$tool"
   cache_tool "$name" "$fallback" || :
 done
-
-# ---- Tool Execution Wrappers ----
-run_fd(){ [[ -n ${T[fd]:-} ]] && "${T[fd]}" "$@" || find "$@"; }
-run_rg(){ [[ -n ${T[rg]:-} ]] && "${T[rg]}" "$@" || grep -E "$@"; }
-run_parallel(){ 
-  if [[ -n ${T[rust-parallel]:-} ]]; then
-    "${T[rust-parallel]}" "$@"
-  elif [[ -n ${T[parallel]:-} ]]; then
-    "${T[parallel]}" "$@"
-  else
-    xargs -r -P"$(nproc)" "$@"
-  fi
-}
 
 # ---- Helpers ----
 log(){ printf '%s\n' "$*"; }
 warn(){ printf '%s%s%s\n' "$Y" "$*" "$X" >&2; }
 err(){ printf '%s%s%s\n' "$R" "ERROR: $*" "$X" >&2; exit "${2:-1}"; }
-
-get_size(){
-  local f=$1
-  [[ -f $f ]] && { stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0; } || echo 0
-}
-
-format_bytes(){
-  local bytes=$1
-  ((bytes<1024)) && { echo "${bytes}B"; return; }
-  ((bytes<1048576)) && { echo "$((bytes/1024))K"; return; }
-  ((bytes<1073741824)) && { echo "$((bytes/1048576))M"; return; }
-  echo "$((bytes/1073741824))G"
-}
 
 abs_path(){
   local path=$1
@@ -117,14 +103,16 @@ detect_video_codec(){
 # ---- Backup ----
 mkbackup(){
   [[ $KEEP_BACKUPS -eq 0 ]] && return 0
-  local file=$1 bakdir="$(dirname "$file")/.backups"
+  local file=$1
+  local bakdir="$(dirname "$file")/.backups"
   mkdir -p "$bakdir" 2>/dev/null || return 1
   cp -p "$file" "$bakdir/" 2>/dev/null || warn "Backup failed: $(basename "$file")"
 }
 
 # ---- Output Path ----
 get_output_path(){
-  local src=$1 fmt=$2 base="${src##*/}" name="${base%.*}" ext="${base##*.}"
+  local src=$1 fmt=$2
+  local base="${src##*/}" name="${base%.*}" ext="${base##*.}"
   local dir="${OUTPUT_DIR:-${src%/*}}"
   if [[ -n $fmt && $fmt != "${ext,,}" ]]; then echo "$dir/${name}.${fmt}"
   elif [[ $INPLACE -eq 1 ]]; then echo "$dir/$base"
@@ -133,7 +121,9 @@ get_output_path(){
 
 # ---- Already Optimized Check ----
 is_already_optimized(){
-  local file=$1 ext="${file##*.}" && ext="${ext,,}"
+  local file=$1
+  local ext="${file##*.}"
+  ext="${ext,,}"
   [[ $file == *"$SUFFIX"* ]] && return 0
   case "$ext" in
     webp|avif|jxl) return 0;;
@@ -150,7 +140,8 @@ is_already_optimized(){
 show_progress(){
   [[ $PROGRESS -eq 0 ]] && return
   local cur=$1 tot=$2 msg=${3:-}
-  local pct=$((cur*100/tot)) bar_len=40 filled=$((pct*bar_len/100)) empty=$((bar_len-filled))
+  local pct=$((cur*100/tot))
+  local bar_len=40 filled=$((pct*bar_len/100)) empty=$((bar_len-filled))
   printf '\r[%*s%*s] %3d%% (%d/%d) %s' "$filled" '' "$empty" '' "$pct" "$cur" "$tot" "$msg" | tr ' ' '='
 }
 
@@ -165,7 +156,8 @@ print_stats(){
 
 # ---- Image Optimization ----
 optimize_png(){
-  local src=$1 out=$2 tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
+  local src=$1 out=$2
+  local tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
   cp "$src" "$tmp"
   if cache_tool oxipng; then
     oxipng -o6 --strip safe -q "$tmp" &>/dev/null && success=1
@@ -175,11 +167,19 @@ optimize_png(){
     [[ $LOSSLESS -eq 0 ]] && cache_tool pngquant && pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" &>/dev/null || :
   fi
   cache_tool flaca && flaca --no-symlinks --preserve-times "$tmp" &>/dev/null || :
-  [[ $success -eq 1 ]] && mv "$tmp" "$out" && echo "$((orig-$(get_size "$out")))" || { rm -f "$tmp"; return 1; }
+  if [[ $success -eq 1 ]]; then
+    mv "$tmp" "$out"
+    local final=$(get_size "$out")
+    echo "$((orig-final))"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
 }
 
 optimize_jpeg(){
-  local src=$1 out=$2 tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
+  local src=$1 out=$2
+  local tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
   if cache_tool jpegoptim; then
     [[ $LOSSLESS -eq 1 ]] && jpegoptim --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
     [[ $LOSSLESS -eq 0 ]] && jpegoptim --max="$QUALITY" --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
@@ -188,7 +188,14 @@ optimize_jpeg(){
   fi
   cache_tool flaca && flaca --no-symlinks --preserve-times "$tmp" &>/dev/null || :
   cache_tool rimage && rimage -i "$tmp" -o "${tmp}.r" &>/dev/null && mv -f "${tmp}.r" "$tmp" || :
-  [[ $success -eq 1 ]] && mv "$tmp" "$out" && echo "$((orig-$(get_size "$out")))" || { rm -f "$tmp"; return 1; }
+  if [[ $success -eq 1 ]]; then
+    mv "$tmp" "$out"
+    local final=$(get_size "$out")
+    echo "$((orig-final))"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
 }
 
 select_image_target_format(){
@@ -207,7 +214,10 @@ select_image_target_format(){
 }
 
 optimize_image(){
-  local src=$1 ext="${src##*.}" && ext="${ext,,}" out fmt
+  local src=$1
+  local ext="${src##*.}"
+  ext="${ext,,}"
+  local out fmt
   [[ $SKIP_EXISTING -eq 1 ]] && is_already_optimized "$src" && { ((STATS_SKIPPED++)); return 0; }
   fmt=$(select_image_target_format "$ext")
   out=$(get_output_path "$src" "$fmt")
@@ -256,7 +266,9 @@ optimize_image(){
 
 # ---- Video Optimization ----
 optimize_video(){
-  local src=$1 ext="${src##*.}" out=$(get_output_path "$src" "$ext")
+  local src=$1
+  local ext="${src##*.}"
+  local out=$(get_output_path "$src" "$ext")
   [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
   local orig=$(get_size "$src")
   log "Processing video: $(basename "$src")"
@@ -289,7 +301,10 @@ optimize_video(){
 
 # ---- Audio Optimization ----
 optimize_audio(){
-  local src=$1 ext="${src##*.}" && ext="${ext,,}" out
+  local src=$1
+  local ext="${src##*.}"
+  ext="${ext,,}"
+  local out
   if [[ $ext == "opus" ]]; then
     out=$(get_output_path "$src" "$ext")
     [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
@@ -329,7 +344,9 @@ optimize_audio(){
 
 # ---- Process File ----
 process_file(){
-  local file=$1 ext="${file##*.}" && ext="${ext,,}"
+  local file=$1
+  local ext="${file##*.}"
+  ext="${ext,,}"
   ((STATS_TOTAL++))
   [[ $INPLACE -eq 0 && $file == *"$SUFFIX"* ]] && { ((STATS_SKIPPED++)); return 0; }
   show_progress "$STATS_TOTAL" "${TOTAL_FILES:-$STATS_TOTAL}" "$(basename "$file")"
@@ -344,7 +361,7 @@ process_file(){
   esac
 }
 export -f process_file optimize_image optimize_video optimize_audio optimize_png optimize_jpeg
-export -f get_size format_bytes get_output_path is_already_optimized mkbackup cache_tool select_image_target_format ffmpeg_has_encoder
+export -f get_output_path is_already_optimized mkbackup cache_tool select_image_target_format ffmpeg_has_encoder
 
 # ---- File Collection ----
 collect_files(){
@@ -356,20 +373,11 @@ collect_files(){
     for item in "${items[@]}"; do
       if [[ -f $item ]]; then files+=("$(abs_path "$item")")
       elif [[ -d $item ]]; then
-        local -a found=()
-        if cache_tool fd; then
-          local -a args=(-t f)
-          for e in "${exts[@]}"; do args+=(-e "$e"); done
-          [[ $RECURSIVE -eq 0 ]] && args+=(-d 1)
-          mapfile -t -d '' found < <("${T[fd]}" "${args[@]}" . "$(abs_path "$item")" -0 2>/dev/null || :)
-        else
-          local -a fargs=(-type f)
-          [[ $RECURSIVE -eq 0 ]] && fargs+=(-maxdepth 1)
-          local -a pats=()
-          for e in "${exts[@]}"; do pats+=(-o -iname "*.$e"); done
-          pats=("${pats[@]:1}")
-          mapfile -t found < <(find "$(abs_path "$item")" "${fargs[@]}" \( "${pats[@]}" \) 2>/dev/null || :)
-        fi
+        local -a found=() args=(-tf)
+        for e in "${exts[@]}"; do args+=(-e "$e"); done
+        [[ $RECURSIVE -eq 0 ]] && args+=(-d 1)
+        args+=(. "$(abs_path "$item")" -0)
+        mapfile -t -d '' found < <(run_find "${args[@]}" 2>/dev/null || :)
         files+=("${found[@]}")
       fi
     done
@@ -447,6 +455,9 @@ EOF
 
 # ---- Main ----
 main(){
+  # Export common functions for parallel execution
+  [[ $(type -t export_common_functions) == function ]] && export_common_functions
+  
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help) usage; exit 0;;

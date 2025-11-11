@@ -157,17 +157,10 @@ install_bat_extras() {
   }
 
   local -i count=0
-  if has fd; then
-    while IFS= read -r -d '' file; do
-      ln -sf "$file" "$inst_dir/" || :
-      ((count++))
-    done < <(fd -tf -x -d 2 . "$dest" -0)
-  else
-    while IFS= read -r -d '' file; do
-      ln -sf "$dest/${file#./}" "$inst_dir/" || :
-      ((count++))
-    done < <(cd "$dest" && find . -maxdepth 2 -type f -executable -print0)
-  fi
+  while IFS= read -r -d '' file; do
+    ln -sf "$file" "$inst_dir/" || :
+    ((count++))
+  done < <(run_find -tf -x -d 2 . "$dest" -0)
 
   ((count > 0)) && log "Symlinked $count bat-extras executables to $inst_dir" || log "No bat-extras executables found"
 }
@@ -184,21 +177,12 @@ link_dotfiles() {
   stow --dir="$REPO_PATH" --target="$HOME" --restow --no-folding zsh termux p10k
 
   log "Stowing scripts from $REPO_PATH/bin to $HOME/bin"
-  if has fd; then
-    while IFS= read -r -d '' script; do
-      local base="${script##*/}"
-      local target="$HOME/bin/${base%.sh}"
-      ln -sf "$script" "$target"
-      chmod +x "$target"
-    done < <(fd -tf -e sh . "$REPO_PATH/bin" -0)
-  else
-    while IFS= read -r -d '' script; do
-      local base="${script##*/}"
-      local target="$HOME/bin/${base%.sh}"
-      ln -sf "$script" "$target"
-      chmod +x "$target"
-    done < <(find "$REPO_PATH/bin" -type f -name "*.sh" -print0)
-  fi
+  while IFS= read -r -d '' script; do
+    local base="${script##*/}"
+    local target="$HOME/bin/${base%.sh}"
+    ln -sf "$script" "$target"
+    chmod +x "$target"
+  done < <(run_find -tf -e sh . "$REPO_PATH/bin" -0)
 }
 
 finalize() {
