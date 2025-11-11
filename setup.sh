@@ -1,26 +1,101 @@
 #!/usr/bin/env bash
+# Standalone Termux setup script - can be executed remotely via curl | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh | bash
 set -Eeuo pipefail
 shopt -s nullglob globstar extglob dotglob
 IFS=$'\n\t'
 export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 
-# Source common library
-readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR}/lib"
-if [[ -f "${LIB_DIR}/common.sh" ]]; then
-  # shellcheck source=lib/common.sh
-  source "${LIB_DIR}/common.sh"
-else
-  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
-  exit 1
-fi
+# ============================================================================
+# INLINE UTILITIES (from common.sh for standalone execution)
+# ============================================================================
 
-# --- Configuration ---
+# Color codes
+readonly BLU=$'\e[34m' GRN=$'\e[32m' YLW=$'\e[33m' RED=$'\e[31m' DEF=$'\e[0m'
+
+# Check if command exists
+has() { command -v -- "$1" &>/dev/null; }
+
+# Ensure directory exists
+ensure_dir() {
+  local dir
+  for dir in "$@"; do
+    [[ -d $dir ]] || mkdir -p -- "$dir"
+  done
+}
+
+# Universal find wrapper: fd with fallback to find
+run_find() {
+  if has fd; then
+    fd "$@" 2>/dev/null || :
+    return
+  elif has fdfind; then
+    fdfind "$@" 2>/dev/null || :
+    return
+  fi
+
+  # Fallback to find - parse common fd patterns
+  local find_type="" find_path="." find_depth=""
+  local -a find_names=() find_exec=() extra_args=()
+  local null_sep=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -tf) find_type="-type f"; shift;;
+      -td) find_type="-type d"; shift;;
+      -e)
+        shift
+        find_names+=(-o -name "*.$1")
+        shift
+        ;;
+      -d|--max-depth)
+        shift
+        find_depth="-maxdepth $1"
+        shift
+        ;;
+      -x)
+        shift
+        extra_args+=(-executable)
+        ;;
+      -0) null_sep=1; shift;;
+      .)
+        shift
+        ;;
+      *)
+        if [[ "$1" != -* ]]; then
+          find_path="$1"
+          shift
+        else
+          shift
+        fi
+        ;;
+    esac
+  done
+
+  local -a cmd=("$find_path")
+  [[ -n $find_depth ]] && cmd+=($find_depth)
+  [[ -n $find_type ]] && cmd+=($find_type)
+
+  if [[ ${#find_names[@]} -gt 0 ]]; then
+    find_names=("${find_names[@]:1}")
+    [[ ${#find_names[@]} -eq 1 ]] && cmd+=("${find_names[@]}") || cmd+=(\( "${find_names[@]}" \))
+  fi
+
+  [[ ${#extra_args[@]} -gt 0 ]] && cmd+=("${extra_args[@]}")
+  [[ $null_sep -eq 1 ]] && cmd+=(-print0)
+
+  find "${cmd[@]}" 2>/dev/null || :
+}
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
 REPO_URL="https://github.com/Ven0m0/dot-termux.git"
 REPO_PATH="$HOME/dot-termux"
 LOG_FILE="$HOME/termux_setup.log"
 
-# Additional helper for setup script
+# Logging helpers
 log() { printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
 step() { printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
 
