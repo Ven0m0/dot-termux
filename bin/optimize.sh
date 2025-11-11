@@ -21,10 +21,13 @@ else
 fi
 
 # ---- Colors ----
-if [[ -t 1 ]]; then
-  R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m' X=$'\e[0m'
-else
-  R='' G='' Y='' B='' X=''
+# Use color variables from common.sh if available, otherwise define our own
+if [[ -z ${R:-} ]]; then
+  if [[ -t 1 ]]; then
+    R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m' X=$'\e[0m'
+  else
+    R='' G='' Y='' B='' X=''
+  fi
 fi
 
 # ---- Tool Cache & Wrappers ----
