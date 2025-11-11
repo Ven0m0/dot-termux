@@ -31,7 +31,7 @@ cache_tool(){
 }
 
 # Pre-cache critical tools
-for tool in fd:fdfind rg:grep sk:fzf eza:ls parallel xargs; do
+for tool in fd:fdfind rg:grep sk:fzf eza:ls parallel xargs ffzap ffmpeg; do
   IFS=: read -r name fallback <<<"$tool"
   cache_tool "$name" "$fallback" || :
 done
@@ -109,8 +109,16 @@ trap cleanup EXIT INT TERM
 # ---- Codec Detection ----
 FFMPEG_ENCODERS=""
 ffmpeg_has_encoder(){
-  has ffmpeg || return 1
-  [[ -z $FFMPEG_ENCODERS ]] && FFMPEG_ENCODERS=$(ffmpeg -hide_banner -encoders 2>/dev/null || :)
+  has ffmpeg || has ffzap || return 1
+  if [[ -z $FFMPEG_ENCODERS ]]; then
+    # ffzap uses ffmpeg under the hood, check ffmpeg encoders
+    if has ffmpeg; then
+      FFMPEG_ENCODERS=$(${T[ffmpeg]} -hide_banner -encoders 2>/dev/null || :)
+    else
+      # ffzap installed but not ffmpeg, assume common encoders available
+      FFMPEG_ENCODERS="libsvtav1 libaom-av1 libvpx-vp9 libx265 libx264 libopus"
+    fi
+  fi
   [[ $FFMPEG_ENCODERS == *"$1"* ]]
 }
 
@@ -308,8 +316,8 @@ optimize_video(){
   local orig=$(get_size "$src")
   log "Processing video: $(basename "$src")"
   
-  local -a enc=() ac=()
-  [[ ${ext,,} == "mp4" ]] && ac=(-c:a aac -b:a "${AUDIO_BITRATE}k") || ac=(-c:a libopus -b:a "${AUDIO_BITRATE}k")
+  # Always use Opus for audio
+  local -a enc=() ac=(-c:a libopus -b:a "${AUDIO_BITRATE}k")
   
   case "$VIDEO_CODEC" in
     av1) ffmpeg_has_encoder libsvtav1 && enc=(-c:v libsvtav1 -preset 8 -crf "$VIDEO_CRF" -g 240) || enc=(-c:v libaom-av1 -cpu-used 6 -crf "$VIDEO_CRF" -g 240) ;;
@@ -319,12 +327,24 @@ optimize_video(){
     *) enc=(-c:v libvpx-vp9 -crf "$VIDEO_CRF" -b:v 0 -row-mt 1) ;;
   esac
   
-  has ffmpeg && ffmpeg -i "$src" "${enc[@]}" "${ac[@]}" -y "$out" -loglevel error || { warn "Video optimization failed"; return 1; }
+  local success=0 tool=""
+  if has ffzap; then
+    tool="ffzap"
+    ${T[ffzap]} -i "$src" -f "${enc[*]} ${ac[*]}" -o "$out" -t 1 &>/dev/null && success=1
+  elif has ffmpeg; then
+    tool="ffmpeg"
+    ${T[ffmpeg]} -i "$src" "${enc[@]}" "${ac[@]}" -y "$out" -loglevel error && success=1
+  else
+    warn "No video encoder found (ffzap/ffmpeg required)"
+    return 1
+  fi
+  
+  [[ $success -eq 0 ]] && { warn "Video optimization failed"; return 1; }
   
   local new=$(get_size "$out")
   ((new > 0 && new < orig)) && {
     local saved=$((orig-new)) pct=$((saved*100/orig))
-    printf '%s → %s | %s → %s (%d%%) [%s]\n' "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig")" "$(format_bytes "$new")" "$pct" "$VIDEO_CODEC"
+    printf '%s → %s | %s → %s (%d%%) [%s/%s]\n' "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig")" "$(format_bytes "$new")" "$pct" "$tool" "$VIDEO_CODEC"
     [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]] && mkbackup "$src" && [[ $src != "$out" ]] && rm -f "$src"
   } || { warn "No savings"; rm -f "$out"; return 1; }
 }
@@ -332,17 +352,47 @@ optimize_video(){
 # ---- Audio Optimization ----
 optimize_audio(){
   local src=$1 ext="${src##*.}" out
-  out=$(get_output_path "$src" "$ext")
-  [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
+  ext="${ext,,}"
   
-  local orig=$(get_size "$src")
-  log "Processing audio: $(basename "$src")"
-  
-  case "${ext,,}" in
-    opus) has opusenc && opusenc --bitrate "$AUDIO_BITRATE" --vbr "$src" "$out" &>/dev/null || return 1 ;;
-    flac) has flaca && cp "$src" "$out" && flaca --best "$out" &>/dev/null || return 1 ;;
-    *) has ffmpeg && ffmpeg -i "$src" -c:a libopus -b:a "${AUDIO_BITRATE}k" -vbr on -y "${out%.*}.opus" -loglevel error && out="${out%.*}.opus" || return 1 ;;
-  esac
+  # Always convert to Opus unless already Opus
+  if [[ $ext == "opus" ]]; then
+    out=$(get_output_path "$src" "$ext")
+    [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
+    
+    local orig=$(get_size "$src")
+    log "Processing audio: $(basename "$src")"
+    
+    # Re-encode Opus for optimization
+    if has opusenc; then
+      local tmp="${out}.tmp"
+      opusenc --bitrate "$AUDIO_BITRATE" --vbr "$src" "$tmp" &>/dev/null || return 1
+      [[ -f $tmp ]] && mv "$tmp" "$out" || return 1
+    else
+      cp "$src" "$out"
+    fi
+  else
+    # Convert everything to Opus
+    out="${src%.*}.opus"
+    [[ $CONVERT_FORMAT ]] && out=$(get_output_path "$src" "$CONVERT_FORMAT") || out=$(get_output_path "$src" "opus")
+    [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
+    
+    local orig=$(get_size "$src")
+    log "Processing audio: $(basename "$src") → Opus"
+    
+    if has opusenc && [[ $ext == "wav" || $ext == "flac" ]]; then
+      opusenc --bitrate "$AUDIO_BITRATE" --vbr "$src" "$out" &>/dev/null || return 1
+    elif has ffmpeg || has ffzap; then
+      local tool=${T[ffzap]:-${T[ffmpeg]}}
+      if [[ $(basename "$tool") == "ffzap" ]]; then
+        "$tool" -i "$src" -f "-c:a libopus -b:a ${AUDIO_BITRATE}k" -o "$out" -t 1 &>/dev/null || return 1
+      else
+        "$tool" -i "$src" -c:a libopus -b:a "${AUDIO_BITRATE}k" -vbr on -y "$out" -loglevel error || return 1
+      fi
+    else
+      warn "No audio encoder found (opusenc/ffzap/ffmpeg required)"
+      return 1
+    fi
+  fi
   
   local new=$(get_size "$out")
   ((new < orig)) && {
@@ -450,8 +500,8 @@ OPTIONS:
   -q N          Quality 1-100 (default: $QUALITY)
   -c N          Video CRF 0-51 (default: $VIDEO_CRF)
   -C CODEC      Video codec: auto, av1, vp9, h265, h264 (default: auto)
-  -b N          Audio bitrate kbps (default: $AUDIO_BITRATE)
-  -f FMT        Convert format: webp, avif, jxl, png, jpg, opus
+  -b N          Audio bitrate kbps (default: $AUDIO_BITRATE) [Opus only]
+  -f FMT        Convert format: webp, avif, jxl, png, jpg (images only)
   -o DIR        Output directory (default: same as input)
   -k            Keep originals
   -i            Replace in-place
@@ -466,11 +516,16 @@ OPTIONS:
   --no-backup   Disable backups
   --min-save N  Min % savings (default: 0)
 
+NOTES:
+  - Audio: Always encodes to Opus (video + standalone audio files)
+  - Video: Uses ffzap if available, falls back to ffmpeg
+  - Codecs: Auto-detects best available (AV1 > VP9 > H265 > H264)
+
 EXAMPLES:
   ${0##*/} .
   ${0##*/} -T ~/Pictures
   ${0##*/} -f webp -q 90 -r ~/Pictures
-  ${0##*/} -t video -C av1 -c 28 video.mp4
+  ${0##*/} -t video -C av1 -c 28 -b 96 video.mp4
   find . -name "*.jpg" | ${0##*/} -q 85
 EOF
 }
@@ -527,9 +582,14 @@ main(){
   
   [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && detect_video_codec
   
+  local enc_tool="ffmpeg"
+  has ffzap && enc_tool="ffzap"
+  
   log "Processing ${#FILES[@]} files (${ENV^^}) | Jobs: $JOBS | Mode: $([[ $LOSSLESS -eq 1 ]] && echo "Lossless" || echo "Lossy Q=$QUALITY")"
   [[ $DRY_RUN -eq 1 ]] && log "DRY RUN - no files modified"
   [[ -n $CONVERT_FORMAT ]] && log "Convert → $CONVERT_FORMAT"
+  [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && log "Video: ${VIDEO_CODEC^^} via $enc_tool | Audio: Opus @ ${AUDIO_BITRATE}kbps"
+  [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "audio" ]] && log "Audio: Opus @ ${AUDIO_BITRATE}kbps via $enc_tool"
   
   if ((JOBS == 1)); then
     for f in "${FILES[@]}"; do process_file "$f" || :; done
