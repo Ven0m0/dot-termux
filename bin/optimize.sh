@@ -24,7 +24,7 @@ fi
 if [[ -t 1 ]]; then
   R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m' X=$'\e[0m'
 else
-  R= G= Y= B= X=
+  R='' G='' Y='' B='' X=''
 fi
 
 # ---- Tool Cache & Wrappers ----
@@ -103,14 +103,16 @@ detect_video_codec(){
 # ---- Backup ----
 mkbackup(){
   [[ $KEEP_BACKUPS -eq 0 ]] && return 0
-  local file=$1 bakdir="$(dirname "$file")/.backups"
+  local file=$1
+  local bakdir="$(dirname "$file")/.backups"
   mkdir -p "$bakdir" 2>/dev/null || return 1
   cp -p "$file" "$bakdir/" 2>/dev/null || warn "Backup failed: $(basename "$file")"
 }
 
 # ---- Output Path ----
 get_output_path(){
-  local src=$1 fmt=$2 base="${src##*/}" name="${base%.*}" ext="${base##*.}"
+  local src=$1 fmt=$2
+  local base="${src##*/}" name="${base%.*}" ext="${base##*.}"
   local dir="${OUTPUT_DIR:-${src%/*}}"
   if [[ -n $fmt && $fmt != "${ext,,}" ]]; then echo "$dir/${name}.${fmt}"
   elif [[ $INPLACE -eq 1 ]]; then echo "$dir/$base"
@@ -119,7 +121,9 @@ get_output_path(){
 
 # ---- Already Optimized Check ----
 is_already_optimized(){
-  local file=$1 ext="${file##*.}" && ext="${ext,,}"
+  local file=$1
+  local ext="${file##*.}"
+  ext="${ext,,}"
   [[ $file == *"$SUFFIX"* ]] && return 0
   case "$ext" in
     webp|avif|jxl) return 0;;
@@ -136,7 +140,8 @@ is_already_optimized(){
 show_progress(){
   [[ $PROGRESS -eq 0 ]] && return
   local cur=$1 tot=$2 msg=${3:-}
-  local pct=$((cur*100/tot)) bar_len=40 filled=$((pct*bar_len/100)) empty=$((bar_len-filled))
+  local pct=$((cur*100/tot))
+  local bar_len=40 filled=$((pct*bar_len/100)) empty=$((bar_len-filled))
   printf '\r[%*s%*s] %3d%% (%d/%d) %s' "$filled" '' "$empty" '' "$pct" "$cur" "$tot" "$msg" | tr ' ' '='
 }
 
@@ -151,7 +156,8 @@ print_stats(){
 
 # ---- Image Optimization ----
 optimize_png(){
-  local src=$1 out=$2 tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
+  local src=$1 out=$2
+  local tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
   cp "$src" "$tmp"
   if cache_tool oxipng; then
     oxipng -o6 --strip safe -q "$tmp" &>/dev/null && success=1
@@ -172,7 +178,8 @@ optimize_png(){
 }
 
 optimize_jpeg(){
-  local src=$1 out=$2 tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
+  local src=$1 out=$2
+  local tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
   if cache_tool jpegoptim; then
     [[ $LOSSLESS -eq 1 ]] && jpegoptim --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
     [[ $LOSSLESS -eq 0 ]] && jpegoptim --max="$QUALITY" --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
@@ -207,7 +214,10 @@ select_image_target_format(){
 }
 
 optimize_image(){
-  local src=$1 ext="${src##*.}" && ext="${ext,,}" out fmt
+  local src=$1
+  local ext="${src##*.}"
+  ext="${ext,,}"
+  local out fmt
   [[ $SKIP_EXISTING -eq 1 ]] && is_already_optimized "$src" && { ((STATS_SKIPPED++)); return 0; }
   fmt=$(select_image_target_format "$ext")
   out=$(get_output_path "$src" "$fmt")
@@ -256,7 +266,9 @@ optimize_image(){
 
 # ---- Video Optimization ----
 optimize_video(){
-  local src=$1 ext="${src##*.}" out=$(get_output_path "$src" "$ext")
+  local src=$1
+  local ext="${src##*.}"
+  local out=$(get_output_path "$src" "$ext")
   [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
   local orig=$(get_size "$src")
   log "Processing video: $(basename "$src")"
@@ -289,7 +301,10 @@ optimize_video(){
 
 # ---- Audio Optimization ----
 optimize_audio(){
-  local src=$1 ext="${src##*.}" && ext="${ext,,}" out
+  local src=$1
+  local ext="${src##*.}"
+  ext="${ext,,}"
+  local out
   if [[ $ext == "opus" ]]; then
     out=$(get_output_path "$src" "$ext")
     [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]] && return 0
@@ -329,7 +344,9 @@ optimize_audio(){
 
 # ---- Process File ----
 process_file(){
-  local file=$1 ext="${file##*.}" && ext="${ext,,}"
+  local file=$1
+  local ext="${file##*.}"
+  ext="${ext,,}"
   ((STATS_TOTAL++))
   [[ $INPLACE -eq 0 && $file == *"$SUFFIX"* ]] && { ((STATS_SKIPPED++)); return 0; }
   show_progress "$STATS_TOTAL" "${TOTAL_FILES:-$STATS_TOTAL}" "$(basename "$file")"
