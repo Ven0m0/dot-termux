@@ -207,16 +207,6 @@ The repository includes consolidated scripts in the `bin/` directory:
 
 - `optimize` - **NEW** Unified media optimization tool (replaces media.sh, opt-img.sh, img.sh, imgopt)
 - `clean` - **NEW** Unified cleaning tool (replaces clean.sh, termux-cleaner.sh, adbcc.sh)
-- `termux-media-optimizer.sh` - Legacy comprehensive media optimizer (kept for compatibility)
-- `termux-cleaner.sh` - Legacy Android filesystem cleaner (kept for compatibility)
-- `revanced-helper.sh` - ReVanced APK patcher
-
-**Migration Guide:**
-
-- Old: `bash bin/opt-img.sh ~/Pictures` → New: `optimize batch ~/Pictures`
-- Old: `bash bin/clean.sh` → New: `clean -q`
-- Old: `bash bin/termux-cleaner.sh -y` → New: `clean -d -y`
-- Old: Multiple media scripts → New: Single `optimize` command with subcommands
 
 The legacy scripts are retained for backwards compatibility but the new consolidated tools are recommended.
 
