@@ -1,10 +1,9 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # Standalone Termux setup script - can be executed remotely via curl | bash
 # Usage: curl -fsSL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh | bash
-set -Eeuo pipefail
-shopt -s nullglob globstar extglob dotglob
+set -Eeuo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'
-export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
+export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive CARGO_HTTP_MULTIPLEXING=true CARGO_NET_GIT_FETCH_WITH_CLI=true OPT_LEVEL=3 CARGO_PROFILE_RELEASE_OPT_LEVEL=3 PYTHONOPTIMIZE=2
 
 # ============================================================================
 # INLINE UTILITIES (from common.sh for standalone execution)
@@ -14,10 +13,10 @@ export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 readonly BLU=$'\e[34m' GRN=$'\e[32m' YLW=$'\e[33m' RED=$'\e[31m' DEF=$'\e[0m'
 
 # Check if command exists
-has() { command -v -- "$1" &>/dev/null; }
+has(){ command -v -- "$1" &>/dev/null; }
 
 # Ensure directory exists
-ensure_dir() {
+ensure_dir(){
   local dir
   for dir in "$@"; do
     [[ -d $dir ]] || mkdir -p -- "$dir"
@@ -25,12 +24,15 @@ ensure_dir() {
 }
 
 # Universal find wrapper: fd with fallback to find
-run_find() {
+run_find(){
   if has fd; then
     fd "$@" 2>/dev/null || :
     return
   elif has fdfind; then
     fdfind "$@" 2>/dev/null || :
+    return
+  else
+    find -O2 "$@" 2>/dev/null || :
     return
   fi
 
@@ -75,15 +77,12 @@ run_find() {
   local -a cmd=("$find_path")
   [[ -n $find_depth ]] && cmd+=($find_depth)
   [[ -n $find_type ]] && cmd+=($find_type)
-
   if [[ ${#find_names[@]} -gt 0 ]]; then
     find_names=("${find_names[@]:1}")
     [[ ${#find_names[@]} -eq 1 ]] && cmd+=("${find_names[@]}") || cmd+=(\( "${find_names[@]}" \))
   fi
-
   [[ ${#extra_args[@]} -gt 0 ]] && cmd+=("${extra_args[@]}")
   [[ $null_sep -eq 1 ]] && cmd+=(-print0)
-
   find "${cmd[@]}" 2>/dev/null || :
 }
 
@@ -96,11 +95,11 @@ REPO_PATH="$HOME/dot-termux"
 LOG_FILE="$HOME/termux_setup.log"
 
 # Logging helpers
-log() { printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
-step() { printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
+log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
+step(){ printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
 
 # --- Safe Remote Script Execution ---
-run_installer() {
+run_installer(){
   local name=$1 url=$2
   step "Installing $name..."
   has "${name%%-*}" && {
@@ -119,7 +118,7 @@ run_installer() {
 }
 
 # --- Setup Functions ---
-setup_environment() {
+setup_environment(){
   step "Setting up environment"
   ensure_dir "$HOME/.ssh" "$HOME/bin" "$HOME/.termux" "${XDG_CONFIG_HOME:-$HOME/.config}" \
     "${XDG_DATA_HOME:-$HOME/.local/share}" "${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -130,7 +129,7 @@ setup_environment() {
   }
 }
 
-configure_apt() {
+configure_apt(){
   step "Configuring apt"
   local apt_conf_dir="/data/data/com.termux/files/usr/etc/apt/apt.conf.d"
   ensure_dir "$apt_conf_dir"
@@ -142,7 +141,7 @@ Acquire::Retries "3";
 EOF
 }
 
-install_packages() {
+install_packages(){
   step "Updating repos and installing base packages"
   pkg up -y && pkg i -y tur-repo glibc-repo root-repo termux-api termux-services
   local -a pkgs=(
@@ -156,16 +155,12 @@ install_packages() {
   pkg install -y "${pkgs[@]}" || log "${YLW}Some packages failed to install. Continuing...${DEF}"
 }
 
-install_fonts() {
+install_fonts(){
   step "Installing JetBrains Mono font"
   local font_path="$HOME/.termux/font.ttf"
-  [[ -f $font_path ]] && {
-    log "Font already installed."
-    return 0
-  }
+  [[ -f $font_path ]] && { log "Font already installed."; return 0; }
   local url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-  local tmp_zip
-  tmp_zip=$(mktemp --suffix=".zip")
+  local tmp_zip; tmp_zip=$(mktemp --suffix=".zip")
   log "Downloading font..."
   curl -sL "$url" -o "$tmp_zip"
   unzip -jo "$tmp_zip" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null
@@ -174,17 +169,17 @@ install_fonts() {
   has termux-reload-settings && termux-reload-settings
 }
 
-install_rust_tools() {
+install_rust_tools(){
   step "Installing additional Rust tools"
   export PATH="$HOME/.cargo/bin:$PATH"
   run_installer "cargo-binstall" "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh"
-  local -a tools=(cargo-update oxipng)
+  local -a tools=(cargo-update oxipng rimage)
   local -a missing=()
   for tool in "${tools[@]}"; do has "$tool" || missing+=("$tool"); done
   [[ ${#missing[@]} -gt 0 ]] && { cargo binstall -y "${missing[@]}" || cargo install "${missing[@]}"; }
 }
 
-install_third_party() {
+install_third_party(){
   step "Installing third-party tools"
   run_installer "bun" "https://bun.sh/install"
   run_installer "mise" "https://mise.run"
@@ -201,7 +196,7 @@ install_third_party() {
   fi
 }
 
-install_bat_extras() {
+install_bat_extras(){
   step "Building and linking bat-extras"
   local repo="https://github.com/eth-p/bat-extras.git"
   local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -240,13 +235,13 @@ install_bat_extras() {
   ((count > 0)) && log "Symlinked $count bat-extras executables to $inst_dir" || log "No bat-extras executables found"
 }
 
-setup_zsh() {
+setup_zsh(){
   step "Setting up Zsh and Sheldon"
   [[ ${SHELL##*/} != "zsh" ]] && chsh -s zsh
   # Sheldon will be configured via dotfiles
 }
 
-link_dotfiles() {
+link_dotfiles(){
   step "Linking dotfiles using Stow"
   log "Stowing dotfiles from $REPO_PATH to $HOME"
   stow --dir="$REPO_PATH" --target="$HOME" --restow --no-folding zsh termux p10k
@@ -260,7 +255,7 @@ link_dotfiles() {
   done < <(run_find -tf -e sh . "$REPO_PATH/bin" -0)
 }
 
-finalize() {
+finalize(){
   step "Finalizing setup"
   log "Applying Sheldon plugins..."
   sheldon lock
@@ -271,7 +266,7 @@ finalize() {
 }
 
 # --- Main Execution ---
-main() {
+main(){
   cd "$HOME"
   : >"$LOG_FILE"
 
