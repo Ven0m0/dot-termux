@@ -74,18 +74,6 @@ setup_environment(){
   }
 }
 
-configure_apt(){
-  step "Configuring apt"
-  local apt_conf="$PREFIX/etc/apt/apt.conf.d/99-termux-defaults"
-  ensure_dir "${apt_conf%/*}"
-  cat >"$apt_conf" <<'EOF'
-Dpkg::Options { "--force-confdef"; "--force-confold"; };
-APT::Get::Assume-Yes "true";
-APT::Get::allow-downgrades "true";
-Acquire::Retries "3";
-EOF
-}
-
 install_packages(){
   step "Updating repos and installing packages"
   pkg update -y || { log "${RED}pkg update failed${DEF}"; return 1; }
@@ -95,7 +83,7 @@ install_packages(){
     ripgrep fd sd eza bat dust nodejs fzf zoxide sheldon shfmt
     procps gawk jq aria2 imagemagick ffmpeg libwebp gifsicle pngquant
     optipng jpegoptim chafa micro mold llvm openjdk-21 python
-    aapt2 apksigner android-tools binutils-is-llvm
+    aapt2 apksigner android-tools binutils-is-llvm uv gitoxide
   )
   log "Installing ${#pkgs[@]} packages..."
   pkg install -y "${pkgs[@]}" || log "${YLW}Some packages failed${DEF}"
@@ -234,7 +222,6 @@ main(){
   pkg install -y git curl stow yadm &>/dev/null || { echo "${RED}Failed to install base tools${DEF}"; exit 1; }
   bootstrap_dotfiles || { log "${RED}Dotfiles failed${DEF}"; exit 1; }
   setup_environment
-  configure_apt
   install_packages
   install_fonts
   install_rust_tools
