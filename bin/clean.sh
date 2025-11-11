@@ -19,7 +19,7 @@ else
 fi
 
 # Globals
-declare -g DRY_RUN=0 VERBOSE=0 HAS_SHIZUKU=0 HAS_ADB=0
+declare -g DRY_RUN=0 VERBOSE=0 HAS_SHIZUKU=0 HAS_ADB=0 PRIVILEGES_CHECKED=0
 declare -g OPT_QUICK=0 OPT_DEEP=0 OPT_WHATSAPP=0 OPT_TELEGRAM=0 OPT_ADB=0 OPT_SYSTEM_CACHE=0 OPT_PKG_CACHE=0
 
 # Help
@@ -79,7 +79,8 @@ clean_temp_files() {
   if ((DRY_RUN)); then
     log "Would clean temporary files"
   else
-    find "${HOME}/.cache" "${TMPDIR:-/tmp}" -type f -delete &>/dev/null || :
+    [[ -d "${HOME}/.cache" ]] && find "${HOME}/.cache" -type f -delete 2>/dev/null || :
+    [[ -d "${TMPDIR:-/tmp}" ]] && find "${TMPDIR:-/tmp}" -type f -delete 2>/dev/null || :
   fi
 }
 

@@ -12,10 +12,13 @@ readonly COMMON_LIB="${LIB_DIR}/common.sh"
 if [[ -f "$COMMON_LIB" ]]; then
   # shellcheck source=../lib/common.sh
   source "$COMMON_LIB"
+else
+  echo "ERROR: Missing required library: $COMMON_LIB" >&2
+  exit 1
 fi
 
 # Globals for optimization
-declare -g QUALITY=85 VIDEO_CODEC="auto" RECURSIVE=0 KEEP_ORIGINAL=1 DRY_RUN=0
+declare -g QUALITY=85 VIDEO_CODEC="auto" RECURSIVE=0 KEEP_ORIGINAL=1 DRY_RUN=0 FORMAT=""
 
 # Help
 usage() {
