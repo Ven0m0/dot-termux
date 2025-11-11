@@ -24,6 +24,7 @@ setup_env(){
   ensure "${XDG_CONFIG_HOME:-$HOME/.config}"
   ensure "${XDG_DATA_HOME:-$HOME/.local/share}"
   ensure "${XDG_CACHE_HOME:-$HOME/.cache}"
+  mkdir -p "$HOME/bin"
   chmod 700 "$HOME/.ssh"
   [[ -f $HOME/.ssh/id_rsa ]] || ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N "" &>/dev/null
 }
