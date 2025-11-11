@@ -36,8 +36,13 @@ cache_tool(){
   [[ -n ${T[$tool]} ]]
 }
 
+# Override has() from common.sh to use our cache
+has(){ cache_tool "$1"; }
+
 # Pre-cache critical tools once at startup
-for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg; do
+for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg \
+            oxipng pngquant jpegoptim cjpeg flaca rimage cwebp avifenc cjxl \
+            gifsicle svgo scour opusenc identify; do
   IFS=: read -r name fallback <<<"$tool"
   cache_tool "$name" "$fallback" || :
 done
@@ -156,7 +161,14 @@ optimize_png(){
     [[ $LOSSLESS -eq 0 ]] && cache_tool pngquant && pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" &>/dev/null || :
   fi
   cache_tool flaca && flaca --no-symlinks --preserve-times "$tmp" &>/dev/null || :
-  [[ $success -eq 1 ]] && mv "$tmp" "$out" && echo "$((orig-$(get_size "$out")))" || { rm -f "$tmp"; return 1; }
+  if [[ $success -eq 1 ]]; then
+    mv "$tmp" "$out"
+    local final=$(get_size "$out")
+    echo "$((orig-final))"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
 }
 
 optimize_jpeg(){
@@ -169,7 +181,14 @@ optimize_jpeg(){
   fi
   cache_tool flaca && flaca --no-symlinks --preserve-times "$tmp" &>/dev/null || :
   cache_tool rimage && rimage -i "$tmp" -o "${tmp}.r" &>/dev/null && mv -f "${tmp}.r" "$tmp" || :
-  [[ $success -eq 1 ]] && mv "$tmp" "$out" && echo "$((orig-$(get_size "$out")))" || { rm -f "$tmp"; return 1; }
+  if [[ $success -eq 1 ]]; then
+    mv "$tmp" "$out"
+    local final=$(get_size "$out")
+    echo "$((orig-final))"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
 }
 
 select_image_target_format(){
@@ -325,7 +344,7 @@ process_file(){
   esac
 }
 export -f process_file optimize_image optimize_video optimize_audio optimize_png optimize_jpeg
-export -f get_size format_bytes get_output_path is_already_optimized mkbackup cache_tool select_image_target_format ffmpeg_has_encoder
+export -f get_output_path is_already_optimized mkbackup cache_tool select_image_target_format ffmpeg_has_encoder
 
 # ---- File Collection ----
 collect_files(){
@@ -419,6 +438,9 @@ EOF
 
 # ---- Main ----
 main(){
+  # Export common functions for parallel execution
+  [[ $(type -t export_common_functions) == function ]] && export_common_functions
+  
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help) usage; exit 0;;
