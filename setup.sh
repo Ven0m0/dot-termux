@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t'; export LC_ALL=C LANG=C
+IFS=$'\n\t'; export LC_ALL=C LANG=C 
 
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"; [[ -d $cache ]] || cache="$HOME"
 logf="$HOME/termux_setup.log"
@@ -31,8 +31,8 @@ setup_env(){
 
 install_pkgs(){
   step "Packages"
-  pkg update -y || { log "pkg update failed"; return 1; }
-  pkg install -y tur-repo glibc-repo root-repo termux-api termux-services || :
+  pkg up -y || { log "pkg update failed"; return 1; }
+  pkg i -y tur-repo glibc-repo root-repo termux-api termux-services || :
   local -a pkgs=(
     stow yadm git gh zsh zsh-completions build-essential parallel rust rust-src
     ripgrep sd eza bat dust nodejs fzf zoxide sheldon shfmt
@@ -116,6 +116,8 @@ finalize(){
   echo "🚀 Welcome to optimized Termux 🚀" >"$HOME/.welcome.msg"
   step "Setup complete."
   printf 'Restart Termux. Logs: %s\n' "$logf"
+  termux-setup-storage
+  termux-change-repo
 }
 
 main(){
