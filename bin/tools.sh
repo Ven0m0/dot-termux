@@ -4,17 +4,13 @@
 set -euo pipefail
 export LC_ALL=C LANG=C
 
-# Source common library
-readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
-if [[ -f "${LIB_DIR}/common.sh" ]]; then
-  # shellcheck source=../lib/common.sh
-  source "${LIB_DIR}/common.sh"
-else
-  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
-  exit 1
-fi
-
+readonly G=$'\e[32m' Y=$'\e[33m' R=$'\e[31m' D=$'\e[0m'
+has(){ command -v -- "$1" &>/dev/null; }
+log(){ printf '[%(%H:%M:%S)T] %s\n' -1 "$*"; }
+info(){ printf '%b[*]%b %s\n' "$G" "$D" "$*"; }
+warn(){ printf '%b[!]%b %s\n' "$Y" "$D" "$*" >&2; }
+err(){ printf '%b[x]%b %s\n' "$R" "$D" "$*" >&2; }
+die(){ err "$1"; exit "${2:-1}"; }
 _shell=${BASH_VERSION:+bash}
 [[ -n ${ZSH_VERSION:-} ]] && _shell=zsh
 
