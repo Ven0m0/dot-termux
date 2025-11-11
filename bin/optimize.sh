@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-# Unified media optimizer for Arch Linux desktop & Termux Android
+# Media optimizer for Termux Android
 # Features: lossless/lossy, parallel, auto codec detection, TUI mode, dry-run
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'; export LC_ALL=C LANG=C
@@ -12,13 +12,8 @@ if [[ -f "${LIB_DIR}/common.sh" ]]; then
   source "${LIB_DIR}/common.sh"
 fi
 
-# ---- Environment Detection ----
-if [[ -n ${TERMUX_VERSION:-} || -d /data/data/com.termux ]]; then
-  ENV="termux"
-  HOME="${HOME:-/data/data/com.termux/files/home}"
-else
-  ENV="desktop"
-fi
+# ---- Termux Environment ----
+HOME="${HOME:-/data/data/com.termux/files/home}"
 
 # ---- Colors ----
 # Use color variables from common.sh if available, otherwise define our own
@@ -45,7 +40,7 @@ cache_tool(){
 has(){ cache_tool "$1"; }
 
 # Pre-cache critical tools once at startup
-for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg \
+for tool in fd:fdfind rg:grep fzf eza:ls rust-parallel:parallel ffzap:ffmpeg \
             oxipng pngquant jpegoptim cjpeg flaca rimage cwebp avifenc cjxl \
             gifsicle svgo scour opusenc identify; do
   IFS=: read -r name fallback <<<"$tool"
@@ -393,8 +388,8 @@ collect_files(){
 # ---- TUI Mode ----
 tui_select(){
   local dir=$1
-  cache_tool sk || cache_tool fzf || err "TUI requires sk or fzf"
-  local picker=${T[sk]:-${T[fzf]}}
+  cache_tool fzf || err "TUI requires fzf"
+  local picker=${T[fzf]}
   local -a selected=()
   mapfile -t selected < <(collect_files "$dir" | "$picker" --multi --height=80% --layout=reverse --prompt="Select files > " | tr '\0' '\n')
   [[ ${#selected[@]} -eq 0 ]] && { log "No selection"; exit 0; }
@@ -417,7 +412,7 @@ dispatch_parallel(){
 # ---- Usage ----
 usage(){
   cat <<EOF
-optimize - System-independent media optimizer (Arch Linux / Termux)
+optimize - Media optimizer for Termux Android
 
 USAGE: ${0##*/} [OPTIONS] [files/dirs...]
        <stdin> | ${0##*/} [OPTIONS]
@@ -508,7 +503,7 @@ main(){
   [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && detect_video_codec
   local enc_tool="ffmpeg"
   cache_tool ffzap && enc_tool="ffzap"
-  log "Processing ${#FILES[@]} files (${ENV^^}) | Jobs: $JOBS | Mode: $([[ $LOSSLESS -eq 1 ]] && echo "Lossless" || echo "Lossy Q=$QUALITY")"
+  log "Processing ${#FILES[@]} files (TERMUX) | Jobs: $JOBS | Mode: $([[ $LOSSLESS -eq 1 ]] && echo "Lossless" || echo "Lossy Q=$QUALITY")"
   [[ $DRY_RUN -eq 1 ]] && log "DRY RUN - no files modified"
   [[ -n $CONVERT_FORMAT ]] && log "Convert → $CONVERT_FORMAT"
   [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && log "Video: ${VIDEO_CODEC^^} via $enc_tool | Audio: Opus @ ${AUDIO_BITRATE}kbps"
