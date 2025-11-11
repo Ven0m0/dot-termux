@@ -11,12 +11,12 @@ setopt EXTENDED_GLOB NULL_GLOB GLOB_DOTS NO_BEEP
 export LANG=C.UTF-8 LANGUAGE=C LC_COLLATE=C LC_CTYPE=C LC_MESSAGES=C
 stty stop undef 2>/dev/null
 
-# Source common library for wrapper functions
-if [[ -f "$HOME/dot-termux/lib/common.sh" ]]; then
-  source "$HOME/dot-termux/lib/common.sh"
-elif [[ -f "$HOME/lib/common.sh" ]]; then
-  source "$HOME/lib/common.sh"
-fi
+has(){ command -v -- "$1" &>/dev/null; }
+fe(){ local -a files; local q="${*:-}" preview; if (( $+commands[bat] )); then preview='bat -n --style=plain --color=always --line-range=:500 {}'; else preview='head -n 500 {}'; fi
+  if (( $+commands[fzf] )); then files=("${(@f)$(fzf --multi --select-1 --exit-0 ${q:+--query="$q"} --preview "$preview")}"); else print -r -- "fzf not found" >&2; return 127; fi
+  [[ ${#files} -gt 0 ]] && "${EDITOR:-micro}" "${files[@]}"
+}
+h(){ curl -s "cheat.sh/${@:-}"; }
 
 # Zsh-specific helpers (keep these as they may differ from bash equivalents)
 ifsource(){ [[ -r "$1" ]] && source "$1"; }
