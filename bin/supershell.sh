@@ -1,22 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 set -euo pipefail
 
-# Source common library
-readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
-if [[ -f "${LIB_DIR}/common.sh" ]]; then
-  # shellcheck source=../lib/common.sh
-  source "${LIB_DIR}/common.sh"
-else
-  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
-  exit 1
-fi
+readonly G=$'\e[32m' Y=$'\e[33m' R=$'\e[31m' D=$'\e[0m'
+has(){ command -v -- "$1" &>/dev/null; }
+warn(){ printf '%b[!]%b %s\n' "$Y" "$D" "$*" >&2; }
 
-# Display message
-timeout 4 echo "
-	#---Please approve logcat access for SuperShell---#
-	#--- to extract the 'adb connect' IP & port values---#
-	"
+timeout 4 echo $'\n\t#---Please approve logcat access for SuperShell---#\n\t#--- to extract the '\''adb connect'\'' IP & port values---#\n'
 
 # Make sure our ADB environment is clean
 adb kill-server
