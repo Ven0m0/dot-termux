@@ -1,7 +1,7 @@
 [[ $- != *i* ]] && return
 
 # --- Helpers (inline for fallback) ---
-has() { command -v -- "$1" &>/dev/null; }
+has(){ command -v -- "$1" &>/dev/null; }
 sleepy() { read -rt "${1:-1}" -- <> <(:) &>/dev/null || :; }
 bname() {
   local t=${1%"${1##*[!/]}"}
@@ -26,19 +26,10 @@ dname() {
 }
 match() { printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
 
-# --- Source common library for wrapper functions ---
-if [[ -f "$HOME/dot-termux/lib/common.sh" ]]; then
-  # shellcheck source=lib/common.sh
-  source "$HOME/dot-termux/lib/common.sh"
-elif [[ -f "$HOME/lib/common.sh" ]]; then
-  # shellcheck source=lib/common.sh
-  source "$HOME/lib/common.sh"
-fi
-
 # Legacy wrapper (for backwards compatibility)
-git_wrapper() { git "$@"; }
+git_wrapper(){ git "$@"; }
 
-# --- Lazy loading (adapted from bash-lazyrc.sh) ---
+# --- Lazy loading ---
 FUNC_DIRS=("$HOME/.bash/functions.d")
 CONFIG_DIRS=("$HOME/.bash/configs")
 AUTOLOAD_CACHE="$HOME/.cache/bash_autoload.list"
