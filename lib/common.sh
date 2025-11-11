@@ -121,6 +121,101 @@ dname() {
 # COMMAND WRAPPERS
 # ============================================================================
 
+# Universal find wrapper: fd with fallback to find
+# Usage: run_find [fd_args...] path
+# Just passes through to fd if available, otherwise translates to find
+run_find() {
+  # Use fd/fdfind if available - just pass through
+  if has fd; then
+    fd "$@" 2>/dev/null || :
+    return
+  elif has fdfind; then
+    fdfind "$@" 2>/dev/null || :
+    return
+  fi
+  
+  # Fallback to find - parse common fd patterns
+  local find_type="" find_path="." find_depth=""
+  local -a find_names=() find_exec=() extra_args=()
+  local null_sep=0
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -tf) find_type="-type f"; shift;;
+      -td) find_type="-type d"; shift;;
+      -tl) find_type="-type l"; shift;;
+      -e)
+        shift
+        find_names+=(-o -name "*.$1")
+        shift
+        ;;
+      -g)
+        shift
+        find_names+=(-o -name "$1")
+        shift
+        ;;
+      -d|--max-depth)
+        shift
+        find_depth="-maxdepth $1"
+        shift
+        ;;
+      --changed-before)
+        shift
+        # Convert "Nd" to -mtime +N
+        local val="${1%d}"
+        extra_args+=(-mtime "+$val")
+        shift
+        ;;
+      --owner)
+        shift
+        extra_args+=(-user "$1")
+        shift
+        ;;
+      -0) null_sep=1; shift;;
+      -X|-x)
+        shift
+        find_exec=(-exec "$1" {} \;)
+        shift
+        ;;
+      -u|-E)
+        # fd-specific, ignore
+        shift
+        [[ "${1:-}" != -* ]] && shift || :
+        ;;
+      .)
+        # Current dir marker
+        shift
+        ;;
+      *)
+        # Treat non-flag as path
+        if [[ "$1" != -* ]]; then
+          find_path="$1"
+          shift
+        else
+          shift
+        fi
+        ;;
+    esac
+  done
+  
+  # Build find command
+  local -a cmd=("$find_path")
+  [[ -n $find_depth ]] && cmd+=($find_depth)
+  [[ -n $find_type ]] && cmd+=($find_type)
+  
+  if [[ ${#find_names[@]} -gt 0 ]]; then
+    # Remove first -o
+    find_names=("${find_names[@]:1}")
+    [[ ${#find_names[@]} -eq 1 ]] && cmd+=("${find_names[@]}") || cmd+=(\( "${find_names[@]}" \))
+  fi
+  
+  [[ ${#extra_args[@]} -gt 0 ]] && cmd+=("${extra_args[@]}")
+  [[ ${#find_exec[@]} -gt 0 ]] && cmd+=("${find_exec[@]}")
+  [[ $null_sep -eq 1 ]] && cmd+=(-print0)
+  
+  find "${cmd[@]}" 2>/dev/null || :
+}
+
 # Git -> Gix wrapper (gitoxide)
 git() {
   local subcmd="${1:-}"
@@ -222,16 +317,10 @@ sweep_home() {
   local p=${PREFIX}
   export LC_ALL=C
 
-  if has fd; then
-    fd -tf -e bak -e log -e old -e tmp -u -E .git "$base" -x rm -f
-    fd -tf -te -u -E .git "$base" -x rm -f
-    fd -td -te -u -E .git "$base" -x rmdir
-    fd -tf . "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -x rm -f
-  else
-    find -O2 "$base" -type f \( -name '*.bak' -o -name '*.log' -o -name '*.old' -o -name '*.tmp' \) -delete
-    find -O2 "$base" \( -type f -empty -o -type d -empty \) -delete
-    find -O2 "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -type f -delete
-  fi
+  run_find -tf -e bak -e log -e old -e tmp -u -E .git "$base" -x rm -f
+  run_find -tf -te -u -E .git "$base" -x rm -f
+  run_find -td -te -u -E .git "$base" -x rmdir
+  run_find -tf "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -x rm -f
 
   rm -rf "${p}/share/groff/"* "${p}/share/info/"* "${p}/share/lintian/"* "${p}/share/linda/"*
 }
@@ -268,6 +357,6 @@ get_nproc() {
 export_common_functions() {
   export -f has log info warn err die
   export -f ensure_dir get_size format_bytes abs_path bname dname
-  export -f git curl pip
+  export -f run_find git curl pip
   export -f cache_tool get_nproc
 }

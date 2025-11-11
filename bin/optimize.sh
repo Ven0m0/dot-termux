@@ -4,6 +4,14 @@
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'; export LC_ALL=C LANG=C
 
+# ---- Source common library ----
+readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
+if [[ -f "${LIB_DIR}/common.sh" ]]; then
+  # shellcheck source=../lib/common.sh
+  source "${LIB_DIR}/common.sh"
+fi
+
 # ---- Environment Detection ----
 if [[ -n ${TERMUX_VERSION:-} || -d /data/data/com.termux ]]; then
   ENV="termux"
@@ -27,44 +35,17 @@ cache_tool(){
   T[$tool]=$(command -v "$tool" 2>/dev/null || command -v "$alt" 2>/dev/null || echo "")
   [[ -n ${T[$tool]} ]]
 }
-has(){ cache_tool "$1"; }
 
-# Pre-cache critical tools
+# Pre-cache critical tools once at startup
 for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg; do
   IFS=: read -r name fallback <<<"$tool"
   cache_tool "$name" "$fallback" || :
 done
 
-# ---- Tool Execution Wrappers ----
-run_fd(){ [[ -n ${T[fd]:-} ]] && "${T[fd]}" "$@" || find "$@"; }
-run_rg(){ [[ -n ${T[rg]:-} ]] && "${T[rg]}" "$@" || grep -E "$@"; }
-run_parallel(){ 
-  if [[ -n ${T[rust-parallel]:-} ]]; then
-    "${T[rust-parallel]}" "$@"
-  elif [[ -n ${T[parallel]:-} ]]; then
-    "${T[parallel]}" "$@"
-  else
-    xargs -r -P"$(nproc)" "$@"
-  fi
-}
-
 # ---- Helpers ----
 log(){ printf '%s\n' "$*"; }
 warn(){ printf '%s%s%s\n' "$Y" "$*" "$X" >&2; }
 err(){ printf '%s%s%s\n' "$R" "ERROR: $*" "$X" >&2; exit "${2:-1}"; }
-
-get_size(){
-  local f=$1
-  [[ -f $f ]] && { stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0; } || echo 0
-}
-
-format_bytes(){
-  local bytes=$1
-  ((bytes<1024)) && { echo "${bytes}B"; return; }
-  ((bytes<1048576)) && { echo "$((bytes/1024))K"; return; }
-  ((bytes<1073741824)) && { echo "$((bytes/1048576))M"; return; }
-  echo "$((bytes/1073741824))G"
-}
 
 abs_path(){
   local path=$1
@@ -356,20 +337,11 @@ collect_files(){
     for item in "${items[@]}"; do
       if [[ -f $item ]]; then files+=("$(abs_path "$item")")
       elif [[ -d $item ]]; then
-        local -a found=()
-        if cache_tool fd; then
-          local -a args=(-t f)
-          for e in "${exts[@]}"; do args+=(-e "$e"); done
-          [[ $RECURSIVE -eq 0 ]] && args+=(-d 1)
-          mapfile -t -d '' found < <("${T[fd]}" "${args[@]}" . "$(abs_path "$item")" -0 2>/dev/null || :)
-        else
-          local -a fargs=(-type f)
-          [[ $RECURSIVE -eq 0 ]] && fargs+=(-maxdepth 1)
-          local -a pats=()
-          for e in "${exts[@]}"; do pats+=(-o -iname "*.$e"); done
-          pats=("${pats[@]:1}")
-          mapfile -t found < <(find "$(abs_path "$item")" "${fargs[@]}" \( "${pats[@]}" \) 2>/dev/null || :)
-        fi
+        local -a found=() args=(-tf)
+        for e in "${exts[@]}"; do args+=(-e "$e"); done
+        [[ $RECURSIVE -eq 0 ]] && args+=(-d 1)
+        args+=(. "$(abs_path "$item")" -0)
+        mapfile -t -d '' found < <(run_find "${args[@]}" 2>/dev/null || :)
         files+=("${found[@]}")
       fi
     done

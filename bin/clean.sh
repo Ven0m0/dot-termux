@@ -125,43 +125,24 @@ clean_quick() {
 
   log "Cleaning temp files"
   [[ $DRY_RUN -eq 0 ]] && {
-    if has fd; then
-      [[ -d ${HOME}/.cache ]] && fd -tf . "${HOME}/.cache" -X rm -f &>/dev/null || :
-      [[ -d ${HOME}/tmp ]] && fd -tf . "${HOME}/tmp" -X rm -f &>/dev/null || :
-      fd -tf --owner "$(id -u)" . "${TMPDIR:-/tmp}" -X rm -f &>/dev/null || :
-      [[ -d /data/data/com.termux/files/home/.cache ]] && fd -tf . /data/data/com.termux/files/home/.cache/ -X rm -f &>/dev/null || :
-      [[ -d /data/data/com.termux/cache ]] && fd -tf . /data/data/com.termux/cache -X rm -f &>/dev/null || :
-      [[ -d /data/data/com.termux/files/home/tmp ]] && fd -tf . /data/data/com.termux/files/home/tmp/ -X rm -f &>/dev/null || :
-      [[ -d /data/data/com.termux/files/home ]] && fd -tf -e bak -e log . /data/data/com.termux/files/home/ -X rm -f &>/dev/null || :
-    else
-      [[ -d ${HOME}/.cache ]] && find "${HOME}/.cache" -type f -delete &>/dev/null || :
-      [[ -d ${HOME}/tmp ]] && find "${HOME}/tmp" -type f -delete &>/dev/null || :
-      find "${TMPDIR:-/tmp}" -type f -user "$(id -u)" -delete &>/dev/null || :
-      [[ -d /data/data/com.termux/files/home/.cache ]] && find /data/data/com.termux/files/home/.cache/ -type f -delete &>/dev/null || :
-      [[ -d /data/data/com.termux/cache ]] && find /data/data/com.termux/cache -type f -delete &>/dev/null || :
-      [[ -d /data/data/com.termux/files/home/tmp ]] && find /data/data/com.termux/files/home/tmp/ -type f -delete &>/dev/null || :
-      [[ -d /data/data/com.termux/files/home ]] && find /data/data/com.termux/files/home/ -type f \( -name "*.bak" -o -name "*.log" \) -delete &>/dev/null || :
-    fi
+    [[ -d ${HOME}/.cache ]] && run_find -tf . "${HOME}/.cache" -X rm -f &>/dev/null || :
+    [[ -d ${HOME}/tmp ]] && run_find -tf . "${HOME}/tmp" -X rm -f &>/dev/null || :
+    run_find -tf --owner "$(id -u)" . "${TMPDIR:-/tmp}" -X rm -f &>/dev/null || :
+    [[ -d /data/data/com.termux/files/home/.cache ]] && run_find -tf . /data/data/com.termux/files/home/.cache/ -X rm -f &>/dev/null || :
+    [[ -d /data/data/com.termux/cache ]] && run_find -tf . /data/data/com.termux/cache -X rm -f &>/dev/null || :
+    [[ -d /data/data/com.termux/files/home/tmp ]] && run_find -tf . /data/data/com.termux/files/home/tmp/ -X rm -f &>/dev/null || :
+    [[ -d /data/data/com.termux/files/home ]] && run_find -tf -e bak -e log . /data/data/com.termux/files/home/ -X rm -f &>/dev/null || :
   }
 
   log "Cleaning log files"
   [[ $DRY_RUN -eq 0 ]] && {
-    if has fd; then
-      fd -tf -e log --changed-before 7d . "$HOME" -X rm -f &>/dev/null || :
-      fd -tf -e bak . "$HOME" -X rm -f &>/dev/null || :
-    else
-      find -O2 "$HOME" -type f -name "*.log" -mtime +7 -delete &>/dev/null || :
-      find -O2 "$HOME" -type f -name "*.bak" -delete &>/dev/null || :
-    fi
+    run_find -tf -e log --changed-before 7d . "$HOME" -X rm -f &>/dev/null || :
+    run_find -tf -e bak . "$HOME" -X rm -f &>/dev/null || :
   }
 
   log "Cleaning empty directories"
   [[ $DRY_RUN -eq 0 ]] && {
-    if has fd; then
-      fd -td --max-depth 10 . "$HOME" -x rmdir {} &>/dev/null || :
-    else
-      find -O2 "$HOME" -type d -empty -delete &>/dev/null || :
-    fi
+    run_find -td --max-depth 10 . "$HOME" -x rmdir &>/dev/null || :
   }
 
   info "Quick clean complete"
@@ -172,32 +153,19 @@ clean_deep() {
   print_step "Deep cleaning"
   clean_quick
   log "Cleaning broken symlinks in: $PWD"
-  if has fd; then
-    fd -tl . "$PWD" -X sh -c '[ ! -e "$1" ] && rm -f "$1" || :' _ {} \; &>/dev/null || :
-  else
-    find "$PWD" -xtype l -delete &>/dev/null || :
-  fi
+  run_find -tl . "$PWD" -X sh -c '[ ! -e "$1" ] && rm -f "$1" || :' _ &>/dev/null || :
+  
   log "Cleaning downloads"
   if [[ -d "$HOME/storage/shared/Download" ]]; then
     [[ $DRY_RUN -eq 0 ]] && {
-      if has fd; then
-        fd -tf --changed-before 60d . "$HOME/storage/shared/Download" -X rm -f &>/dev/null || :
-      else
-        find "$HOME/storage/shared/Download" -type f -mtime +60 -delete &>/dev/null || :
-      fi
+      run_find -tf --changed-before 60d . "$HOME/storage/shared/Download" -X rm -f &>/dev/null || :
     }
   fi
   log "Cleaning old files in home"
   [[ $DRY_RUN -eq 0 ]] && {
-    if has fd; then
-      fd -tf -e tmp . "$HOME" -X rm -f &>/dev/null || :
-      fd -tf -g '*~' . "$HOME" -X rm -f &>/dev/null || :
-      fd -tf -g 'core' . "$HOME" -X rm -f &>/dev/null || :
-    else
-      find "$HOME" -type f -name "*.tmp" -delete &>/dev/null || :
-      find "$HOME" -type f -name "*~" -delete &>/dev/null || :
-      find "$HOME" -type f -name "core" -delete &>/dev/null || :
-    fi
+    run_find -tf -e tmp . "$HOME" -X rm -f &>/dev/null || :
+    run_find -tf -g '*~' . "$HOME" -X rm -f &>/dev/null || :
+    run_find -tf -g 'core' . "$HOME" -X rm -f &>/dev/null || :
   }
   info "Deep clean complete"
 }
@@ -222,14 +190,10 @@ clean_whatsapp() {
     [[ ! -d $path ]] && continue
     log "Cleaning: $path"
     if [[ $DRY_RUN -eq 1 ]]; then
-      if has fd; then
-        count=$(fd -tf --changed-before 30d . "$path" 2>/dev/null | wc -l)
-      else count=$(find "$path" -type f -mtime +30 2>/dev/null | wc -l); fi
+      count=$(run_find -tf --changed-before 30d . "$path" 2>/dev/null | wc -l)
       info "Would delete $count files from $path"
     else
-      if has fd; then
-        fd -tf --changed-before 30d . "$path" -X rm -f &>/dev/null || :
-      else find "$path" -type f -mtime +30 -delete &>/dev/null || :; fi
+      run_find -tf --changed-before 30d . "$path" -X rm -f &>/dev/null || :
     fi
   done
   info "WhatsApp cleaning complete"
@@ -254,14 +218,10 @@ clean_telegram() {
     [[ ! -d $path ]] && continue
     log "Cleaning: $path"
     if [[ $DRY_RUN -eq 1 ]]; then
-      if has fd; then
-        count=$(fd -tf --changed-before 30d . "$path" 2>/dev/null | wc -l)
-      else count=$(find "$path" -type f -mtime +30 2>/dev/null | wc -l); fi
+      count=$(run_find -tf --changed-before 30d . "$path" 2>/dev/null | wc -l)
       info "Would delete $count files from $path"
     else
-      if has fd; then
-        fd -tf --changed-before 30d . "$path" -X rm -f &>/dev/null || :
-      else find "$path" -type f -mtime +30 -delete &>/dev/null || :; fi
+      run_find -tf --changed-before 30d . "$path" -X rm -f &>/dev/null || :
     fi
   done
   info "Telegram cleaning complete"
