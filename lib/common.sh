@@ -60,9 +60,9 @@ ensure_dir() {
 
 # Get file size
 get_size() {
-  if stat -c%s "$1" &>/dev/null 2>&1; then
+  if stat -c%s "$1" 2>/dev/null; then
     stat -c%s "$1" 2>/dev/null || echo 0
-  elif stat -f%z "$1" &>/dev/null 2>&1; then
+  elif stat -f%z "$1" 2>/dev/null; then
     stat -f%z "$1" 2>/dev/null || echo 0
   else
     echo 0
@@ -318,8 +318,10 @@ sweep_home() {
   export LC_ALL=C
 
   run_find -tf -e bak -e log -e old -e tmp -u -E .git "$base" -x rm -f
-  run_find -tf -te -u -E .git "$base" -x rm -f
-  run_find -td -te -u -E .git "$base" -x rmdir
+  # Find and remove empty files
+  find "$base" -type f -empty -not -path '*/.git/*' -delete 2>/dev/null || :
+  # Find and remove empty directories
+  find "$base" -type d -empty -not -path '*/.git/*' -delete 2>/dev/null || :
   run_find -tf "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -x rm -f
 
   rm -rf "${p}/share/groff/"* "${p}/share/info/"* "${p}/share/lintian/"* "${p}/share/linda/"*
