@@ -176,7 +176,7 @@ install_rust_tools(){
   local -a tools=(cargo-update oxipng rimage image-optimizer ffzap cargo-binstall minhtml simagef compresscli imgc)
   local -a missing=()
   for tool in "${tools[@]}"; do has "$tool" || missing+=("$tool"); done
-  [[ ${#missing[@]} -gt 0 ]] && { cargo binstall -y "${missing[@]}" || cargo install "${missing[@]}"; }
+  [[ ${#missing[@]} -gt 0 ]] && { cargo binstall -y "${missing[@]}" || cargo install -Zunstable-options -Zgit -Zgitoxide -Zavoid-dev-deps --locked -f "${missing[@]}"; }
 }
 
 install_third_party(){
