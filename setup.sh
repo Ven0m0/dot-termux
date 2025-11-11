@@ -4,17 +4,25 @@ shopt -s nullglob globstar extglob dotglob
 IFS=$'\n\t'
 export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 
+# Source common library
+readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR}/lib"
+if [[ -f "${LIB_DIR}/common.sh" ]]; then
+  # shellcheck source=lib/common.sh
+  source "${LIB_DIR}/common.sh"
+else
+  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
+  exit 1
+fi
+
 # --- Configuration ---
 REPO_URL="https://github.com/Ven0m0/dot-termux.git"
 REPO_PATH="$HOME/dot-termux"
 LOG_FILE="$HOME/termux_setup.log"
 
-# --- Colors and Helpers ---
-BLU=$'\e[1;34m' GRN=$'\e[1;32m' YLW=$'\e[33m' RED=$'\e[1;31m' DEF=$'\e[0m'
+# Additional helper for setup script
 log() { printf '[%(%T)T] %s\n' -1 "$*" >>"$LOG_FILE"; }
 step() { printf "\n%s==>%s %s%s%s\n" "$BLU" "$DEF" "$GRN" "$*" "$DEF"; }
-has() { command -v "$1" &>/dev/null; }
-ensure_dir() { for dir in "$@"; do [[ -d $dir ]] || mkdir -p "$dir"; done; }
 
 # --- Safe Remote Script Execution ---
 run_installer() {

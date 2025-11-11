@@ -3,16 +3,17 @@ set -euo pipefail
 shopt -s nullglob globstar
 IFS=$'\n\t'
 export LC_ALL=C LANG=C
-# ============================================================================
-# COLORS AND HELPERS
-# ============================================================================
-R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m' D=$'\e[0m'
-has() { command -v "$1" &>/dev/null; }
-log() { printf '%b\n' "${G}▸${D} $*"; }
-warn() { printf '%b\n' "${Y}⚠${D} $*" >&2; }
-err() { printf '%b\n' "${R}✗${D} $*" >&2; }
-info() { printf '%b\n' "${B}ℹ${D} $*"; }
-print_step() { printf '\n%b==>%b %s\n' "$B" "$D" "$*"; }
+
+# Source common library
+readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
+if [[ -f "${LIB_DIR}/common.sh" ]]; then
+  # shellcheck source=../lib/common.sh
+  source "${LIB_DIR}/common.sh"
+else
+  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
+  exit 1
+fi
 
 # ============================================================================
 # GLOBAL FLAGS
