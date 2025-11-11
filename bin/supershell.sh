@@ -1,6 +1,17 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 set -euo pipefail
 
+# Source common library
+readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
+if [[ -f "${LIB_DIR}/common.sh" ]]; then
+  # shellcheck source=../lib/common.sh
+  source "${LIB_DIR}/common.sh"
+else
+  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
+  exit 1
+fi
+
 # Display message
 timeout 4 echo "
 	#---Please approve logcat access for SuperShell---#
@@ -13,7 +24,7 @@ adb usb
 
 # Detect grep command (prefer rg)
 GREP_CMD='grep'
-command -v rg &>/dev/null && GREP_CMD='rg'
+has rg && GREP_CMD='rg'
 
 # Get the port number from logcat
 timeout 3 logcat | "$GREP_CMD" -E "adbwifi|adb wifi" >~/adbport.txt || :
@@ -25,7 +36,7 @@ ADB_PORT=$(tail -n 1 ~/adbport.txt 2>/dev/null | awk '{print substr($NF, length(
 export ADB_PORT
 
 # Get IP addresses using modern approach (ip command instead of deprecated ifconfig)
-if command -v ip &>/dev/null; then
+if has ip; then
   ip addr show | "$GREP_CMD" -oP '192\.168\.\d+\.\d+(?=/)' | "$GREP_CMD" -v '255' >~/adbip.txt
 else
   # Fallback to ifconfig if ip is not available

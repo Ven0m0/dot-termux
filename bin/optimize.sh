@@ -10,38 +10,21 @@ set -euo pipefail
 shopt -s nullglob globstar
 IFS=$'\n\t'
 export LC_ALL=C LANG=C
-builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && echo "$PWD"
-# -- Color & Style --
-BLK=$'\e[30m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m'
-BLU=$'\e[34m' MGN=$'\e[35m' CYN=$'\e[36m' WHT=$'\e[37m'
-LBLU=$'\e[38;5;117m' PNK=$'\e[38;5;218m' BWHT=$'\e[97m'
-DEF=$'\e[0m' BLD=$'\e[1m'
 
-# -- Core Helpers --
-has() { command -v -- "$1" &>/dev/null; }
-die() {
-  printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2
-  exit "${2:-1}"
-}
+# Source common library
+readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
+if [[ -f "${LIB_DIR}/common.sh" ]]; then
+  # shellcheck source=../lib/common.sh
+  source "${LIB_DIR}/common.sh"
+else
+  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
+  exit 1
+fi
 
-log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$1"; }
-warn() { printf '%sWARN:%s %s\n' "$YLW" "$DEF" "$1" >&2; }
-err() {
-  printf '%sERROR:%s %s\n' "$RED" "$DEF" "$1" >&2
-  exit "${2:-1}"
-}
-
-abs_path() {
-  local target=$1
-  [[ $target == /* ]] || target="$ORIGIN_PWD/$target"
-  if has realpath; then
-    realpath "$target"
-  elif has readlink; then
-    readlink -f "$target"
-  else
-    (builtin cd -P -- "$(dirname -- "$target")" && printf '%s/%s\n' "$PWD" "$(basename -- "$target")")
-  fi
-}
+# abs_path is now provided by common.sh
+# Preserve ORIGIN_PWD for backwards compatibility
+readonly ORIGIN_PWD="${PWD}"
 
 FFMPEG_ENCODERS=""
 ffmpeg_has_encoder() {
@@ -83,7 +66,7 @@ detect_video_codec() {
 }
 
 # --- Cache System Capabilities ---
-NPROC=$(nproc 2>/dev/null || echo 4)
+NPROC=$(get_nproc)
 
 # Detect and cache stat variant
 if stat -c%s /dev/null &>/dev/null; then
@@ -127,17 +110,7 @@ IMAGE_CODEC_PRIORITY=("webp" "avif" "jxl" "jpg" "png")
 IMAGE_CODEC_PRIORITY_STR="${IMAGE_CODEC_PRIORITY[*]}"
 
 # --- Additional Helper Functions ---
-
-# Tool availability cache
-declare -A TOOL_CACHE
-cache_tool() {
-  local tool=$1
-  if ! declare -p TOOL_CACHE &>/dev/null; then declare -gA TOOL_CACHE=(); fi
-  if [[ -z ${TOOL_CACHE[$tool]:-} ]]; then
-    if has "$tool"; then TOOL_CACHE[$tool]=1; else TOOL_CACHE[$tool]=0; fi
-  fi
-  return $((1 - TOOL_CACHE[$tool]))
-}
+# cache_tool is now provided by common.sh
 
 resolve_job_count() {
   local requested=$1 total=$2
@@ -148,22 +121,8 @@ resolve_job_count() {
   printf '%s\n' "$requested"
 }
 
-get_size() { [[ -n $_STAT_FMT ]] && stat "$_STAT_FMT" "$1" 2>/dev/null || echo 0; }
-
-format_bytes() {
-  local bytes=$1
-  if has numfmt; then
-    numfmt --to=iec-i --suffix=B --format="%.2f" "$bytes"
-  elif ((bytes < 1024)); then
-    printf '%dB' "$bytes"
-  elif ((bytes < 1048576)); then
-    local kb=$((bytes * 10 / 1024))
-    printf '%d.%dKB' $((kb / 10)) $((kb % 10))
-  else
-    local mb=$((bytes * 100 / 1048576))
-    printf '%d.%02dMB' $((mb / 100)) $((mb % 100))
-  fi
-}
+# get_size and format_bytes are now provided by common.sh
+# Note: get_size in common.sh doesn't use _STAT_FMT cache, but it's equivalent
 
 get_output_path() {
   local src=$1 fmt=$2
@@ -853,9 +812,15 @@ main() {
     local f
     for f in "${all_files[@]}"; do process_file "$f"; done
   else
+    # Export common library functions
+    export_common_functions
+
+    # Export script-specific functions
     export -f process_file optimize_image optimize_video optimize_audio
     export -f optimize_png optimize_jpeg optimize_jxl get_output_path get_convert_tool
-    export -f has log warn get_size format_bytes cache_tool select_image_target_format ffmpeg_has_encoder
+    export -f select_image_target_format ffmpeg_has_encoder
+
+    # Export configuration variables
     export QUALITY VIDEO_CRF VIDEO_CODEC AUDIO_BITRATE SUFFIX KEEP_ORIGINAL INPLACE
     export OUTPUT_DIR CONVERT_FORMAT LOSSLESS MEDIA_TYPE MKV_TO_MP4 GIF_TO_WEBP IMAGE_CODEC_PRIORITY_STR NPROC
 

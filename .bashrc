@@ -26,8 +26,17 @@ dname() {
 }
 match() { printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
 
-# --- Gitoxide wrapper ---
-git_wrapper() { if has gix; then gix "$@"; else git "$@"; fi; }
+# --- Source common library for wrapper functions ---
+if [[ -f "$HOME/dot-termux/lib/common.sh" ]]; then
+  # shellcheck source=lib/common.sh
+  source "$HOME/dot-termux/lib/common.sh"
+elif [[ -f "$HOME/lib/common.sh" ]]; then
+  # shellcheck source=lib/common.sh
+  source "$HOME/lib/common.sh"
+fi
+
+# Legacy wrapper (for backwards compatibility)
+git_wrapper() { git "$@"; }
 
 # --- Lazy loading (adapted from bash-lazyrc.sh) ---
 FUNC_DIRS=("$HOME/.bash/functions.d")
@@ -218,94 +227,7 @@ catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
 
 # --- Tool Wrappers ---
 
-# Git -> Gix wrapper (gitoxide)
-git() {
-  local subcmd="${1:-}"
-  if has gix; then
-    case "$subcmd" in
-    clone | fetch | pull | init | status | diff | log | rev-parse | rev-list | commit-graph | verify-pack | index-from-pack | pack-explode | remote | config | exclude | free | mailmap | odb | commitgraph | pack) gix "$@" ;;
-    *) command git "$@" ;;
-    esac
-  else
-    command git "$@"
-  fi
-}
-
-# Curl -> Aria2 wrapper
-curl() {
-  local -a args=() out_file=""
-  if has aria2c; then
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-      -o | --output)
-        out_file="$2"
-        shift 2
-        ;;
-      -L | --location | -s | --silent | -S | --show-error | -f | --fail | --compressed) shift ;;
-      http* | ftp*)
-        args+=("$1")
-        shift
-        ;;
-      *)
-        args+=("$1")
-        shift
-        ;;
-      esac
-    done
-    if [[ ${#args[@]} -gt 0 ]]; then
-      local -a aria_flags=(-x16 -s16 -k1M -j16 --file-allocation=none --summary-interval=0)
-      if [[ -n $out_file ]]; then
-        aria2c "${aria_flags[@]}" -d "$(dirname "$out_file")" -o "$(basename "$out_file")" "${args[@]}"
-      else
-        aria2c "${aria_flags[@]}" "${args[@]}"
-      fi
-    else
-      command curl "$@"
-    fi
-  else
-    command curl "$@"
-  fi
-}
-
-# Pip -> UV wrapper
-pip() {
-  if has uv; then
-    case "${1:-}" in
-    install | uninstall | list | show | freeze | check) uv pip "$@" ;;
-    *) command pip "$@" ;;
-    esac
-  else
-    command pip "$@"
-  fi
-}
-
-updt() {
-  export LC_ALL=C DEBIAN_FRONTEND=noninteractive
-  local p=${PREFIX:-/data/data/com.termux/files/usr}
-  pkg up -y
-  apt-get -y --fix-broken install
-  dpkg --configure -a
-  pkg clean -y
-  pkg autoclean -y
-  apt -y autoclean
-  apt-get -y autoremove --purge
-  rm -rf "${p}/var/lib/apt/lists/"* "${p}/var/cache/apt/archives/partial/"* &>/dev/null
-}
-sweep_home() {
-  local base=${1:-$HOME} p=${PREFIX:-/data/data/com.termux/files/usr}
-  export LC_ALL=C
-  if command -v fd >/dev/null 2>&1; then
-    fd -tf -e bak -e log -e old -e tmp -u -E .git "$base" -x rm -f
-    fd -tf -te -u -E .git "$base" -x rm -f
-    fd -td -te -u -E .git "$base" -x rmdir
-    fd -tf . "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -x rm -f
-  else
-    find -O2 "$base" -type f \( -name '*.bak' -o -name '*.log' -o -name '*.old' -o -name '*.tmp' \) -delete
-    find -O2 "$base" \( -type f -empty -o -type d -empty \) -delete
-    find -O2 "${p}/share/doc" "${p}/var/cache" "${p}/share/man" -type f -delete
-  fi
-  rm -rf "${p}/share/groff/"* "${p}/share/info/"* "${p}/share/lintian/"* "${p}/share/linda/"*
-}
+# git, curl, pip, updt, and sweep_home are now provided by common.sh
 
 # Navigation
 if has zoxide; then
