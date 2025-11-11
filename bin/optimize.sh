@@ -1,26 +1,67 @@
 #!/usr/bin/env bash
 set -euo pipefail
 shopt -s nullglob globstar
-IFS=$'\n\t'; export LC_ALL=C LANG=C
+IFS=$'\n\t'
+export LC_ALL=C LANG=C
 
-# Paths and Globals
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
-readonly COMMON_LIB="${LIB_DIR}/common.sh"
+# ============================================================================
+# EMBEDDED UTILITIES (self-contained, no external dependencies)
+# ============================================================================
 
-# Source library
-if [[ -f "$COMMON_LIB" ]]; then
-  # shellcheck source=../lib/common.sh
-  source "$COMMON_LIB"
-else
-  echo "ERROR: Missing required library: $COMMON_LIB" >&2
-  exit 1
-fi
+# Color codes
+readonly R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m'
+readonly D=$'\e[0m'
 
-# Globals for optimization
+# Check if command exists
+has() { command -v -- "$1" &>/dev/null; }
+
+# Logging functions
+log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$*"; }
+info() { printf '%b[*]%b %s\n' "$G" "$D" "$*"; }
+warn() { printf '%b[!]%b %s\n' "$Y" "$D" "$*" >&2; }
+err() { printf '%b[x]%b %s\n' "$R" "$D" "$*" >&2; }
+die() { err "$1"; exit "${2:-1}"; }
+
+# Print step header
+print_step() { printf '\n%b==>%b %s\n' "$B" "$D" "$*"; }
+
+# Get file size
+get_size() {
+  if stat -c%s "$1" 2>/dev/null; then
+    stat -c%s "$1" 2>/dev/null || echo 0
+  elif stat -f%z "$1" 2>/dev/null; then
+    stat -f%z "$1" 2>/dev/null || echo 0
+  else
+    echo 0
+  fi
+}
+
+# Format bytes to human-readable
+format_bytes() {
+  local bytes=$1
+  if has numfmt; then
+    numfmt --to=iec-i --suffix=B --format="%.2f" "$bytes"
+  elif ((bytes < 1024)); then
+    printf '%dB' "$bytes"
+  elif ((bytes < 1048576)); then
+    local kb=$((bytes * 10 / 1024))
+    printf '%d.%dKB' $((kb / 10)) $((kb % 10))
+  else
+    local mb=$((bytes * 100 / 1048576))
+    printf '%d.%02dMB' $((mb / 100)) $((mb % 100))
+  fi
+}
+
+# ============================================================================
+# GLOBALS
+# ============================================================================
+
 declare -g QUALITY=85 VIDEO_CODEC="auto" RECURSIVE=0 KEEP_ORIGINAL=1 DRY_RUN=0 FORMAT=""
 
-# Help
+# ============================================================================
+# HELP & CORE FUNCTIONS
+# ============================================================================
+
 usage() {
   cat <<EOF
 optimize - Media optimizer for Termux Android
