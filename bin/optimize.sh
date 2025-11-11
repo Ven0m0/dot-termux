@@ -2,8 +2,7 @@
 # Unified media optimizer for Arch Linux desktop & Termux Android
 # Features: lossless/lossy, parallel, auto codec detection, TUI mode, dry-run
 set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t'
-export LC_ALL=C LANG=C
+IFS=$'\n\t'; export LC_ALL=C LANG=C
 
 # ---- Environment Detection ----
 if [[ -n ${TERMUX_VERSION:-} || -d /data/data/com.termux ]]; then
