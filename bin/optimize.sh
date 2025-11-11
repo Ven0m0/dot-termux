@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # Unified media optimizer for Arch Linux desktop & Termux Android
 # Features: lossless/lossy, parallel, auto codec detection, TUI mode, dry-run
 set -euo pipefail; shopt -s nullglob globstar
