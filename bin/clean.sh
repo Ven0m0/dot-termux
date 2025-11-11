@@ -4,25 +4,37 @@ shopt -s nullglob globstar
 IFS=$'\n\t'
 export LC_ALL=C LANG=C
 
-# Paths
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
-readonly COMMON_LIB="${LIB_DIR}/common.sh"
+# ============================================================================
+# EMBEDDED UTILITIES (self-contained, no external dependencies)
+# ============================================================================
 
-# Source common library
-if [[ -f "$COMMON_LIB" ]]; then
-  # shellcheck source=../lib/common.sh
-  source "$COMMON_LIB"
-else
-  echo "ERROR: Missing required library: $COMMON_LIB" >&2
-  exit 1
-fi
+# Color codes
+readonly R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' B=$'\e[34m'
+readonly D=$'\e[0m'
 
-# Globals
+# Check if command exists
+has() { command -v -- "$1" &>/dev/null; }
+
+# Logging functions
+log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$*"; }
+info() { printf '%b[*]%b %s\n' "$G" "$D" "$*"; }
+warn() { printf '%b[!]%b %s\n' "$Y" "$D" "$*" >&2; }
+err() { printf '%b[x]%b %s\n' "$R" "$D" "$*" >&2; }
+
+# Print step header
+print_step() { printf '\n%b==>%b %s\n' "$B" "$D" "$*"; }
+
+# ============================================================================
+# GLOBALS
+# ============================================================================
+
 declare -g DRY_RUN=0 VERBOSE=0 HAS_SHIZUKU=0 HAS_ADB=0 PRIVILEGES_CHECKED=0
 declare -g OPT_QUICK=0 OPT_DEEP=0 OPT_WHATSAPP=0 OPT_TELEGRAM=0 OPT_ADB=0 OPT_SYSTEM_CACHE=0 OPT_PKG_CACHE=0
 
-# Help
+# ============================================================================
+# HELP & CORE FUNCTIONS
+# ============================================================================
+
 show_help() {
   cat <<EOF
 clean - Unified cleaning tool for Termux and Android
