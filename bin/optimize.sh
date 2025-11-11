@@ -104,10 +104,39 @@ OUTPUT_DIR=""
 MEDIA_TYPE="all" # all, image, video, audio
 MKV_TO_MP4=0
 GIF_TO_WEBP=1
+DRY_RUN=0          # Preview mode without actual processing
+SKIP_EXISTING=0    # Skip files that appear already optimized
+PROGRESS=0         # Show progress indicators
+MIN_SAVINGS=0      # Minimum % savings to keep optimized file (0 = keep all)
 
 # Codec priority for image conversion
 IMAGE_CODEC_PRIORITY=("webp" "avif" "jxl" "jpg" "png")
 IMAGE_CODEC_PRIORITY_STR="${IMAGE_CODEC_PRIORITY[*]}"
+
+# Processing statistics
+declare -g STATS_TOTAL=0 STATS_PROCESSED=0 STATS_SKIPPED=0 STATS_FAILED=0
+declare -g STATS_BYTES_BEFORE=0 STATS_BYTES_AFTER=0
+
+# Temporary directory for processing
+TEMP_DIR=""
+create_temp_dir() {
+  TEMP_DIR=$(mktemp -d -t "optimize.XXXXXX" 2>/dev/null || mktemp -d)
+  export TEMP_DIR
+}
+
+# Cleanup handler
+cleanup() {
+  local exit_code=$?
+  # Remove temporary directory
+  [[ -n $TEMP_DIR && -d $TEMP_DIR ]] && rm -rf "$TEMP_DIR" 2>/dev/null || :
+  # Clean up any orphaned temp files
+  find /tmp -maxdepth 1 -name "optimize.*.tmp" -user "$(id -u)" -mmin +60 -delete 2>/dev/null || :
+  return $exit_code
+}
+trap cleanup EXIT INT TERM
+
+# Create temp dir at startup
+create_temp_dir
 
 # --- Additional Helper Functions ---
 # cache_tool is now provided by common.sh
@@ -123,6 +152,70 @@ resolve_job_count() {
 
 # get_size and format_bytes are now provided by common.sh
 # Note: get_size in common.sh doesn't use _STAT_FMT cache, but it's equivalent
+
+# Check if file appears already optimized
+is_already_optimized() {
+  local file=$1
+  local ext="${file##*.}"
+  ext="${ext,,}"
+
+  # Skip if already has optimization suffix
+  [[ $file == *"$SUFFIX"* ]] && return 0
+
+  # For images, check if already in optimal format
+  case "$ext" in
+    webp|avif|jxl)
+      # Already in modern format
+      return 0
+      ;;
+    jpg|jpeg)
+      # Check if file size is suspiciously small (likely already optimized)
+      local size=$(get_size "$file")
+      if has identify && ((size > 10240)); then
+        local quality=$(identify -format '%Q' "$file" 2>/dev/null || echo 100)
+        # If quality < 90, likely already compressed
+        ((quality < 90)) && return 0
+      fi
+      ;;
+  esac
+
+  return 1
+}
+
+# Progress indicator
+show_progress() {
+  [[ $PROGRESS -eq 0 ]] && return
+  local current=$1 total=$2 msg=${3:-}
+  local pct=$((current * 100 / total))
+  local bar_len=40
+  local filled=$((pct * bar_len / 100))
+  local empty=$((bar_len - filled))
+
+  printf '\r['
+  printf '%*s' "$filled" '' | tr ' ' '='
+  printf '%*s' "$empty" ''
+  printf '] %3d%% (%d/%d) %s' "$pct" "$current" "$total" "$msg"
+}
+
+# Print final statistics
+print_stats() {
+  log ""
+  log "=== Optimization Statistics ==="
+  log "Total files: $STATS_TOTAL"
+  log "Processed: $STATS_PROCESSED"
+  log "Skipped: $STATS_SKIPPED"
+  log "Failed: $STATS_FAILED"
+
+  if ((STATS_PROCESSED > 0)); then
+    local saved=$((STATS_BYTES_BEFORE - STATS_BYTES_AFTER))
+    if ((saved > 0)); then
+      local pct=$((saved * 100 / STATS_BYTES_BEFORE))
+      log "Original size: $(format_bytes "$STATS_BYTES_BEFORE")"
+      log "Final size: $(format_bytes "$STATS_BYTES_AFTER")"
+      log "Saved: $(format_bytes "$saved") (${pct}%)"
+    fi
+  fi
+}
 
 get_output_path() {
   local src=$1 fmt=$2
@@ -158,7 +251,7 @@ optimize_png() {
   local src=$1 out=$2
   local orig_sz tmp success=0
   orig_sz=$(get_size "$src")
-  tmp="${out}.tmp"
+  tmp="${TEMP_DIR}/$(basename "$out").tmp"
 
   if cache_tool oxipng; then
     cp "$src" "$tmp"
@@ -205,7 +298,7 @@ optimize_jpeg() {
   local src=$1 out=$2
   local orig_sz tmp success=0
   orig_sz=$(get_size "$src")
-  tmp="${out}.tmp"
+  tmp="${TEMP_DIR}/$(basename "$out").tmp"
 
   if cache_tool jpegoptim; then
     if [[ $LOSSLESS -eq 1 ]]; then
@@ -241,7 +334,7 @@ optimize_jxl() {
   local src=$1 out=$2
   local orig_sz tmp success=0
   orig_sz=$(get_size "$src")
-  tmp="${out}.tmp"
+  tmp="${TEMP_DIR}/$(basename "$out").tmp"
 
   if has cjxl; then
     if [[ $LOSSLESS -eq 1 ]]; then
@@ -314,13 +407,30 @@ optimize_image() {
   ext="${ext,,}"
   local out fmt
 
+  # Check if already optimized
+  if [[ $SKIP_EXISTING -eq 1 ]] && is_already_optimized "$src"; then
+    ((STATS_SKIPPED++))
+    log "Skipping already optimized: $(basename "$src")"
+    return 0
+  fi
+
   fmt=$(select_image_target_format "$ext")
   out=$(get_output_path "$src" "$fmt")
 
-  if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then return 0; fi
+  if [[ -f $out && $KEEP_ORIGINAL -eq 1 && $INPLACE -eq 0 ]]; then
+    ((STATS_SKIPPED++))
+    return 0
+  fi
 
   local orig_sz new_sz saved pct
   orig_sz=$(get_size "$src")
+  ((STATS_BYTES_BEFORE += orig_sz))
+
+  # Dry run mode
+  if [[ $DRY_RUN -eq 1 ]]; then
+    log "[DRY-RUN] Would process: $(basename "$src") -> $fmt"
+    return 0
+  fi
 
   log "Processing image: $(basename "$src")"
 
@@ -413,6 +523,17 @@ optimize_image() {
   if ((new_sz > 0 && new_sz < orig_sz)); then
     saved=$((orig_sz - new_sz))
     pct=$((saved * 100 / orig_sz))
+
+    # Check minimum savings threshold
+    if ((MIN_SAVINGS > 0 && pct < MIN_SAVINGS)); then
+      warn "Savings ${pct}% below threshold ${MIN_SAVINGS}%, keeping original: $(basename "$src")"
+      rm -f "$out"
+      ((STATS_SKIPPED++))
+      return 1
+    fi
+
+    ((STATS_BYTES_AFTER += new_sz))
+    ((STATS_PROCESSED++))
     printf '%s -> %s | %s -> %s (%d%%)\n' \
       "$(basename "$src")" "$(basename "$out")" "$(format_bytes "$orig_sz")" "$(format_bytes "$new_sz")" "$pct"
     if [[ $INPLACE -eq 1 || $KEEP_ORIGINAL -eq 0 ]]; then [[ $src != "$out" ]] && rm -f "$src"; fi
@@ -420,9 +541,13 @@ optimize_image() {
     if [[ $fmt == "$ext" ]]; then
       warn "No savings for $(basename "$src"), keeping original"
       rm -f "$out"
+      ((STATS_BYTES_AFTER += orig_sz))
+      ((STATS_FAILED++))
       return 1
     else
       log "Converted $(basename "$src") to $fmt"
+      ((STATS_BYTES_AFTER += new_sz))
+      ((STATS_PROCESSED++))
     fi
   fi
 }
@@ -604,21 +729,42 @@ process_file() {
   local file=$1
   local ext="${file##*.}"
   ext="${ext,,}"
-  if [[ $INPLACE -eq 0 && $file == *"$SUFFIX"* ]]; then return 0; fi
+
+  ((STATS_TOTAL++))
+
+  if [[ $INPLACE -eq 0 && $file == *"$SUFFIX"* ]]; then
+    ((STATS_SKIPPED++))
+    return 0
+  fi
+
+  # Progress indicator
+  show_progress "$STATS_TOTAL" "${TOTAL_FILES:-$STATS_TOTAL}" "$(basename "$file")"
+
+  # Wrap in error handler
+  local result=0
   case "$ext" in
-  jpg | jpeg | png | gif | svg | webp | avif | jxl | tiff | tif | bmp)
-    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "image" ]] && optimize_image "$file"
-    ;;
-  mp4 | mkv | mov | webm | avi | flv)
-    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && optimize_video "$file"
-    ;;
-  opus | flac | mp3 | m4a | aac | ogg | wav)
-    [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "audio" ]] && optimize_audio "$file"
-    ;;
-  *)
-    warn "Skipping unsupported file: $file"
-    ;;
+    jpg | jpeg | png | gif | svg | webp | avif | jxl | tiff | tif | bmp)
+      if [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "image" ]]; then
+        optimize_image "$file" || result=$?
+      fi
+      ;;
+    mp4 | mkv | mov | webm | avi | flv)
+      if [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]]; then
+        optimize_video "$file" || result=$?
+      fi
+      ;;
+    opus | flac | mp3 | m4a | aac | ogg | wav)
+      if [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "audio" ]]; then
+        optimize_audio "$file" || result=$?
+      fi
+      ;;
+    *)
+      warn "Skipping unsupported file: $file"
+      ((STATS_SKIPPED++))
+      ;;
   esac
+
+  return $result
 }
 
 # --- File Collection ---
@@ -693,12 +839,18 @@ OPTIONS:
   -l, --lossy             Enable lossy compression (default: lossless)
   -m, --mkv-to-mp4        Convert MKV files to MP4
   --no-gif-webp           Disable GIF to animated WebP conversion
+  -n, --dry-run           Preview what would be done without processing
+  -s, --skip-existing     Skip files that appear already optimized
+  -p, --progress          Show progress bar during processing
+  --min-savings N         Minimum % savings to keep optimized file (default: 0)
 
 EXAMPLES:
   $(basename "$0") .
   $(basename "$0") -f webp -q 90 -r ~/Pictures
   $(basename "$0") -t video -C vp9 -c 28 movie.mp4
   $(basename "$0") -t audio -f opus -b 128 music.mp3
+  $(basename "$0") -n -s ~/Pictures          # Dry-run, skip already optimized
+  $(basename "$0") -p --min-savings 10 .     # Progress bar, only if 10%+ savings
   find . -name "*.jpg" | $(basename "$0") -q 85
   $(basename "$0") -r -m -o ./optimized ~/Videos
 
@@ -775,6 +927,22 @@ main() {
       GIF_TO_WEBP=0
       shift
       ;;
+    -n | --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -s | --skip-existing)
+      SKIP_EXISTING=1
+      shift
+      ;;
+    -p | --progress)
+      PROGRESS=1
+      shift
+      ;;
+    --min-savings)
+      MIN_SAVINGS="$2"
+      shift 2
+      ;;
     -*) err "Unknown option: $1 (use -h for help)" ;;
     *) break ;;
     esac
@@ -793,12 +961,19 @@ main() {
   mapfile -t all_files < <(collect_files "$@")
   [[ ${#all_files[@]} -eq 0 ]] && err "No files found to process"
 
+  # Export total files for progress tracking
+  export TOTAL_FILES=${#all_files[@]}
+
   JOBS=$(resolve_job_count "$JOBS" "${#all_files[@]}")
   local need_video=0
   [[ $MEDIA_TYPE == "all" || $MEDIA_TYPE == "video" ]] && need_video=1
   ((need_video)) && detect_video_codec
 
   log "Processing ${#all_files[@]} file(s) with $JOBS worker(s)"
+  [[ $DRY_RUN -eq 1 ]] && log "Mode: DRY RUN (no files will be modified)"
+  [[ $SKIP_EXISTING -eq 1 ]] && log "Skipping files that appear already optimized"
+  [[ $MIN_SAVINGS -gt 0 ]] && log "Minimum savings threshold: ${MIN_SAVINGS}%"
+
   if ((LOSSLESS == 1)); then
     log "Mode: Lossless"
   else
@@ -810,7 +985,10 @@ main() {
 
   if ((JOBS == 1)); then
     local f
-    for f in "${all_files[@]}"; do process_file "$f"; done
+    for f in "${all_files[@]}"; do
+      process_file "$f" || :  # Continue on errors
+    done
+    [[ $PROGRESS -eq 1 ]] && echo ""  # New line after progress bar
   else
     # Export common library functions
     export_common_functions
@@ -824,14 +1002,22 @@ main() {
     export QUALITY VIDEO_CRF VIDEO_CODEC AUDIO_BITRATE SUFFIX KEEP_ORIGINAL INPLACE
     export OUTPUT_DIR CONVERT_FORMAT LOSSLESS MEDIA_TYPE MKV_TO_MP4 GIF_TO_WEBP IMAGE_CODEC_PRIORITY_STR NPROC
 
+    # Note: Progress bar and statistics don't work well with parallel processing
+    # because each subprocess has its own copy of the variables
     if has parallel; then
-      printf '%s\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "$1"' _ {}
+      printf '%s\0' "${all_files[@]}" | parallel -0 -j "$JOBS" bash -c 'process_file "$1" || :' _ {}
     else
-      printf '%s\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -n 1 bash -c 'process_file "$1"' _
+      printf '%s\0' "${all_files[@]}" | xargs -0 -P "$JOBS" -n 1 bash -c 'process_file "$1" || :' _
     fi
+    log "Note: Statistics not available in parallel mode"
   fi
 
   log "Optimization complete"
+
+  # Print statistics (only accurate in single-job mode)
+  if ((JOBS == 1)); then
+    print_stats
+  fi
 }
 
 if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
