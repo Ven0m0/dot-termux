@@ -173,7 +173,7 @@ install_rust_tools(){
   step "Installing additional Rust tools"
   export PATH="$HOME/.cargo/bin:$PATH"
   run_installer "cargo-binstall" "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh"
-  local -a tools=(cargo-update oxipng rimage)
+  local -a tools=(cargo-update oxipng rimage image-optimizer ffzap cargo-binstall minhtml simagef compresscli imgc)
   local -a missing=()
   for tool in "${tools[@]}"; do has "$tool" || missing+=("$tool"); done
   [[ ${#missing[@]} -gt 0 ]] && { cargo binstall -y "${missing[@]}" || cargo install "${missing[@]}"; }
