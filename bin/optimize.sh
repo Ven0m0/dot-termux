@@ -29,6 +29,8 @@ if [[ -z ${R:-} ]]; then
     R='' G='' Y='' B='' X=''
   fi
 fi
+# Ensure X is always defined (reset color)
+: "${X:=$'\e[0m'}"
 
 # ---- Tool Cache & Wrappers ----
 declare -A T=()
