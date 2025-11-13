@@ -62,12 +62,31 @@ abs_path(){
   [[ $path == /* ]] && echo "$path" || echo "$(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
 }
 
+run_find(){
+  if cache_tool fd; then
+    "${T[fd]}" "$@"
+  else
+    # Fallback to standard find - convert fd-style args to find args
+    local -a find_args=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -tf) shift;;  # find uses -type f by default in our usage
+        -e) find_args+=(-name "*.$2"); shift 2;;
+        -d) find_args+=(-maxdepth "$2"); shift 2;;
+        -S+*) find_args+=(-size "${1#-S}"); shift;;
+        *) find_args+=("$1"); shift;;
+      esac
+    done
+    find "${find_args[@]}"
+  fi
+}
+
 # ---- Config / Defaults ----
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 QUALITY=85 VIDEO_CRF=27 VIDEO_CODEC="auto" AUDIO_BITRATE=128 JOBS=0 SUFFIX="_opt"
 KEEP_ORIGINAL=0 INPLACE=0 RECURSIVE=0 CONVERT_FORMAT="" LOSSLESS=1 OUTPUT_DIR=""
 MEDIA_TYPE="all" DRY_RUN=0 SKIP_EXISTING=0 PROGRESS=0 MIN_SAVINGS=0 TUI_MODE=0 KEEP_BACKUPS=1
-WEBP_QUALITY=80 AVIF_SPEED=6 AVIF_QUAL=40
+WEBP_QUALITY=80 AVIF_SPEED=6 AVIF_QUAL=40 ZOPFLI_ITER=60 FFZAP_THREADS=2
 IMAGE_CODEC_PRIORITY=("webp" "avif" "jxl" "jpg" "png")
 
 declare -g STATS_TOTAL=0 STATS_PROCESSED=0 STATS_SKIPPED=0 STATS_FAILED=0
@@ -159,19 +178,53 @@ print_stats(){
   fi
 }
 
+format_bytes(){
+  local bytes=$1
+  if ((bytes >= 1073741824)); then
+    printf "%.2f GB" "$(awk "BEGIN {printf \"%.2f\", $bytes/1073741824}")"
+  elif ((bytes >= 1048576)); then
+    printf "%.2f MB" "$(awk "BEGIN {printf \"%.2f\", $bytes/1048576}")"
+  elif ((bytes >= 1024)); then
+    printf "%.2f KB" "$(awk "BEGIN {printf \"%.2f\", $bytes/1024}")"
+  else
+    printf "%d B" "$bytes"
+  fi
+}
+
+get_size(){
+  stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null || echo 0
+}
+
 # ---- Image Optimization ----
 optimize_png(){
   local src=$1 out=$2
   local tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
   cp "$src" "$tmp"
-  if cache_tool oxipng; then
-    oxipng -o6 --strip safe -q "$tmp" &>/dev/null && success=1
-    [[ $LOSSLESS -eq 0 ]] && cache_tool pngquant && pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$tmp" -o "${tmp}.2" &>/dev/null && mv "${tmp}.2" "$tmp" || :
-  elif cache_tool optipng; then
-    optipng -o7 -strip all -quiet "$tmp" &>/dev/null && success=1
-    [[ $LOSSLESS -eq 0 ]] && cache_tool pngquant && pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" &>/dev/null || :
+
+  # Try rimage first if available
+  if cache_tool rimage; then
+    if [[ $LOSSLESS -eq 1 ]]; then
+      rimage png -d "$TEMP_DIR" "$tmp" &>/dev/null && success=1
+    else
+      rimage mozjpeg -q "$QUALITY" -d "$TEMP_DIR" "$tmp" &>/dev/null && success=1
+    fi
+    local rimage_out="$TEMP_DIR/$(basename "$tmp")"
+    [[ -f $rimage_out ]] && mv "$rimage_out" "$tmp"
   fi
+
+  # Fall back to oxipng/optipng
+  if [[ $success -eq 0 ]]; then
+    if cache_tool oxipng; then
+      oxipng -o6 --strip safe -q "$tmp" &>/dev/null && success=1
+      [[ $LOSSLESS -eq 0 ]] && cache_tool pngquant && pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$tmp" -o "${tmp}.2" &>/dev/null && mv "${tmp}.2" "$tmp" || :
+    elif cache_tool optipng; then
+      optipng -o7 -strip all -quiet "$tmp" &>/dev/null && success=1
+      [[ $LOSSLESS -eq 0 ]] && cache_tool pngquant && pngquant --quality=65-"$QUALITY" --strip --speed 1 -f "$src" -o "$tmp" &>/dev/null || :
+    fi
+  fi
+
   cache_tool flaca && flaca --no-symlinks --preserve-times "$tmp" &>/dev/null || :
+
   if [[ $success -eq 1 ]]; then
     mv "$tmp" "$out"
     local final=$(get_size "$out")
@@ -185,14 +238,30 @@ optimize_png(){
 optimize_jpeg(){
   local src=$1 out=$2
   local tmp="${TEMP_DIR}/$(basename "$out").tmp" orig=$(get_size "$src") success=0
-  if cache_tool jpegoptim; then
-    [[ $LOSSLESS -eq 1 ]] && jpegoptim --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
-    [[ $LOSSLESS -eq 0 ]] && jpegoptim --max="$QUALITY" --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
-  elif cache_tool cjpeg; then
-    cjpeg -quality "$QUALITY" -optimize "$src" >"$tmp" 2>/dev/null && success=1
+
+  # Try rimage first if available
+  if cache_tool rimage; then
+    if [[ $LOSSLESS -eq 1 ]]; then
+      rimage mozjpeg -d "$TEMP_DIR" "$src" &>/dev/null && success=1
+    else
+      rimage mozjpeg -q "$QUALITY" -d "$TEMP_DIR" "$src" &>/dev/null && success=1
+    fi
+    local rimage_out="$TEMP_DIR/$(basename "$src")"
+    [[ -f $rimage_out ]] && mv "$rimage_out" "$tmp"
   fi
+
+  # Fall back to jpegoptim/cjpeg
+  if [[ $success -eq 0 ]]; then
+    if cache_tool jpegoptim; then
+      [[ $LOSSLESS -eq 1 ]] && jpegoptim --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
+      [[ $LOSSLESS -eq 0 ]] && jpegoptim --max="$QUALITY" --strip-all --all-progressive --stdout "$src" >"$tmp" 2>/dev/null && success=1
+    elif cache_tool cjpeg; then
+      cjpeg -quality "$QUALITY" -optimize "$src" >"$tmp" 2>/dev/null && success=1
+    fi
+  fi
+
   cache_tool flaca && flaca --no-symlinks --preserve-times "$tmp" &>/dev/null || :
-  cache_tool rimage && rimage -i "$tmp" -o "${tmp}.r" &>/dev/null && mv -f "${tmp}.r" "$tmp" || :
+
   if [[ $success -eq 1 ]]; then
     mv "$tmp" "$out"
     local final=$(get_size "$out")
@@ -288,7 +357,7 @@ optimize_video(){
   local success=0 tool=""
   if cache_tool ffzap; then
     tool="ffzap"
-    "${T[ffzap]}" -i "$src" -f "${enc[*]} ${ac[*]}" -o "$out" -t 1 &>/dev/null && success=1
+    "${T[ffzap]}" -i "$src" -f "${enc[*]} ${ac[*]}" -o "$out" -t "$FFZAP_THREADS" --overwrite &>/dev/null && success=1
   elif cache_tool ffmpeg; then
     tool="ffmpeg"
     "${T[ffmpeg]}" -i "$src" "${enc[@]}" "${ac[@]}" -y "$out" -loglevel error && success=1
@@ -328,13 +397,10 @@ optimize_audio(){
     log "Processing audio: $(basename "$src") → Opus"
     if cache_tool opusenc && [[ $ext == "wav" || $ext == "flac" ]]; then
       opusenc --bitrate "$AUDIO_BITRATE" --vbr "$src" "$out" &>/dev/null || return 1
-    elif cache_tool ffmpeg || cache_tool ffzap; then
-      local tool=${T[ffzap]:-${T[ffmpeg]}}
-      if [[ $(basename "$tool") == "ffzap" ]]; then
-        "$tool" -i "$src" -f "-c:a libopus -b:a ${AUDIO_BITRATE}k" -o "$out" -t 1 &>/dev/null || return 1
-      else
-        "$tool" -i "$src" -c:a libopus -b:a "${AUDIO_BITRATE}k" -vbr on -y "$out" -loglevel error || return 1
-      fi
+    elif cache_tool ffzap; then
+      "${T[ffzap]}" -i "$src" -f "-c:a libopus -b:a ${AUDIO_BITRATE}k" -o "$out" -t "$FFZAP_THREADS" --overwrite &>/dev/null || return 1
+    elif cache_tool ffmpeg; then
+      "${T[ffmpeg]}" -i "$src" -c:a libopus -b:a "${AUDIO_BITRATE}k" -vbr on -y "$out" -loglevel error || return 1
     else
       warn "No audio encoder found (opusenc/ffzap/ffmpeg required)"; return 1
     fi
@@ -367,23 +433,46 @@ process_file(){
 }
 export -f process_file optimize_image optimize_video optimize_audio optimize_png optimize_jpeg
 export -f get_output_path is_already_optimized mkbackup cache_tool select_image_target_format ffmpeg_has_encoder
+export -f format_bytes get_size log warn show_progress
 
 # ---- File Collection ----
+find_media_files(){
+  local dir=${1:-.}
+  local -a img=(jpg jpeg png gif webp avif jxl tiff bmp) vid=(mp4 mkv mov webm avi flv) aud=(opus flac mp3 m4a aac ogg wav) exts=()
+
+  case $MEDIA_TYPE in
+    all) exts=("${img[@]}" "${vid[@]}" "${aud[@]}");;
+    image) exts=("${img[@]}");;
+    video) exts=("${vid[@]}");;
+    audio) exts=("${aud[@]}");;
+  esac
+
+  if cache_tool fd; then
+    local -a args=(-tf --no-require-git -S+10k)
+    for e in "${exts[@]}"; do args+=(-e "$e"); done
+    [[ $RECURSIVE -eq 0 ]] && args+=(-d 1)
+    "${T[fd]}" "${args[@]}" "$dir" 2>/dev/null | grep -v "$SUFFIX"
+  else
+    local depth_arg=""
+    [[ $RECURSIVE -eq 0 ]] && depth_arg="-maxdepth 1"
+    find "$dir" $depth_arg -type f ! -name "*${SUFFIX}*" -size +10k \( \
+      $(printf -- "-o -iname *.%s " "${exts[@]}") \
+    \) 2>/dev/null | sed 's/^-o //'
+  fi
+}
+
 collect_files(){
   local -a files=() items=("$@")
   if [[ ${#items[@]} -eq 0 ]]; then
     while IFS= read -r f; do [[ -f $f ]] && files+=("$(abs_path "$f")"); done
   else
-    local exts=(jpg jpeg png gif svg webp avif jxl tiff tif bmp mp4 mkv mov webm avi flv opus flac mp3 m4a aac ogg wav)
     for item in "${items[@]}"; do
-      if [[ -f $item ]]; then files+=("$(abs_path "$item")")
+      if [[ -f $item ]]; then
+        files+=("$(abs_path "$item")")
       elif [[ -d $item ]]; then
-        local -a found=() args=(-tf)
-        for e in "${exts[@]}"; do args+=(-e "$e"); done
-        [[ $RECURSIVE -eq 0 ]] && args+=(-d 1)
-        args+=(. "$(abs_path "$item")" -0)
-        mapfile -t -d '' found < <(run_find "${args[@]}" 2>/dev/null || :)
-        files+=("${found[@]}")
+        while IFS= read -r f; do
+          [[ -f $f ]] && files+=("$(abs_path "$f")")
+        done < <(find_media_files "$item")
       fi
     done
   fi
@@ -393,10 +482,26 @@ collect_files(){
 # ---- TUI Mode ----
 tui_select(){
   local dir=$1
-  cache_tool sk || cache_tool fzf || err "TUI requires sk or fzf"
-  local picker=${T[sk]:-${T[fzf]}}
+  cache_tool fzf || cache_tool sk || err "TUI requires fzf or sk"
+  local picker=${T[fzf]:-${T[sk]}}
+  local preview_cmd=""
+
+  # Build preview command
+  if cache_tool bat; then
+    preview_cmd="bat --color=always --style=numbers --line-range=:50 {}"
+  elif cache_tool mediainfo; then
+    preview_cmd="mediainfo {} 2>/dev/null || stat -c'Size: %s | Modified: %y' {} 2>/dev/null || stat -f'%z bytes | %Sm' {}"
+  else
+    preview_cmd="stat -c'Size: %s | Modified: %y' {} 2>/dev/null || stat -f'%z bytes | %Sm' {}"
+  fi
+
   local -a selected=()
-  mapfile -t selected < <(collect_files "$dir" | "$picker" --multi --height=80% --layout=reverse --prompt="Select files > " | tr '\0' '\n')
+  mapfile -t selected < <(find_media_files "$dir" | "$picker" --multi --height=90% --layout=reverse \
+    --prompt="Select files to optimize > " \
+    --preview="$preview_cmd" \
+    --preview-window=right:50%:wrap \
+    --bind='ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all')
+
   [[ ${#selected[@]} -eq 0 ]] && { log "No selection"; exit 0; }
   printf '%s\n' "${selected[@]}"
 }
@@ -443,6 +548,8 @@ OPTIONS:
   -B            Keep backups (default)
   --no-backup   Disable backups
   --min-save N  Min % savings (default: 0)
+  --zopfli N    Zopfli iterations for PNG (default: $ZOPFLI_ITER)
+  --ffzap-t N   ffzap threads (default: $FFZAP_THREADS)
 
 NOTES:
   - Audio: Always encodes to Opus (video + standalone audio files)
@@ -485,6 +592,8 @@ main(){
       -B) KEEP_BACKUPS=1; shift;;
       --no-backup) KEEP_BACKUPS=0; shift;;
       --min-save) MIN_SAVINGS="$2"; shift 2;;
+      --zopfli) ZOPFLI_ITER="$2"; shift 2;;
+      --ffzap-t) FFZAP_THREADS="$2"; shift 2;;
       -*) err "Unknown: $1 (use -h)";;
       *) break;;
     esac
