@@ -219,10 +219,6 @@ catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
 
 # --- Tool Wrappers ---
 
-# Source common utilities library
-[[ -f "$HOME/dot-termux/lib/common.sh" ]] && source "$HOME/dot-termux/lib/common.sh"
-[[ -f "$HOME/lib/common.sh" ]] && source "$HOME/lib/common.sh"
-
 # Navigation
 if has zoxide; then
   export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go"

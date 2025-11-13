@@ -134,10 +134,6 @@ fe(){ local -a files; local q="${*:-}" preview; if (( $+commands[bat] )); then p
 }
 h(){ curl -s "cheat.sh/${@:-}"; }
 
-# Source common utilities library for updt and sweep_home functions
-[[ -f "$HOME/dot-termux/lib/common.sh" ]] && source "$HOME/dot-termux/lib/common.sh"
-[[ -f "$HOME/lib/common.sh" ]] && source "$HOME/lib/common.sh"
-
 # ===== Integrations & finalize =====
 ifsource ~/.p10k.zsh
 has zoxide && eval "$(zoxide init zsh --cmd cd)"

@@ -4,13 +4,6 @@
 # Helper function (if not already defined)
 has() { command -v -- "$1" &>/dev/null; }
 
-# Source common library for wrapper functions
-if [[ -f "$HOME/dot-termux/lib/common.sh" ]]; then
-  source "$HOME/dot-termux/lib/common.sh"
-elif [[ -f "$HOME/lib/common.sh" ]]; then
-  source "$HOME/lib/common.sh"
-fi
-
 # Open the selected file in the default editor
 fe() {
   local IFS=$'\n'
@@ -79,5 +72,3 @@ fzf-man() {
     "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
   fi
 }
-
-# Note: git, curl, pip, updt, and sweep_home wrappers are provided by lib/common.sh
