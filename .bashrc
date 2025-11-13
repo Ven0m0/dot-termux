@@ -30,8 +30,8 @@ match() { printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
 git_wrapper(){ git "$@"; }
 
 # --- Lazy loading ---
-FUNC_DIRS=("$HOME/.bash/functions.d")
-CONFIG_DIRS=("$HOME/.bash/configs")
+FUNC_DIRS=("$HOME/.config/bash/functions.d")
+CONFIG_DIRS=("$HOME/.config/bash/configs")
 AUTOLOAD_CACHE="$HOME/.cache/bash_autoload.list"
 CONFIG_CACHE="$HOME/.cache/bash_config.loaded"
 
@@ -103,7 +103,7 @@ autoload_init() {
 }
 
 # --- Sourcing ---
-dot=("$HOME"/.{bash_aliases,bash_functions,bash_completions,bash.d/cht.sh,config/bash/cht.sh})
+dot=("$HOME"/.{bash_aliases,bash_completions,bash.d/cht.sh,config/bash/cht.sh,config/bash/bash_functions.bash})
 for p in "${dot[@]}"; do [[ -r $p ]] && source "$p"; done
 unset p dot
 [[ -r "$HOME/.inputrc" ]] && export INPUTRC="$HOME/.inputrc"
@@ -153,7 +153,7 @@ cht() {
 }
 
 # Python/UV
-export PYTHONOPTIMIZE=2 PYTHONUTF8=1 PYTHONNODEBUGRANGES=1 PYTHON_JIT=1 PYENV_VIRTUALENV_DISABLE_PROMPT=1 PYTHONSTARTUP="{$HOME}/.pythonstartup" PYTHON_COLORS=1
+export PYTHONOPTIMIZE=2 PYTHONUTF8=1 PYTHONNODEBUGRANGES=1 PYTHON_JIT=1 PYENV_VIRTUALENV_DISABLE_PROMPT=1 PYTHONSTARTUP="$HOME/.pythonstartup" PYTHON_COLORS=1
 unset PYTHONDONTWRITEBYTECODE
 if has uv; then export UV_COMPILE_BYTECODE=1 UV_LINK_MODE=hardlink; fi
 
@@ -166,6 +166,7 @@ gclone() {
 }
 alias pip='python -m pip' py3='python3' py='python'
 
+ensure_dir() { [[ -d $1 ]] || mkdir -p -- "$1"; }
 touchf() { ensure_dir "$(dirname -- "$1")" && command touch -- "$1"; }
 
 # Eza aliases (consolidated from zshrc)
@@ -218,7 +219,9 @@ catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
 
 # --- Tool Wrappers ---
 
-# git, curl, pip, updt, and sweep_home are now provided by common.sh
+# Source common utilities library
+[[ -f "$HOME/dot-termux/lib/common.sh" ]] && source "$HOME/dot-termux/lib/common.sh"
+[[ -f "$HOME/lib/common.sh" ]] && source "$HOME/lib/common.sh"
 
 # Navigation
 if has zoxide; then
