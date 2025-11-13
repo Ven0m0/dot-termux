@@ -2,15 +2,28 @@
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'; export LC_ALL=C LANG=C
 
-# Source common library
-readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
-if [[ -f "${LIB_DIR}/common.sh" ]]; then
-  # shellcheck source=../lib/common.sh
-  source "${LIB_DIR}/common.sh"
-else
-  echo "ERROR: common.sh library not found at ${LIB_DIR}/common.sh" >&2
-  exit 1
+# ============================================================================
+# COLORS & CORE UTILITIES
+# ============================================================================
+BLK=$'\e[30m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m'
+BLU=$'\e[34m' MGN=$'\e[35m' CYN=$'\e[36m' WHT=$'\e[37m'
+LBLU=$'\e[38;5;117m' PNK=$'\e[38;5;218m' BWHT=$'\e[97m'
+DEF=$'\e[0m' BLD=$'\e[1m'
+
+has() { command -v "$1" &>/dev/null; }
+log() { printf '%s\n' "$*"; }
+info() { printf '%b[INFO]%b %s\n' "$GRN" "$DEF" "$*"; }
+warn() { printf '%b[WARN]%b %s\n' "$YLW" "$DEF" "$*"; }
+err() { printf '%b[ERROR]%b %s\n' "$RED" "$DEF" "$*" >&2; }
+print_step() { printf '\n%b==>%b %s\n' "$BLU$BLD" "$DEF" "$*"; }
+
+# ============================================================================
+# PRIVILEGE DETECTION
+# ============================================================================
+HAS_ROOT=0
+[[ $EUID -eq 0 ]] && HAS_ROOT=1
+if [[ $HAS_ROOT -eq 0 ]] && has su; then
+  su -c "id" &>/dev/null && HAS_ROOT=1 || :
 fi
 
 # ============================================================================
@@ -20,7 +33,6 @@ DRY_RUN=0
 VERBOSE=0
 HAS_SHIZUKU=0
 HAS_ADB=0
-# Options
 OPT_QUICK=0
 OPT_DEEP=0
 OPT_WHATSAPP=0
@@ -106,7 +118,6 @@ clean_pkg_cache() {
   info "Package cache cleaning complete"
 }
 
-# Quick clean: cache, logs, temp files
 clean_quick() {
   print_step "Quick cleaning"
   if has pkg || has apt || has apt-get; then
@@ -167,7 +178,6 @@ clean_quick() {
   info "Quick clean complete"
 }
 
-# Deep clean: includes quick + more
 clean_deep() {
   print_step "Deep cleaning"
   clean_quick
@@ -326,46 +336,16 @@ clean_adb() {
 main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    -q | --quick)
-      OPT_QUICK=1
-      shift
-      ;;
-    -d | --deep)
-      OPT_DEEP=1
-      shift
-      ;;
-    -w | --whatsapp)
-      OPT_WHATSAPP=1
-      shift
-      ;;
-    -t | --telegram)
-      OPT_TELEGRAM=1
-      shift
-      ;;
-    -a | --adb)
-      OPT_ADB=1
-      shift
-      ;;
-    -s | --system-cache)
-      OPT_SYSTEM_CACHE=1
-      shift
-      ;;
-    -p | --pkg-cache)
-      OPT_PKG_CACHE=1
-      shift
-      ;;
-    -n | --dry-run)
-      DRY_RUN=1
-      shift
-      ;;
-    -v | --verbose)
-      VERBOSE=1
-      shift
-      ;;
-    -h | --help)
-      show_help
-      exit 0
-      ;;
+    -q | --quick) OPT_QUICK=1; shift ;;
+    -d | --deep) OPT_DEEP=1; shift ;;
+    -w | --whatsapp) OPT_WHATSAPP=1; shift ;;
+    -t | --telegram) OPT_TELEGRAM=1; shift ;;
+    -a | --adb) OPT_ADB=1; shift ;;
+    -s | --system-cache) OPT_SYSTEM_CACHE=1; shift ;;
+    -p | --pkg-cache) OPT_PKG_CACHE=1; shift ;;
+    -n | --dry-run) DRY_RUN=1; shift ;;
+    -v | --verbose) VERBOSE=1; shift ;;
+    -h | --help) show_help; exit 0 ;;
     *)
       err "Unknown option: $1"
       show_help
