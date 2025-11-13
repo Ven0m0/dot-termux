@@ -134,8 +134,6 @@ fe(){ local -a files; local q="${*:-}" preview; if (( $+commands[bat] )); then p
 }
 h(){ curl -s "cheat.sh/${@:-}"; }
 
-# updt and sweep_home are now provided by common.sh
-
 # ===== Integrations & finalize =====
 ifsource ~/.p10k.zsh
 has zoxide && eval "$(zoxide init zsh --cmd cd)"

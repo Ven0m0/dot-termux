@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # bash_functions.bash - Additional bash-specific functions
 
-# Source common library for wrapper functions
-if [[ -f "$HOME/dot-termux/lib/common.sh" ]]; then
-  source "$HOME/dot-termux/lib/common.sh"
-elif [[ -f "$HOME/lib/common.sh" ]]; then
-  source "$HOME/lib/common.sh"
-fi
+# Helper function (if not already defined)
+has() { command -v -- "$1" &>/dev/null; }
 
 # Open the selected file in the default editor
 fe() {
@@ -51,16 +47,28 @@ faf() { eval "$({
 } | fzf | cut -d= -f1)"; }
 
 fzf-man() {
-  local MAN="/usr/bin/man"
+  local MAN
+  if has man; then
+    MAN="$(command -v man)"
+  else
+    echo "man command not found" >&2
+    return 1
+  fi
+
   [[ -n $1 ]] && {
     "$MAN" "$@"
     return
   }
+
+  if ! has fzf; then
+    echo "fzf not found, using regular man" >&2
+    "$MAN" "$@"
+    return 1
+  fi
+
   if has sd; then
     "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sd ' \(' '.' | sd '\)\s*$' '' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
   else
     "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
   fi
 }
-
-# git, curl, and pip wrappers are now provided by common.sh
