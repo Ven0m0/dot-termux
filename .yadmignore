@@ -1,0 +1,66 @@
+# Yadm ignore patterns for Termux dotfiles
+# Files and directories that should NOT be managed by yadm
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*~
+termux_setup.log
+
+# Cache directories
+.cache/
+**/.cache/
+
+# Local data
+.local/share/
+.local/state/
+
+# Compiled Python files
+*.pyc
+__pycache__/
+
+# Node modules
+node_modules/
+
+# Cargo build artifacts
+target/
+.cargo/registry/
+.cargo/git/
+
+# SSH keys (managed separately)
+.ssh/id_*
+.ssh/known_hosts
+
+# Shell history
+.bash_history
+.zsh_history
+.python_history
+
+# Editor swap files
+*.swp
+*.swo
+.*.sw?
+
+# Compiled Zsh files (auto-generated)
+*.zwc
+
+# Sheldon lock file (auto-generated)
+.config/sheldon/lock.toml
+
+# Termux app-specific
+.termux/boot/
+
+# Git directories (for repos in $HOME)
+.git/
+**/.git/
+
+# Storage symlink (Termux-specific)
+storage/
+
+# MacOS
+.DS_Store
+
+# Misc
+.vscode/
+.idea/

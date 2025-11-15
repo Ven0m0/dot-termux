@@ -2,6 +2,9 @@
 
 # Shell
 *.sh text eol=lf
+.yadm/bootstrap text eol=lf
+setup.sh text eol=lf
+bin/* text eol=lf
 *.{cmd,[cC][mM][dD]} text eol=crlf
 *.{bat,[bB][aA][tT]} text eol=crlf
 *.ps1 text eol=crlf

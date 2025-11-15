@@ -4,13 +4,8 @@
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'; export LC_ALL=C LANG=C
 
-# ---- Source common library ----
+# ---- Script metadata ----
 readonly SCRIPT_DIR="$(builtin cd -P -- "$(dirname -- "${BASH_SOURCE[0]:-}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR%/*}/lib"
-if [[ -f "${LIB_DIR}/common.sh" ]]; then
-  # shellcheck source=../lib/common.sh
-  source "${LIB_DIR}/common.sh"
-fi
 
 # ---- Environment Detection ----
 if [[ -n ${TERMUX_VERSION:-} || -d /data/data/com.termux ]]; then
