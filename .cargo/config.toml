@@ -4,6 +4,7 @@ git = true
 gitoxide = true
 no-embed-metadata = true
 avoid-dev-deps = true
+trim-paths = true
 
 [alias]
 b = "build"
@@ -11,10 +12,14 @@ i = "install"
 
 [build]
 rustc-wrapper = "sccache"
-rustflags = ["-C", "target-cpu=native", "-C"]
+incremental = false
+rustflags = ["-C", "target-cpu=native"]
 
 [env]
 CARGO_CACHE_RUSTC_INFO = "1"
+RUSTC_BOOTSTRAP = "1"
+CMAKE_BUILD_TYPE = "Release"
+RUSTC_LOG = "off"
 
 [http]
 debug = false
@@ -57,7 +62,7 @@ debug = false
 
 [target.aarch64-linux-android]
 linker = "clang"
-rustflags = ["-C", "target-cpu=native"]
+rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=lld"]
 
 [term]
 color = 'auto'
