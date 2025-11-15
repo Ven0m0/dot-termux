@@ -100,10 +100,14 @@ bootstrap_dotfiles(){
   elif has yadm; then
     yadm pull --rebase &>>"$logf" || :
   fi
-  if has stow && [[ -d $repo_path ]]; then
-    for d in zsh termux p10k; do [[ -d $repo_path/$d ]] && stow --dir="$repo_path" --target="$HOME" --restow --no-folding "$d" &>>"$logf" || :; done
+  # Symlink all executable files from repo bin/ to $HOME/bin/
+  if [[ -d $repo_path/bin ]]; then
+    while IFS= read -r -d '' s; do
+      tgt="$HOME/bin/${s##*/}"
+      ln -sf "$s" "$tgt"
+      chmod +x "$tgt"
+    done < <(find "$repo_path/bin" -type f -executable -print0)
   fi
-  [[ -d $repo_path/bin ]] && while IFS= read -r -d '' s; do tgt="$HOME/bin/${s##*/}"; tgt="${tgt%.sh}"; ln -sf "$s" "$tgt"; chmod +x "$tgt"; done < <(find "$repo_path/bin" -type f -name "*.sh" -print0)
 }
 
 setup_zsh(){
@@ -116,8 +120,8 @@ finalize(){
   echo "🚀 Welcome to optimized Termux 🚀" >"$HOME/.welcome.msg"
   step "Setup complete."
   printf 'Restart Termux. Logs: %s\n' "$logf"
-  termux-setup-storage
-  termux-change-repo
+  has termux-setup-storage && termux-setup-storage || log "termux-setup-storage not found, skipping"
+  has termux-change-repo && termux-change-repo || log "termux-change-repo not found, skipping"
 }
 
 main(){

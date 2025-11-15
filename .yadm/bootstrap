@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Yadm bootstrap script for Termux dotfiles setup
+# This script runs automatically after 'yadm clone --bootstrap'
+set -euo pipefail
+
+# ============================================================================
+# HELPERS
+# ============================================================================
+has() { command -v "$1" &>/dev/null; }
+info() { printf '\033[32m[INFO]\033[0m %s\n' "$*"; }
+warn() { printf '\033[33m[WARN]\033[0m %s\n' "$*"; }
+err() { printf '\033[31m[ERROR]\033[0m %s\n' "$*" >&2; }
+step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+
+# ============================================================================
+# ENVIRONMENT SETUP
+# ============================================================================
+export LC_ALL=C LANG=C
+HOME="${HOME:-/data/data/com.termux/files/home}"
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+
+# Ensure directories exist
+mkdir -p "$HOME/.ssh" "$HOME/bin" "$HOME/.termux"
+mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+chmod 700 "$HOME/.ssh"
+
+# ============================================================================
+# SYMLINK BIN SCRIPTS
+# ============================================================================
+step "Setting up bin scripts"
+if [[ -d $HOME/bin ]]; then
+  # Find all executable files in $HOME/bin and ensure they're executable
+  while IFS= read -r -d '' script; do
+    chmod +x "$script"
+    info "Made executable: ${script##*/}"
+  done < <(find "$HOME/bin" -type f -print0)
+fi
+
+# ============================================================================
+# SSH KEY SETUP
+# ============================================================================
+step "Setting up SSH key"
+if [[ ! -f $HOME/.ssh/id_rsa ]]; then
+  ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N "" &>/dev/null
+  info "Generated SSH key: $HOME/.ssh/id_rsa"
+else
+  info "SSH key already exists"
+fi
+
+# ============================================================================
+# ZSH SETUP
+# ============================================================================
+step "Setting up Zsh"
+if has zsh; then
+  # Set Zsh as default shell if not already
+  if [[ ${SHELL##*/} != zsh ]]; then
+    chsh -s zsh 2>/dev/null || warn "Failed to set Zsh as default shell"
+  fi
+
+  # Compile Zsh files for faster loading
+  if [[ -f $HOME/.zshrc ]]; then
+    zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
+    info "Compiled Zsh configuration files"
+  fi
+else
+  warn "Zsh not found, skipping Zsh setup"
+fi
+
+# ============================================================================
+# SHELDON PLUGIN MANAGER
+# ============================================================================
+step "Setting up Sheldon"
+if has sheldon; then
+  sheldon lock &>/dev/null || warn "Failed to lock Sheldon plugins"
+  info "Sheldon plugins locked"
+else
+  warn "Sheldon not found, skipping plugin setup"
+fi
+
+# ============================================================================
+# TERMUX SPECIFIC SETUP
+# ============================================================================
+if [[ -n ${TERMUX_VERSION:-} ]] || [[ -d /data/data/com.termux ]]; then
+  step "Termux-specific setup"
+
+  # Reload Termux settings if font was installed
+  if has termux-reload-settings && [[ -f $HOME/.termux/font.ttf ]]; then
+    termux-reload-settings
+    info "Reloaded Termux settings"
+  fi
+
+  # Setup storage access
+  if has termux-setup-storage && [[ ! -d $HOME/storage ]]; then
+    warn "Run 'termux-setup-storage' manually to grant storage access"
+  fi
+fi
+
+# ============================================================================
+# FINALIZE
+# ============================================================================
+step "Bootstrap complete"
+info "Dotfiles successfully installed!"
+info "Please restart your shell or run: exec \$SHELL"
+
+# Display welcome message
+if [[ -f $HOME/.welcome.msg ]]; then
+  cat "$HOME/.welcome.msg"
+fi
