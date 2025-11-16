@@ -226,6 +226,9 @@ if has zoxide; then
   ifsource "$HOME/.config/bash/zoxide.bash" && eval "$(zoxide init bash)"
 fi
 
+# Mise (version manager)
+has mise && eval "$(mise activate bash)"
+
 # Aliases
 alias ..='cd ..' ...='cd ../..' ....='cd ../../..' .....='cd ../../../..' ......='cd ../../../../..' bd='cd "$OLDPWD"' cd-="cd -" home='cd ~'
 alias dirs='dirs -v'
