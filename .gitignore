@@ -160,6 +160,7 @@ github_conf
 
 .gemini/
 gha-creds-*.json
+todo.md
 
 # Claude Config Manager Extension - Security Rules
 # Prevents accidental commit of private conversation data

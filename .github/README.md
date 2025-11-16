@@ -57,37 +57,29 @@ android-clean    # Maps to: clean with interactive prompts
 
 ### Media Optimization
 
-**New unified `optimize` command** with subcommands:
+**Unified `media-opt` command** for all media optimization tasks:
 
 ```bash
 # Optimize images
-optimize image photo.jpg
-optimize image -q 90 -f webp *.png
-optimize image -o ~/optimized/ *.jpg
+media-opt image photo.jpg
+media-opt image -q 90 -f webp *.png
+media-opt image -o ~/optimized/ *.jpg
 
 # Optimize videos
-optimize video -c 25 movie.mp4
-optimize video --preset fast *.mp4
+media-opt video -c 25 movie.mp4
+media-opt video --preset fast *.mp4
 
 # Batch optimize directory
-optimize batch ~/Pictures
-optimize batch -t image -r ~/media
+media-opt batch ~/Pictures
+media-opt batch -t image -r ~/media
 
 # Options:
 #   -q, --quality N     Quality setting (1-100, default: 85)
-#   -f, --format FMT    Convert to format (png, jpg, webp, avif)
+#   -f, --format FMT    Convert to format (png, jpg, webp, avif, jxl)
 #   -c, --crf N         Video CRF (0-51, default: 27, lower=better)
 #   -r, --recursive     Process directories recursively
 #   -t, --type TYPE     Filter by type (image, video, audio, all)
-```
-
-Legacy shell function aliases:
-
-```bash
-opt-img ~/DCIM         # Use: optimize batch ~/DCIM
-opt-media              # Use: optimize batch with options
-opt-msg                # Optimize WhatsApp/Telegram media
-reencode-video         # Use: optimize video
+#   -n, --dry-run       Preview changes without executing
 ```
 
 ## 📝 Examples
@@ -102,16 +94,13 @@ clean -d           # Deep clean with media
 clean -w -t -y     # Clean WhatsApp and Telegram (no prompts)
 
 # Optimize images
-optimize image photo.jpg
-optimize image -q 90 -f webp *.png
-optimize batch ~/storage/shared/DCIM/Camera
+media-opt image photo.jpg
+media-opt image -q 90 -f webp *.png
+media-opt batch ~/storage/shared/DCIM/Camera
 
 # Optimize videos
-optimize video -c 25 movie.mp4
-optimize batch -t video ~/Movies
-
-# Optimize messaging app media
-opt-msg
+media-opt video -c 25 movie.mp4
+media-opt batch -t video ~/Movies
 ```
 
 ## 🏗️ Architecture
@@ -130,17 +119,19 @@ All scripts now use a common library (`.config/bash/common.sh`) providing:
 
 ### Consolidated Scripts
 
-**`bin/optimize`** - Unified media optimization tool
+**`bin/media-opt`** - Unified media optimization tool
 
 - Consolidates: `media.sh`, `opt-img.sh`, `img.sh`, `imgopt`
 - Subcommands: `image`, `video`, `audio`, `batch`
-- Supports: jpg, png, webp, avif, mp4, mkv, mov, webm, flac
+- Supports: jpg, png, webp, avif, jxl, gif, svg, mp4, mkv, mov, webm, flac
+- Features: Parallel processing, codec detection, quality presets, dry-run mode
 
 **`bin/clean`** - Unified cleaning tool
 
 - Consolidates: `clean.sh`, `termux-cleaner.sh`, `adbcc.sh`
-- Flags: `-q` (quick), `-d` (deep), `-w` (whatsapp), `-t` (telegram), `-a` (adb)
+- Flags: `-q` (quick), `-d` (deep), `-w` (whatsapp), `-t` (telegram), `-s` (system), `-a` (adb)
 - Supports: Direct access, Shizuku, ADB, root
+- Features: Age-based filtering, dry-run mode, batch operations
 
 ### Coding Standards
 
@@ -205,10 +196,11 @@ curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
 
 The repository includes consolidated scripts in the `bin/` directory:
 
-- `optimize` - **NEW** Unified media optimization tool (replaces media.sh, opt-img.sh, img.sh, imgopt)
-- `clean` - **NEW** Unified cleaning tool (replaces clean.sh, termux-cleaner.sh, adbcc.sh)
-
-The legacy scripts are retained for backwards compatibility but the new consolidated tools are recommended.
+- `media-opt` - Unified media optimization tool (replaces legacy: media.sh, opt-img.sh, img.sh, imgopt)
+- `clean` - Unified cleaning tool (replaces legacy: clean.sh, termux-cleaner.sh, adbcc.sh)
+- `tools` - Shared library with helper functions
+- `supershell` - ADB over WiFi connection utility
+- `rxfetch` - System information display
 
 ### ADB over mobile data
 
