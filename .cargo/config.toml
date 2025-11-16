@@ -1,71 +1,83 @@
+# Enable experimental Cargo features for performance and optimization
 [unstable]
 unstable-options = true
-git = true
-gitoxide = true
-no-embed-metadata = true
-avoid-dev-deps = true
-trim-paths = true
+git = true                    # Use git CLI for git operations
+gitoxide = true               # Use gitoxide for faster git operations
+no-embed-metadata = true      # Reduce binary size by not embedding metadata
+avoid-dev-deps = true         # Skip dev dependencies when possible
+trim-paths = true             # Strip source paths from binaries for smaller size
 
+# Convenient command aliases
 [alias]
 b = "build"
 i = "install"
 
+# Build configuration and optimization
 [build]
-rustc-wrapper = "sccache"
-incremental = false
-rustflags = ["-C", "target-cpu=native"]
-jobs = 4
+rustc-wrapper = "sccache"     # Use sccache for incremental compilation caching
+incremental = false           # Disable incremental compilation (better for CI/release)
+jobs = 4                      # Limit parallel jobs to prevent OOM on low-memory devices
 
+# Environment variables for Rust compilation
 [env]
-CARGO_CACHE_RUSTC_INFO = "1"
-RUSTC_BOOTSTRAP = "1"
-CMAKE_BUILD_TYPE = "Release"
-RUSTC_LOG = "off"
+CARGO_CACHE_RUSTC_INFO = "1"  # Cache rustc version info
+RUSTC_BOOTSTRAP = "1"         # Enable nightly features on stable (use with caution)
+CMAKE_BUILD_TYPE = "Release"  # Use release mode for C/C++ dependencies
+RUSTC_LOG = "off"             # Disable rustc logging for cleaner output
 
+# HTTP configuration for faster downloads
 [http]
-debug = false
-ssl-version = "tlsv1.3"
-check-revoke = false
-multiplexing = true
+debug = false                 # Disable HTTP debug output
+ssl-version = "tlsv1.3"       # Use TLS 1.3 for better security and performance
+check-revoke = false          # Skip certificate revocation check (faster, less secure)
+multiplexing = true           # Enable HTTP/2 multiplexing for parallel downloads
 
+# Network configuration
 [net]
-git-fetch-with-cli = true
-retry = 2
+git-fetch-with-cli = true     # Use git CLI for fetching (more reliable)
+retry = 2                     # Retry failed network operations twice
 
+# Use sparse registry protocol for faster index updates
 [registries.crates-io]
 protocol = "sparse"
 
+# Dependency resolution configuration
 [resolver]
-incompatible-rust-versions = "allow"
+incompatible-rust-versions = "allow"  # Allow packages with incompatible MSRV
 
+# Release profile: Maximum optimization for production builds
 [profile.release]
-opt-level = 3
-codegen-units = 8
-lto = "fat"
-panic = "abort"
-strip = "symbols"
-debug = false
-debug-assertions = false
-overflow-checks = false
+opt-level = 3                 # Maximum optimization level
+codegen-units = 8             # Balance between compile time and runtime performance
+lto = "fat"                   # Full Link-Time Optimization for best performance
+panic = "abort"               # Smaller binaries by not unwinding on panic
+strip = "symbols"             # Strip debug symbols to reduce binary size
+debug = false                 # No debug info in release builds
+debug-assertions = false      # Disable debug assertions for performance
+overflow-checks = false       # Disable overflow checks (faster, less safe)
 
+# Build script optimization: Fast compilation for build scripts
 [profile.release.build-override]
-opt-level = 0
-lto = false
-codegen-units = 256
-incremental = true
-debug = false
+opt-level = 0                 # No optimization for build scripts
+lto = false                   # No LTO for build scripts
+codegen-units = 256           # Maximum parallelism for fast compilation
+incremental = true            # Enable incremental compilation for build scripts
+debug = false                 # No debug info
 
+# Development profile: Fast compilation
 [profile.dev]
-opt-level = 0
-lto = false
-codegen-units = 256
-incremental = true
-debug = false
+opt-level = 0                 # No optimization for fast compilation
+lto = false                   # No LTO in dev mode
+codegen-units = 256           # Maximum parallelism for fastest compilation
+incremental = true            # Enable incremental compilation
+debug = false                 # Disable debug info to save disk space
 
+# Target-specific configuration for Android ARM64
 [target.aarch64-linux-android]
-linker = "clang"
+linker = "clang"              # Use clang linker
 rustflags = ["-C", "target-cpu=native", "-C", "link-arg=-fuse-ld=lld"]
 
+# Terminal output configuration
 [term]
-color = 'auto'
-progress.when = 'auto'
+color = 'auto'                # Auto-detect color support
+progress.when = 'auto'        # Auto-detect progress bar support
