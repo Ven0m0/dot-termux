@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar
+# Termux setup script - resilient error handling
+set -eo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t'; export LC_ALL=C LANG=C 
 
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"; [[ -d $cache ]] || cache="$HOME"
@@ -47,17 +48,35 @@ install_pkgs(){
 install_font(){
   step "Font"
   local font="$HOME/.termux/font.ttf" tmp="$cache/jbm.tar.xz"
-  [[ -f $font ]] && return 0
-  curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" &&
-    tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null &&
-    mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" &&
-    rm -f "$tmp" || {
-      curl -fsSL "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp"
-      unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null
-      mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font"
+  [[ -f $font ]] && { log "Font already installed"; return 0; }
+
+  ensure "$HOME/.termux"
+
+  # Try Nerd Fonts version first
+  if curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" 2>>"$logf"; then
+    if tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null; then
+      mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" 2>/dev/null || :
       rm -f "$tmp"
-    }
-  has termux-reload-settings && termux-reload-settings || :
+      log "Installed Nerd Font"
+      has termux-reload-settings && termux-reload-settings || :
+      return 0
+    fi
+    rm -f "$tmp"
+  fi
+
+  # Fallback to regular JetBrains Mono
+  if curl -fsSL "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp" 2>>"$logf"; then
+    if has unzip && unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null; then
+      mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font" 2>/dev/null || :
+      rm -f "$tmp"
+      log "Installed regular JetBrains Mono"
+      has termux-reload-settings && termux-reload-settings || :
+      return 0
+    fi
+    rm -f "$tmp"
+  fi
+
+  log "Failed to install font"
 }
 
 install_rust_tools(){
@@ -76,8 +95,8 @@ install_third_party(){
   step "3rd party"
   run_installer "bun" "https://bun.sh/install"
   run_installer "mise" "https://mise.run"
-  has jaq || curl -fsSL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/bin/jaq" && chmod +x "$HOME/bin/jaq" || :
-  has apk.sh || curl -fsSL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh" || :
+  has jaq || { curl -fsSL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/bin/jaq" && chmod +x "$HOME/bin/jaq"; } || :
+  has apk.sh || { curl -fsSL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; } || :
 }
 
 install_bat_extras(){
@@ -94,12 +113,31 @@ install_bat_extras(){
 bootstrap_dotfiles(){
   step "Dotfiles"
   has git || return 1
-  [[ -d $repo_path/.git ]] && git -C "$repo_path" pull --rebase --autostash &>/dev/null || git clone --depth=1 "$repo_url" "$repo_path"
-  if has yadm && [[ ! -d $HOME/.local/share/yadm/repo.git ]]; then
-    yadm clone --bootstrap "$repo_url" &>>"$logf" || { yadm init && yadm remote add origin "$repo_url" && yadm pull --rebase &>>"$logf"; }
-  elif has yadm; then
-    yadm pull --rebase &>>"$logf" || :
+
+  # Clone/update the repo first
+  if [[ -d $repo_path/.git ]]; then
+    git -C "$repo_path" pull --rebase --autostash &>/dev/null || log "Failed to pull repo updates"
+  else
+    git clone --depth=1 "$repo_url" "$repo_path" || { log "Failed to clone repo"; return 1; }
   fi
+
+  # Setup yadm separately
+  if has yadm; then
+    if [[ ! -d $HOME/.local/share/yadm/repo.git ]]; then
+      # Initialize yadm repo
+      yadm init &>>"$logf" || log "Failed to init yadm"
+      yadm remote add origin "$repo_url" &>>"$logf" || log "Remote already exists"
+      yadm fetch origin &>>"$logf" || log "Failed to fetch from origin"
+      yadm reset --hard origin/main &>>"$logf" || yadm reset --hard origin/master &>>"$logf" || log "Failed to reset to remote"
+      yadm checkout . &>>"$logf" || :
+      # Run bootstrap manually
+      [[ -x $HOME/.yadm/bootstrap ]] && bash "$HOME/.yadm/bootstrap" &>>"$logf" || :
+    else
+      # Update existing yadm repo
+      yadm pull --rebase &>>"$logf" || log "Failed to pull yadm updates"
+    fi
+  fi
+
   # Symlink all executable files from repo bin/ to $HOME/bin/
   if [[ -d $repo_path/bin ]]; then
     while IFS= read -r -d '' s; do
@@ -115,30 +153,39 @@ setup_zsh(){
 }
 
 finalize(){
-  has sheldon && sheldon lock &>/dev/null || :
-  has zsh && zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
+  has sheldon && { sheldon lock &>/dev/null || log "Sheldon lock failed"; }
+  has zsh && { zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || log "Zsh recompile failed"; }
   echo "🚀 Welcome to optimized Termux 🚀" >"$HOME/.welcome.msg"
   step "Setup complete."
   printf 'Restart Termux. Logs: %s\n' "$logf"
-  has termux-setup-storage && termux-setup-storage || log "termux-setup-storage not found, skipping"
-  has termux-change-repo && termux-change-repo || log "termux-change-repo not found, skipping"
+
+  # These require manual interaction, so just inform the user
+  if ! has termux-setup-storage; then
+    log "termux-setup-storage not available"
+  fi
 }
 
 main(){
-  cd "$HOME" || exit 1
+  cd "$HOME" || { echo "Failed to change to HOME directory"; exit 1; }
   : >"$logf"
+
   step "Base tools"
-  pkg update -y &>/dev/null || { echo "Failed to update pkg"; exit 1; }
-  pkg install -y git curl stow yadm &>/dev/null || { echo "Failed to install base tools"; exit 1; }
-  bootstrap_dotfiles
-  setup_env
-  install_pkgs
-  install_font
-  install_rust_tools
-  install_third_party
-  install_bat_extras
-  setup_zsh
-  finalize
+  pkg update -y &>/dev/null || { echo "Failed to update pkg, continuing anyway..."; log "pkg update failed"; }
+  pkg install -y git curl stow yadm &>/dev/null || { echo "Failed to install some base tools, continuing..."; log "Some base tools failed to install"; }
+
+  # Continue with setup even if some steps fail
+  bootstrap_dotfiles || log "bootstrap_dotfiles failed"
+  setup_env || log "setup_env failed"
+  install_pkgs || log "install_pkgs failed"
+  install_font || log "install_font failed"
+  install_rust_tools || log "install_rust_tools failed"
+  install_third_party || log "install_third_party failed"
+  install_bat_extras || log "install_bat_extras failed"
+  setup_zsh || log "setup_zsh failed"
+  finalize || log "finalize failed"
+
+  echo
+  echo "Setup process completed. Check $logf for any errors."
 }
 
 main "$@"

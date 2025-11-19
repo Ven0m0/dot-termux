@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Yadm bootstrap script for Termux dotfiles setup
 # This script runs automatically after 'yadm clone --bootstrap'
-set -euo pipefail
+set -eo pipefail
 
 # ============================================================================
 # HELPERS
@@ -33,9 +33,13 @@ step "Setting up bin scripts"
 if [[ -d $HOME/bin ]]; then
   # Find all executable files in $HOME/bin and ensure they're executable
   while IFS= read -r -d '' script; do
-    chmod +x "$script"
-    info "Made executable: ${script##*/}"
-  done < <(find "$HOME/bin" -type f -print0)
+    if [[ -f $script ]]; then
+      chmod +x "$script" 2>/dev/null || warn "Failed to make executable: ${script##*/}"
+      info "Made executable: ${script##*/}"
+    fi
+  done < <(find "$HOME/bin" -type f -print0 2>/dev/null || true)
+else
+  warn "~/bin directory not found"
 fi
 
 # ============================================================================
@@ -43,8 +47,11 @@ fi
 # ============================================================================
 step "Setting up SSH key"
 if [[ ! -f $HOME/.ssh/id_rsa ]]; then
-  ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N "" &>/dev/null
-  info "Generated SSH key: $HOME/.ssh/id_rsa"
+  if has ssh-keygen; then
+    ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N "" &>/dev/null && info "Generated SSH key: $HOME/.ssh/id_rsa" || warn "Failed to generate SSH key"
+  else
+    warn "ssh-keygen not found, skipping SSH key generation"
+  fi
 else
   info "SSH key already exists"
 fi
@@ -56,13 +63,20 @@ step "Setting up Zsh"
 if has zsh; then
   # Set Zsh as default shell if not already
   if [[ ${SHELL##*/} != zsh ]]; then
-    chsh -s zsh 2>/dev/null || warn "Failed to set Zsh as default shell"
+    if has chsh; then
+      chsh -s zsh 2>/dev/null || warn "Failed to set Zsh as default shell (may require manual setup)"
+    else
+      warn "chsh not found, cannot set Zsh as default shell"
+    fi
+  else
+    info "Zsh is already the default shell"
   fi
 
   # Compile Zsh files for faster loading
   if [[ -f $HOME/.zshrc ]]; then
-    zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
-    info "Compiled Zsh configuration files"
+    zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null && info "Compiled Zsh configuration files" || warn "Failed to compile Zsh files"
+  else
+    warn "~/.zshrc not found, skipping Zsh compilation"
   fi
 else
   warn "Zsh not found, skipping Zsh setup"
@@ -73,8 +87,11 @@ fi
 # ============================================================================
 step "Setting up Sheldon"
 if has sheldon; then
-  sheldon lock &>/dev/null || warn "Failed to lock Sheldon plugins"
-  info "Sheldon plugins locked"
+  if [[ -f $HOME/.config/sheldon/plugins.toml ]] || [[ -f $HOME/.sheldon/plugins.toml ]]; then
+    sheldon lock &>/dev/null && info "Sheldon plugins locked" || warn "Failed to lock Sheldon plugins (may need to run 'sheldon lock' manually)"
+  else
+    warn "Sheldon config not found, skipping plugin lock"
+  fi
 else
   warn "Sheldon not found, skipping plugin setup"
 fi
