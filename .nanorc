@@ -18,4 +18,5 @@ set tabsize 2
 set zap
 set unix
 set saveonexit
-# bind ^S "{execute}| sed 's/\s\+$//' {enter}{savefile}" main  # For snipping trailing blanks when you save a file
+# For snipping trailing blanks when you save a file
+bind ^S "{execute}| sed 's/\s\+$//' {enter}{savefile}" main
