@@ -103,7 +103,7 @@ autoload_init() {
 }
 
 # --- Sourcing ---
-dot=("$HOME"/.{bash_aliases,bash_completions,bash.d/cht.sh,config/bash/cht.sh,config/bash/bash_functions.bash})
+dot=("$HOME"/.{bash_aliases,bash_completions,bash.d/cht.sh,config/bash/cht.sh})
 for p in "${dot[@]}"; do [[ -r $p ]] && source "$p"; done
 unset p dot
 [[ -r "$HOME/.inputrc" ]] && export INPUTRC="$HOME/.inputrc"
@@ -216,6 +216,61 @@ fman() {
   fi
 }
 catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
+
+# Open the selected file in the default editor
+fe() {
+  local IFS=$'\n'
+  local -a files=()
+  mapfile -t files < <(fzf -q "$1" -m --inline-info -1 -0 --layout=reverse-list)
+  [[ -n ${files[0]} ]] && "${EDITOR:-nano}" "${files[@]}"
+}
+
+# cd to the selected directory
+fcd() {
+  local dir
+  if has fd; then
+    dir=$(fd -t d -d 5 . "${1:-.}" 2>/dev/null | fzf +m) && cd "$dir" || exit
+  else
+    dir=$(find "${1:-.}" -maxdepth 5 -path '*/\.*' -prune -o -type d -print 2>/dev/null | fzf +m) && cd "$dir" || exit
+  fi
+}
+
+# Fuzzy search and execute aliases/functions
+faf() { eval "$({
+  alias
+  declare -F | grep -v '^_'
+} | fzf | cut -d= -f1)"; }
+
+# Fuzzy man page search
+fzf-man() {
+  local MAN
+  if has man; then
+    MAN="$(command -v man)"
+  else
+    echo "man command not found" >&2
+    return 1
+  fi
+
+  [[ -n $1 ]] && {
+    "$MAN" "$@"
+    return
+  }
+
+  if ! has fzf; then
+    echo "fzf not found, using regular man" >&2
+    "$MAN" "$@"
+    return 1
+  fi
+
+  if has sd; then
+    "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sd ' \(' '.' | sd '\)\s*$' '' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
+  else
+    "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
+  fi
+}
+
+alias edit='${EDITOR:-nano}'
+alias pager='${PAGER:-less}'
 
 # --- Tool Wrappers ---
 
