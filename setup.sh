@@ -25,7 +25,6 @@ setup_env(){
   ensure "${XDG_CONFIG_HOME:-$HOME/.config}"
   ensure "${XDG_DATA_HOME:-$HOME/.local/share}"
   ensure "${XDG_CACHE_HOME:-$HOME/.cache}"
-  mkdir -p "$HOME/bin"
   chmod 700 "$HOME/.ssh"
   [[ -f $HOME/.ssh/id_rsa ]] || ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N "" &>/dev/null
 }
@@ -49,33 +48,29 @@ install_font(){
   step "Font"
   local font="$HOME/.termux/font.ttf" tmp="$cache/jbm.tar.xz"
   [[ -f $font ]] && { log "Font already installed"; return 0; }
-
   ensure "$HOME/.termux"
 
   # Try Nerd Fonts version first
-  if curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" 2>>"$logf"; then
-    if tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null; then
-      mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" 2>/dev/null || :
-      rm -f "$tmp"
-      log "Installed Nerd Font"
-      has termux-reload-settings && termux-reload-settings || :
-      return 0
-    fi
+  if curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" 2>>"$logf" && \
+     tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null && \
+     mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" 2>/dev/null; then
     rm -f "$tmp"
+    log "Installed Nerd Font"
+    has termux-reload-settings && termux-reload-settings || :
+    return 0
   fi
+  rm -f "$tmp"
 
   # Fallback to regular JetBrains Mono
-  if curl -fsSL "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp" 2>>"$logf"; then
-    if has unzip && unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null; then
-      mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font" 2>/dev/null || :
-      rm -f "$tmp"
-      log "Installed regular JetBrains Mono"
-      has termux-reload-settings && termux-reload-settings || :
-      return 0
-    fi
+  if curl -fsSL "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp" 2>>"$logf" && \
+     has unzip && unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null && \
+     mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font" 2>/dev/null; then
     rm -f "$tmp"
+    log "Installed regular JetBrains Mono"
+    has termux-reload-settings && termux-reload-settings || :
+    return 0
   fi
-
+  rm -f "$tmp"
   log "Failed to install font"
 }
 
@@ -114,38 +109,24 @@ bootstrap_dotfiles(){
   step "Dotfiles"
   has git || return 1
 
-  # Clone/update the repo first
-  if [[ -d $repo_path/.git ]]; then
-    git -C "$repo_path" pull --rebase --autostash &>/dev/null || log "Failed to pull repo updates"
-  else
-    git clone --depth=1 "$repo_url" "$repo_path" || { log "Failed to clone repo"; return 1; }
-  fi
+  # Clone/update repo
+  [[ -d $repo_path/.git ]] && git -C "$repo_path" pull --rebase --autostash &>/dev/null || \
+    git clone --depth=1 "$repo_url" "$repo_path" || { log "Failed to sync repo"; return 1; }
 
-  # Setup yadm separately
+  # Setup yadm
   if has yadm; then
     if [[ ! -d $HOME/.local/share/yadm/repo.git ]]; then
-      # Initialize yadm repo
-      yadm init &>>"$logf" || log "Failed to init yadm"
-      yadm remote add origin "$repo_url" &>>"$logf" || log "Remote already exists"
-      yadm fetch origin &>>"$logf" || log "Failed to fetch from origin"
-      yadm reset --hard origin/main &>>"$logf" || yadm reset --hard origin/master &>>"$logf" || log "Failed to reset to remote"
-      yadm checkout . &>>"$logf" || :
-      # Run bootstrap manually
-      [[ -x $HOME/.yadm/bootstrap ]] && bash "$HOME/.yadm/bootstrap" &>>"$logf" || :
+      yadm init &>>"$logf" && yadm remote add origin "$repo_url" &>>"$logf"
+      yadm fetch origin &>>"$logf" && (yadm reset --hard origin/main &>>"$logf" || yadm reset --hard origin/master &>>"$logf")
+      yadm checkout . &>>"$logf" && [[ -x $HOME/.yadm/bootstrap ]] && bash "$HOME/.yadm/bootstrap" &>>"$logf" || :
     else
-      # Update existing yadm repo
       yadm pull --rebase &>>"$logf" || log "Failed to pull yadm updates"
     fi
   fi
 
-  # Symlink all executable files from repo bin/ to $HOME/bin/
-  if [[ -d $repo_path/bin ]]; then
-    while IFS= read -r -d '' s; do
-      tgt="$HOME/bin/${s##*/}"
-      ln -sf "$s" "$tgt"
-      chmod +x "$tgt"
-    done < <(find "$repo_path/bin" -type f -executable -print0)
-  fi
+  # Symlink bin files
+  [[ -d $repo_path/bin ]] && find "$repo_path/bin" -type f -executable -print0 | \
+    while IFS= read -r -d '' s; do ln -sf "$s" "$HOME/bin/${s##*/}" && chmod +x "$HOME/bin/${s##*/}"; done
 }
 
 setup_zsh(){

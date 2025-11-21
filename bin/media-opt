@@ -40,11 +40,9 @@ cache_tool(){
 has(){ cache_tool "$1"; }
 
 # Pre-cache critical tools once at startup
-for tool in fd:fdfind rg:grep sk:fzf eza:ls rust-parallel:parallel ffzap:ffmpeg \
-            oxipng pngquant jpegoptim cjpeg flaca rimage cwebp avifenc cjxl \
-            gifsicle svgo scour opusenc identify; do
-  IFS=: read -r name fallback <<<"$tool"
-  cache_tool "$name" "$fallback" || :
+for tool in fd:fdfind rg:grep sk:fzf rust-parallel:parallel ffzap:ffmpeg oxipng pngquant jpegoptim \
+            cjpeg flaca rimage cwebp avifenc cjxl gifsicle svgo scour opusenc identify; do
+  IFS=: read -r name fallback <<<"$tool:"; cache_tool "$name" "${fallback:--}" || :
 done
 
 # ---- Helpers ----
@@ -112,11 +110,11 @@ ffmpeg_has_encoder(){
 detect_video_codec(){
   local req=${VIDEO_CODEC,,}
   [[ -n $req && $req != "auto" ]] && { VIDEO_CODEC=$req; return; }
-  if ffmpeg_has_encoder libsvtav1 || ffmpeg_has_encoder libaom-av1; then VIDEO_CODEC="av1"
-  elif ffmpeg_has_encoder libvpx-vp9; then VIDEO_CODEC="vp9"
-  elif ffmpeg_has_encoder libx265; then VIDEO_CODEC="h265"
-  elif ffmpeg_has_encoder libx264; then VIDEO_CODEC="h264"
-  else VIDEO_CODEC="vp9"; fi
+  for codec in "libsvtav1:av1" "libaom-av1:av1" "libvpx-vp9:vp9" "libx265:h265" "libx264:h264"; do
+    IFS=: read -r enc name <<<"$codec"
+    ffmpeg_has_encoder "$enc" && { VIDEO_CODEC="$name"; return; }
+  done
+  VIDEO_CODEC="vp9"
 }
 
 # ---- Backup ----
@@ -426,9 +424,12 @@ process_file(){
     *) warn "Unsupported: $file"; ((STATS_SKIPPED++));;
   esac
 }
-export -f process_file optimize_image optimize_video optimize_audio optimize_png optimize_jpeg
-export -f get_output_path is_already_optimized mkbackup cache_tool select_image_target_format ffmpeg_has_encoder
-export -f format_bytes get_size log warn show_progress
+
+# Export only essential functions for parallel execution
+for func in process_file optimize_{image,video,audio,png,jpeg} get_output_path is_already_optimized \
+            mkbackup cache_tool select_image_target_format ffmpeg_has_encoder format_bytes get_size log warn show_progress; do
+  export -f "$func" 2>/dev/null || :
+done
 
 # ---- File Collection ----
 find_media_files(){
