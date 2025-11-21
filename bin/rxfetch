@@ -1,74 +1,26 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 
-magenta="\033[1;35m"
-green="\033[1;32m"
-white="\033[1;37m"
-blue="\033[1;34m"
-red="\033[1;31m"
-black="\033[1;40;30m"
-yellow="\033[1;33m"
-cyan="\033[1;36m"
-reset="\033[0m"
-bgyellow="\033[1;43;33m"
-bgwhite="\033[1;47;37m"
-c0=${reset}
-c1=${magenta}
-c2=${green}
-c3=${white}
-c4=${blue}
-c5=${red}
-c6=${yellow}
-c7=${cyan}
-c8=${black}
-c9=${bgyellow}
-c10=${bgwhite}
+c0="\033[0m" c1="\033[1;35m" c2="\033[1;32m" c3="\033[1;37m" c4="\033[1;34m"
+c5="\033[1;31m" c6="\033[1;33m" c7="\033[1;36m" c8="\033[1;40;30m"
+c9="\033[1;43;33m" c10="\033[1;47;37m"
 
-getCodeName() { codename="$(getprop ro.product.board)"; }
-getClientBase() { client_base="$(getprop ro.com.google.clientidbase)"; }
-getModel() { model="$(getprop ro.product.brand) $(getprop ro.product.model)"; }
-getDistro() { os="$(uname -o) $(uname -m)"; }
-getKernel() { kernel="$(uname -r)"; }
-getTotalPackages() {
-  package_manager="$(which {apt,dpkg} 2>/dev/null | grep -v "not found" | awk -F/ 'NR==1{print $NF}')"
-  case "$package_manager" in
-  "apt") packages=$(apt list --installed 2>/dev/null | wc -l) ;;
-  "dpkg") packages=$(dpkg-query -l | wc -l) ;;
-  "") packages="Unknown" ;;
-  esac
-}
-getShell() { shell="$(basename "$SHELL")"; }
-getUptime() { uptime="$(uptime --pretty | sed 's/up//')"; }
-getMemoryUsage() {
-  #memory="$(free --mega | sed -n -E '2s/^[^0-9]*([0-9]+) *([0-9]+).*/'"${space}"'\2 \/ \1MB/p')"
-  _MEM="Mem:"
-  _GREP_ONE_ROW="$(free --mega | grep "$_MEM")"
-  _TOTAL="$(echo "$_GREP_ONE_ROW" | awk '{print $2}')"
-  _USED="$(echo "$_GREP_ONE_ROW" | awk '{print $3}')"
-  memory="${_USED}MB / ${_TOTAL}MB"
-}
-getDiskUsage() {
-  _MOUNTED_ON="/data"
-  _GREP_ONE_ROW="$(df -h | grep "$_MOUNTED_ON")"
-  _SIZE="$(echo "$_GREP_ONE_ROW" | awk '{print $2}')"
-  _USED="$(echo "$_GREP_ONE_ROW" | awk '{print $3}')"
-  _AVAIL="$(echo "$_GREP_ONE_ROW" | awk '{print $4}')"
-  _USE="$(echo "$_GREP_ONE_ROW" | awk '{print $5}' | sed 's/%//')"
-  _MOUNTED="$(echo "$_GREP_ONE_ROW" | awk '{print $6}')"
-  storage="${_USED}B / ${_SIZE}B = ${_AVAIL}B (${_USE}%)"
-}
-main() {
-  getCodeName
-  getClientBase
-  getModel
-  getDistro
-  getKernel
-  getTotalPackages
-  getShell
-  getUptime
-  getMemoryUsage
-  getDiskUsage
-}
-main
+# Gather system info
+codename="$(getprop ro.product.board)"
+client_base="$(getprop ro.com.google.clientidbase)"
+model="$(getprop ro.product.brand) $(getprop ro.product.model)"
+os="$(uname -o) $(uname -m)"
+kernel="$(uname -r)"
+packages=$(command -v apt &>/dev/null && apt list --installed 2>/dev/null | wc -l || dpkg-query -l 2>/dev/null | wc -l || echo "Unknown")
+shell="$(basename "$SHELL")"
+uptime="$(uptime --pretty | sed 's/up//')"
+
+# Memory usage
+mem_info="$(free --mega | grep "Mem:")"
+memory="$(echo "$mem_info" | awk '{print $3}')MB / $(echo "$mem_info" | awk '{print $2}')MB"
+
+# Disk usage
+disk_info="$(df -h | grep "/data")"
+storage="$(echo "$disk_info" | awk '{print $3"B / "$2"B = "$4"B ("$5")"}')"
 
 echo -e "\n\n"
 echo -e "  ┏━━━━━━━━━━━━━━━━━━━━━━┓"

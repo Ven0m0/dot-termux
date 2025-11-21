@@ -57,21 +57,13 @@ done
   exit 1
 }
 
-adb reverse "localabstract:${ADB_PORT}" tcp:5555 2>/dev/null || :
-adb connect "$adb_address" 2>/dev/null || :
-adb reverse "localabstract:${ADB_PORT}" tcp:5555 2>/dev/null || :
-adb tcpip 5555 2>/dev/null || :
-adb devices
-adb connect "${adb_ip}:5555" 2>/dev/null || :
+# Setup ADB connection
+for cmd in "reverse localabstract:${ADB_PORT} tcp:5555" "connect $adb_address" "tcpip 5555" "connect ${adb_ip}:5555"; do
+  adb $cmd 2>/dev/null || :
+done
 
-if adb devices 2>/dev/null | "$GREP_CMD" -q 'emulator\|device'; then
-  echo "
-    #---- Mobile ADB Shell Enabled ----#
- "
-fi
+adb devices | "$GREP_CMD" -q 'emulator\|device' && echo -e "\n    #---- Mobile ADB Shell Enabled ----#\n"
 
-# Cleanup temporary files
+# Cleanup and launch
 rm -f ~/adbip.txt ~/adbport.txt
-
-# Launch ADB shell
 adb shell
