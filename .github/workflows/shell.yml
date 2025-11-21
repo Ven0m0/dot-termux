@@ -2,9 +2,19 @@ name: Shell Lint
 on:
   push:
     branches: [main, master]
-    paths: ["**/*.{sh,bash,bashrc,profile}", "bash_*"]
+    paths:
+      - "**/*.sh"
+      - "**/*.bash"
+      - "**/*.bashrc"
+      - "**/*.profile"
+      - "bash_*"
   pull_request:
-    paths: ["**/*.{sh,bash,bashrc,profile}", "bash_*"]
+    paths:
+      - "**/*.sh"
+      - "**/*.bash"
+      - "**/*.bashrc"
+      - "**/*.profile"
+      - "bash_*"
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

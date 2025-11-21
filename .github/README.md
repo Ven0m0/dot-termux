@@ -105,18 +105,6 @@ media-opt batch -t video ~/Movies
 
 ## 🏗️ Architecture
 
-### Shared Library
-
-All scripts now use a common library (`.config/bash/common.sh`) providing:
-
-- Dependency checking functions
-- Logging utilities
-- File operations helpers
-- Path manipulation
-- Tool detection (sd/sed, fd/find)
-- Network helpers
-- String utilities
-
 ### Consolidated Scripts
 
 **`bin/media-opt`** - Unified media optimization tool
