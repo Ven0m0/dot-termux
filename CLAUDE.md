@@ -125,16 +125,19 @@ If conditions for the password are not met:
 Follow the Test-Driven Development (TDD) cycle during development:
 
 1. **Red (Failure)**
+
    - Write the simplest failing test
    - Test name clearly describes behavior
    - Ensure failure message is understandable
 
-2. **Green (Success)**
+1. **Green (Success)**
+
    - Implement minimal code to pass the test
    - Do not consider optimization or beauty at this stage
    - Focus solely on passing the test
 
-3. **Refactor (Improvement)**
+1. **Refactor (Improvement)**
+
    - Refactor only after tests pass
    - Eliminate duplication and clarify intent
    - Run tests after each refactoring
@@ -144,11 +147,13 @@ Follow the Test-Driven Development (TDD) cycle during development:
 Clearly separate changes into two types:
 
 - **Structural Changes**
+
   - Code arrangement, organization, formatting
   - Do not change behavior at all
   - Examples: Method reordering, import organization, variable name changes
 
 - **Behavioral Changes**
+
   - Addition, modification, deletion of functions
   - Changes that alter test results
   - Examples: New feature addition, bug fixes, logic changes
@@ -175,16 +180,19 @@ Execute commits only when all the following conditions are met:
 Strict rules for refactoring:
 
 1. **Prerequisites**
+
    - Start only when all tests pass
    - Do not mix behavior changes with refactoring
 
-2. **Execution Steps**
+1. **Execution Steps**
+
    - Use established refactoring patterns
    - Make only one change at a time
    - Always run tests after each step
    - Immediately revert if failed
 
-3. **Frequently Used Patterns**
+1. **Frequently Used Patterns**
+
    - Extract Method
    - Rename
    - Move Method
@@ -195,22 +203,26 @@ Strict rules for refactoring:
 Priorities for efficient implementation:
 
 1. **First Step**
+
    - Start with the simplest case
    - Prioritize "working" above all else
    - Value progress over perfection
 
-2. **Code Quality Principles**
+1. **Code Quality Principles**
+
    - Immediately eliminate duplication when found
    - Write code with clear intent
    - Make dependencies explicit
    - Keep methods small and single-responsible
 
-3. **Gradual Improvement**
+1. **Gradual Improvement**
+
    - First create something that works
    - Cover with tests
    - Then optimize
 
-4. **Handling Edge Cases**
+1. **Handling Edge Cases**
+
    - Consider after basic cases work
    - Add tests for each edge case
    - Gradually improve robustness
@@ -272,4 +284,3 @@ Priorities for efficient implementation:
 - New pattern detection → Immediately learn and apply
 - Feedback → Automatically reflect in next execution
 - Best practices → Update as needed
-

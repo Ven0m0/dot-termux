@@ -1,4 +1,4 @@
-confirm = true
+confirm = false
 track_installs = true
 continue_on_failure = true
 

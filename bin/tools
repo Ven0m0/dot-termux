@@ -38,7 +38,7 @@ list_execs() {
 
       # Add to output if not filtering duplicates or if not seen
       if [[ $allow_dupe -eq 1 ]] || [[ -z ${seen[$([[ $show_path -eq 1 ]] && echo "$f" || echo "$base")]:-} ]]; then
-        [[ $allow_dupe -eq 0 ]] && seen[$([[ $show_path -eq 1 ]] && echo "$f" || echo "$base")]=1
+        [[ $allow_dupe -eq 0 ]] && seen["$([[ $show_path -eq 1 ]] && echo "$f" || echo "$base")"]=1
         out+=("$([[ $show_path -eq 1 ]] && echo "$f" || echo "$base")")
       fi
     done

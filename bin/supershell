@@ -59,7 +59,7 @@ done
 
 # Setup ADB connection
 for cmd in "reverse localabstract:${ADB_PORT} tcp:5555" "connect $adb_address" "tcpip 5555" "connect ${adb_ip}:5555"; do
-  adb $cmd 2>/dev/null || :
+  adb "$cmd" 2>/dev/null || :
 done
 
 adb devices | "$GREP_CMD" -q 'emulator\|device' && echo -e "\n    #---- Mobile ADB Shell Enabled ----#\n"

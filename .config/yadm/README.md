@@ -18,12 +18,13 @@ yadm clone --bootstrap https://github.com/Ven0m0/dot-termux.git
 ```
 
 The bootstrap script will automatically:
+
 1. Set up directory structure
-2. Generate SSH keys if needed
-3. Configure Zsh
-4. Set up Sheldon plugins
-5. Make bin scripts executable
-6. Apply Termux-specific settings
+1. Generate SSH keys if needed
+1. Configure Zsh
+1. Set up Sheldon plugins
+1. Make bin scripts executable
+1. Apply Termux-specific settings
 
 ### Update dotfiles
 

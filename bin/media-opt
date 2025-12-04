@@ -451,8 +451,8 @@ find_media_files(){
   else
     local depth_arg=""
     [[ $RECURSIVE -eq 0 ]] && depth_arg="-maxdepth 1"
-    find "$dir" $depth_arg -type f ! -name "*${SUFFIX}*" -size +10k \( \
-      $(printf -- "-o -iname *.%s " "${exts[@]}") \
+    find "$dir" "$depth_arg" -type f ! -name "*${SUFFIX}*" -size +10k \( \
+      "$(printf -- "-o -iname *.%s " "${exts[@]}")" \
     \) 2>/dev/null | sed 's/^-o //'
   fi
 }
