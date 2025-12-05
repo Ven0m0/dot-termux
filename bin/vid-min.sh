@@ -27,7 +27,7 @@ fdav1(){
   fd . "${1:-.}" -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 \
     -x ffmpeg -hide_banner -loglevel error -y -i "{}" \
     -c:v libsvtav1 -crf 35 -preset 10 \
-    -c:a libopus -b:a 96k -n "{.}_min.mkv" || :
+    -c:a libopus -b:a 96k -n "{.}_min.mkv"
 }
 
 # 3. ffzap: Rust-based wrapper (Primary)
@@ -36,21 +36,18 @@ fdzap(){
   if command -v ffzap &>/dev/null; then
     echo "⚡ Minifying with ffzap (VP9)..."
     fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" \
-      -x ffzap "{}" -- -c:v libvpx-vp9 -b:v 0 -crf 32 -cpu-used 3 -row-mt 1 \
-      -c:a libopus -b:a 96k || :
+      -x sh -c 'ffzap --output "${1%.${1##*.}}_min.mkv" "$1" -- -c:v libvpx-vp9 -b:v 0 -crf 32 -cpu-used 3 -row-mt 1 -c:a libopus -b:a 96k' _ "{}"
   else
     echo "⚠️  ffzap not found (cargo install ffzap). Using VP9 fallback."
     fdvp9 "$@"
   fi
 }
-
 # 4. ffzap AV1: Best size via wrapper
 fdzapav1(){
   if command -v ffzap &>/dev/null; then
     echo "⚡ Minifying with ffzap (AV1)..."
     fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" \
-      -x ffzap "{}" -- -c:v libsvtav1 -crf 35 -preset 10 \
-      -c:a libopus -b:a 96k || :
+      -x sh -c 'ffzap --output "${1%.${1##*.}}_min.mkv" "$1" -- -c:v libsvtav1 -crf 35 -preset 10 -c:a libopus -b:a 96k' _ "{}"
   else
     echo "⚠️  ffzap not found (cargo install ffzap). Using AV1 fallback."
     fdav1 "$@"
@@ -67,6 +64,5 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   # fdzapav1 "$TARGET"
   # fdvp9 "$TARGET"
   # fdav1 "$TARGET"
-  
   echo "✅ Done."
 fi
