@@ -102,3 +102,11 @@ ssh-stop() {
     echo "SSH server stopped"
 }
 ```
+
+```bash
+pkg up -y; pkg upgrade -y
+pkg i -y jpegoptim optipng libwebp fd gifsicle parallel
+```
+```bash
+fd -e jpg -e jpeg -x jpegoptim --strip-all --all-progressive -m85
+```
