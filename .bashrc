@@ -26,9 +26,6 @@ dname() {
 }
 match() { printf '%s\n' "$1" | grep -E -o "$2" &>/dev/null || return 1; }
 
-# Legacy wrapper (for backwards compatibility)
-git_wrapper(){ git "$@"; }
-
 # --- Lazy loading ---
 FUNC_DIRS=("$HOME/.config/bash/functions.d")
 CONFIG_DIRS=("$HOME/.config/bash/configs")
@@ -160,7 +157,7 @@ if has uv; then export UV_COMPILE_BYTECODE=1 UV_LINK_MODE=hardlink; fi
 export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
 
 # Git clone (using git_wrapper)
-gclone() {
+gclone(){
   LC_ALL=C git_wrapper clone --progress --filter=blob:none --depth 1 "$@" && command cd "$1" || exit
   ls -A
 }
@@ -184,37 +181,8 @@ fi
 alias nano='nano -/' mi=micro
 
 # Bat helpers
-bathelp() { "$@" --help 2>&1 | bat -splhelp --squeeze-limit 0; }
+bathelp() { "$@" --help 2>&1 | bat -plhelp; }
 
-# Man helpers (consolidated)
-manol() {
-  [[ $# -eq 0 ]] && {
-    printf 'Usage: manol [section] <page>\nExample: manol 3 printf\n' >&2
-    return 1
-  }
-  local page section url base_url="https://man.archlinux.org/man"
-  if [[ $# -eq 1 ]]; then
-    page="$1"
-    url="${base_url}/${page}"
-  else
-    section="$1"
-    page="$2"
-    url="${base_url}/${page}.${section}"
-  fi
-  curl -sL --user-agent "curl-manpage-viewer/1.0" --compressed "$url" | "${PAGER:-less}" -R
-}
-
-fman() {
-  local -a less_env=(LESS_TERMCAP_md=$'\e[01;31m' LESS_TERMCAP_me=$'\e[0m' LESS_TERMCAP_us=$'\e[01;32m' LESS_TERMCAP_ue=$'\e[0m' LESS_TERMCAP_so=$'\e[45;93m' LESS_TERMCAP_se=$'\e[0m')
-  local -a bat_env=(LANG='C.UTF-8' MANROFFOPT='-c' BAT_STYLE='full' BAT_PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2")
-  if has batman; then
-    env "${bat_env[@]}" "${less_env[@]}" batman "$@"
-  elif has bat; then
-    env "${bat_env[@]}" "${less_env[@]}" MANPAGER="sh -c 'col -bx | bat -splman --squeeze-limit 0 --tabs 2'" man "$@"
-  else
-    env "${less_env[@]}" PAGER="less -RFQs --use-color --no-histdups --mouse --wheel-lines=2" man "$@"
-  fi
-}
 catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
 
 # Open the selected file in the default editor
@@ -250,40 +218,33 @@ fzf-man() {
     echo "man command not found" >&2
     return 1
   fi
-
   [[ -n $1 ]] && {
     "$MAN" "$@"
     return
   }
-
   if ! has fzf; then
     echo "fzf not found, using regular man" >&2
     "$MAN" "$@"
     return 1
   fi
-
   if has sd; then
     "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sd ' \(' '.' | sd '\)\s*$' '' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
   else
     "$MAN" -k . | fzf --reverse --preview="echo {1,2} | sed 's/ (/./' | sed -E 's/\)\s*$//' | xargs $MAN" | awk '{print $1 "." $2}' | tr -d '()' | xargs -r "$MAN"
   fi
 }
-
 alias edit='${EDITOR:-nano}'
 alias pager='${PAGER:-less}'
 
 # --- Tool Wrappers ---
-
 # Navigation
 if has zoxide; then
   export _ZO_DOCTOR=0 _ZO_ECHO=0 _ZO_EXCLUDE_DIRS="${HOME}:.cache:go"
   export _ZO_FZF_OPTS="--cycle -0 -1 --inline-info --no-multi --no-sort --preview 'eza --no-quotes --color=always --color-scale-mode=fixed --group-directories-first --oneline {2..}'"
   ifsource "$HOME/.config/bash/zoxide.bash" && eval "$(zoxide init bash)"
 fi
-
 # Mise (version manager)
 has mise && eval "$(mise activate bash)"
-
 # Aliases
 alias ..='cd ..' ...='cd ../..' ....='cd ../../..' .....='cd ../../../..' ......='cd ../../../../..' bd='cd "$OLDPWD"' cd-="cd -" home='cd ~'
 alias dirs='dirs -v'
@@ -298,25 +259,21 @@ alias tree='tree -CAhF --dirsfirst'
 alias treed='tree -CAFd'
 alias mountedinfo='df -hT'
 alias mktar='tar -cvf' mkbz2='tar -cvjf' mkgz='tar -cvzf' untar='tar -xvf' unbz2='tar -xvjf' ungz='tar -xvzf'
-
 # LESS colors
 : "${LESS:=}"
 : "${LESS_TERMCAP_mb:=$'\e[1;32m'}" "${LESS_TERMCAP_md:=$'\e[1;32m'}" "${LESS_TERMCAP_me:=$'\e[0m'}" "${LESS_TERMCAP_se:=$'\e[0m'}" "${LESS_TERMCAP_so:=$'\e[01;33m'}" "${LESS_TERMCAP_ue:=$'\e[0m'}" "${LESS_TERMCAP_us:=$'\e[1;4;31m'}"
 export "${!LESS_TERMCAP@}"
-
 trim() {
   local var=$*
   var="${var#"${var%%[![:space:]]*}"}"
   var="${var%"${var##*[![:space:]]}"}"
   printf '%s\n' "$var"
 }
-
 # Bindings
 bind 'set completion-query-items 250' 'set page-completions off' 'set show-all-if-ambiguous on' 'set show-all-if-unmodified on' 'set menu-complete-display-prefix on' "set completion-ignore-case on" "set completion-map-case on" 'set mark-directories on' "set mark-symlinked-directories on" "set bell-style none" 'set skip-completed-text on' 'set colored-stats on' 'set colored-completion-prefix on' 'set expand-tilde on' '"Space": magic-space' '"\C-o": kill-whole-line' '"\C-a": beginning-of-line' '"\C-e": end-of-line' '"\e[1;5D": backward-word' '"\e[1;5C": forward-word'
 bind '"\e[A":history-substring-search-backward' '"\e[B":history-substring-search-forward'
 bind '"\M-\C-e": redraw-current-line' '"\M-\C-v": "\C-a\C-k$\C-y\M-\C-e\C-a\C-y="' '"\M-\C-b": "\C-e > /dev/null 2>&1 &\C-m"'
 bind '"\t": menu-complete' '"\e[Z": menu-complete-backward'
-
 # Prompt
 configure_prompt() {
   if has starship; then
