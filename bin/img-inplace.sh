@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t'; export LC_ALL=C LANG=C
+IFS=$'\n\t'; export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 # In-place optimization for JPG & PNG. Source or run.
 # Usage: ./img-inplace.sh [dir]
 
