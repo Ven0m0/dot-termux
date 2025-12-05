@@ -1,9 +1,8 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
+set -euo pipefail; shopt -s nullglob globstar
+IFS=$'\n\t' LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 # Wrappers for video minification (VP9/AV1/ffzap). Source or run.
 # Usage: ./vid-min.sh [dir]
-set -euo pipefail
-IFS=$'\n\t'
-export LC_ALL=C
 
 # Check dependencies (ffmpeg+fd required; ffzap optional)
 command -v ffmpeg &>/dev/null || { echo "❌ Missing: ffmpeg"; exit 1; }
@@ -28,20 +27,33 @@ fdav1(){
   fd . "${1:-.}" -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 \
     -x ffmpeg -hide_banner -loglevel error -y -i "{}" \
     -c:v libsvtav1 -crf 35 -preset 10 \
-    -c:a libopus -b:a 96k -n "{.}_min.mkv"
+    -c:a libopus -b:a 96k -n "{.}_min.mkv" || :
 }
 
 # 3. ffzap: Rust-based wrapper (Primary)
 # Fallback to fdvp9 if ffzap is not installed.
 fdzap(){
   if command -v ffzap &>/dev/null; then
-    echo "⚡ Minifying with ffzap..."
-    # -j 1: Sequential processing to prevent OOM
-    # ffzap usually handles flags automatically; assuming default behavior
-    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" -x ffzap "{}" 
+    echo "⚡ Minifying with ffzap (VP9)..."
+    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" \
+      -x ffzap "{}" -- -c:v libvpx-vp9 -b:v 0 -crf 32 -cpu-used 3 -row-mt 1 \
+      -c:a libopus -b:a 96k || :
   else
     echo "⚠️  ffzap not found (cargo install ffzap). Using VP9 fallback."
     fdvp9 "$@"
+  fi
+}
+
+# 4. ffzap AV1: Best size via wrapper
+fdzapav1(){
+  if command -v ffzap &>/dev/null; then
+    echo "⚡ Minifying with ffzap (AV1)..."
+    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" \
+      -x ffzap "{}" -- -c:v libsvtav1 -crf 35 -preset 10 \
+      -c:a libopus -b:a 96k || :
+  else
+    echo "⚠️  ffzap not found (cargo install ffzap). Using AV1 fallback."
+    fdav1 "$@"
   fi
 }
 
@@ -52,6 +64,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   echo "⚠️  Processing sequentially to save battery/RAM."
   # Try ffzap first (with fallback to VP9), or uncomment others
   fdzap "$TARGET"
+  # fdzapav1 "$TARGET"
   # fdvp9 "$TARGET"
   # fdav1 "$TARGET"
   
