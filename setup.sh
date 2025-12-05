@@ -89,9 +89,9 @@ install_rust_tools(){
 install_third_party(){
   step "3rd party"
   run_installer "bun" "https://bun.sh/install"
-  run_installer "mise" "https://mise.run"
-  has jaq || { curl -fsSL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/bin/jaq" && chmod +x "$HOME/bin/jaq"; } || :
-  has apk.sh || { curl -fsSL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/bin/apk.sh"; } || :
+  #run_installer "mise" "https://mise.run"
+  has jaq || { curl -fsSL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/.local/bin/jaq" && chmod +x "$HOME/.local/bin/jaq"; } || :
+  has apk.sh || { curl -fsSL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/.local/bin/apk.sh"; } || :
 }
 
 install_bat_extras(){
