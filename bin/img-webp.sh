@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t'; export LC_ALL=C LANG=C
+IFS=$'\n\t'; export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 # Wrapper for image optimization.
 # Usage: source img-opt.sh; fdwebp [dir] OR ./img-opt.sh [dir]
 # Dependencies: pkg install fd libwebp
