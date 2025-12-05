@@ -8,8 +8,8 @@ IFS=$'\n\t'; export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 # WebP: Convert JPG/PNG to WebP (q80) and DELETE original
 fdwebp(){
   # bash -c allows chaining '&& rm'; ${1%.*} strips ext
-  fd . "${1:-.}" -e jpg -e jpeg -e png \
-    -x bash -c 'cwebp -q 80 -m 6 -pass 10 -progress -metadata none \
+  fd -tf -e jpg -e jpeg -e png -E '*.webp' . "${1:-.}" \
+    -x bash -c 'cwebp -q 80 -m 6 -pass 10 -quiet -metadata none \
     "$1" -o "${1%.*}.webp" && rm "$1"' _ "{}"
 }
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
