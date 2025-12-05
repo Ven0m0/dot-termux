@@ -7,7 +7,7 @@ set -euo pipefail
 # 1. JPEG: Strip all metadata, progressive, quality 85
 fdjpg(){ fd . "${1:-.}" -e jpg -e jpeg -x jpegoptim -s --all-progressive -m85; }
 fdpng(){ fd . "${1:-.}" -e png -x optipng -o2 -strip all -fix -clobber; }
-fdwebp(){ fd . "${1:-.}" -e jpg -e jpeg -e png -x cwebp -q 75 -m 6 -pass 10 -af "{}" -o "{.}.webp"; }
+fdwebp(){ fd . "${1:-.}" -e jpg -e jpeg -e png -x cwebp -q 75 -m 6 "{}" -o "{.}.webp"; }
 
 # Execution block (only runs if script is executed, not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
