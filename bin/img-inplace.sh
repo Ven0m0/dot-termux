@@ -1,9 +1,8 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
+set -euo pipefail; shopt -s nullglob globstar
+IFS=$'\n\t'; export LC_ALL=C LANG=C
 # In-place optimization for JPG & PNG. Source or run.
 # Usage: ./img-inplace.sh [dir]
-set -euo pipefail
-IFS=$'\n\t'
-export LC_ALL=C
 
 # 1. JPEG: Strip metadata, progressive, quality 85
 fdjpg(){
