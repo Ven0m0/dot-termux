@@ -13,6 +13,9 @@ step(){ printf '==> %s\n' "$*"; }
 log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$logf"; }
 ensure(){ [[ -d $1 ]] || mkdir -p "$1"; }
 
+yes | apt update
+yes | pkg update
+
 run_installer(){
   has "${1%%-*}" && { log "$1 already installed."; return 0; }
   local s="$cache/$1.sh"
