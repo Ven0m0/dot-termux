@@ -13,7 +13,7 @@ export LC_ALL=C
 fdwebp(){
   # bash -c allows chaining '&& rm'; ${1%.*} strips ext
   fd . "${1:-.}" -e jpg -e jpeg -e png \
-    -x bash -c 'cwebp -q 80 -m 6 -pass 10 -quiet -metadata none -mt \
+    -x bash -c 'cwebp -q 80 -m 6 -pass 10 -progress -metadata none -mt \
     "$1" -o "${1%.*}.webp" && rm "$1"' _ "{}"
 }
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
