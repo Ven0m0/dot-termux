@@ -105,10 +105,12 @@ ssh-stop() {
 
 ```bash
 pkg up -y; pkg upgrade -y
-pkg i -y jpegoptim optipng libwebp fd gifsicle parallel
 ```
 ```bash
-fd -e jpg -e jpeg -x jpegoptim -s --auto-mode -m85
+pkg i -y jpegoptim optipng libwebp fd gifsicle
+```
+```bash
+fd . 'storage/shared/Android/media/com.whatsapp/WhatsApp/Media/' -e jpg -e jpeg -x jpegoptim -s --auto-mode -m85
 ```
 ```bash
 fd -e png -x optipng -o2 -strip all -fix -clobber
