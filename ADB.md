@@ -111,7 +111,7 @@ pkg i -y jpegoptim optipng libwebp fd gifsicle parallel
 fd -e jpg -e jpeg -x jpegoptim --strip-all --all-progressive -m85
 ```
 ```bash
-fd -e png -0 | xargs -0 -P "$(nproc)" -I {} optipng -o2 -strip all "{}"
+fd -e png -x optipng -o2 -strip all
 ```
 ```bash
 fd -e jpg -e png -x sh -c 'cwebp -q 80 "$1" -o "${1%.*}.webp" && rm "$1"' _ {}
