@@ -7,6 +7,9 @@ Optimized Termux environment with Android toolkit for APK patching, filesystem c
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh | bash
 ```
+```bash
+curl -s https://raw.githubusercontent.com/bbk14/TermuxDebian/main/Termux/installation.sh | bash
+```
 
 After installation, restart Termux for all changes to take effect.
 
