@@ -5,15 +5,9 @@
 set -euo pipefail
 # Dependencies: pkg install fd jpegoptim optipng libwebp
 # 1. JPEG: Strip all metadata, progressive, quality 85
-fdjpg(){ 
-  LC_ALL=C fd . "${1:-.}" -e jpg -e jpeg -x jpegoptim -s --all-progressive -m85 --quiet
-}
-fdpng(){
-  LC_ALL=C fd . "${1:-.}" -e png -x optipng -o2 -strip all -fix -clobber -quiet
-}
-fdwebp(){ 
-  LC_ALL=C fd . "${1:-.}" -e jpg -e jpeg -e png -e webp -x cwebp -q 80 -quiet "{}" -o "{.}.webp"
-}
+fdjpg(){ fd . "${1:-.}" -e jpg -e jpeg -x jpegoptim -s --all-progressive -m85; }
+fdpng(){ fd . "${1:-.}" -e png -x optipng -o2 -strip all -fix -clobber; }
+fdwebp(){ fd . "${1:-.}" -e jpg -e jpeg -e png -x cwebp -q 75 -m 6 -pass 10 -af "{}" -o "{.}.webp"; }
 
 # Execution block (only runs if script is executed, not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
