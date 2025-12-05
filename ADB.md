@@ -108,10 +108,10 @@ pkg up -y; pkg upgrade -y
 pkg i -y jpegoptim optipng libwebp fd gifsicle parallel
 ```
 ```bash
-fd -e jpg -e jpeg -x jpegoptim --strip-all --all-progressive -m85
+fd -e jpg -e jpeg -x jpegoptim -s --auto-mode -m85
 ```
 ```bash
-fd -e png -x optipng -o2 -strip all
+fd -e png -x optipng -o2 -strip all -fix -clobber
 ```
 ```bash
 fd -e jpg -e png -x sh -c 'cwebp -q 80 "$1" -o "${1%.*}.webp" && rm "$1"' _ {}
