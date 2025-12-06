@@ -30,18 +30,15 @@ usage(){
   cat <<'EOF'
 vid-min.sh - Video minification with VP9/AV1
 USAGE: vid-min.sh COMMAND [DIR] [CRF]
-
 COMMANDS:
   vp9 [dir] [crf]    Encode to VP9 (default crf=32)
   av1 [dir] [crf]    Encode to AV1 (default crf=35)
   zap [dir] [codec] [crf]  Use ffzap wrapper (codec=vp9|av1, default vp9/32)
-
 EXAMPLES:
   vid-min.sh vp9 ~/Videos 28
   vid-min.sh av1 . 33
   vid-min.sh zap ~/Movies vp9 30
   vid-min.sh zap . av1 35
-
 NOTES:
   - Sequential processing (-j1) to conserve battery/RAM
   - VP9: Good quality/size, faster encoding
