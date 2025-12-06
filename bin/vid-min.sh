@@ -1,8 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t' LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 # Wrappers for video minification (VP9/AV1/ffzap). Source or run.
 # Usage: ./vid-min.sh [dir]
+set -euo pipefail
+IFS=$'\n\t'
+export LC_ALL=C
 
 # Check dependencies (ffmpeg+fd required; ffzap optional)
 command -v ffmpeg &>/dev/null || { echo "❌ Missing: ffmpeg"; exit 1; }
@@ -33,10 +34,15 @@ fdav1(){
 # 3. ffzap: Rust-based wrapper (Primary)
 # Fallback to fdvp9 if ffzap is not installed.
 fdzap(){
+  local process_file(){
+    local input="$1" out
+    out="${input%.*}_min.mkv"
+    ffzap --output "$out" "$input" -- -c:v libvpx-vp9 -b:v 0 -crf 32 -cpu-used 3 -row-mt 1 -c:a libopus -b:a 96k
+  }
   if command -v ffzap &>/dev/null; then
     echo "⚡ Minifying with ffzap (VP9)..."
-    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" \
-      -x sh -c 'out="${1%.${1##*.}}_min.mkv"; ffzap --output "$out" "$1" -- -c:v libvpx-vp9 -b:v 0 -crf 32 -cpu-used 3 -row-mt 1 -c:a libopus -b:a 96k' _ '{}'
+    export -f process_file
+    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" -x bash -c 'process_file "$0"' {}
   else
     echo "⚠️  ffzap not found (cargo install ffzap). Using VP9 fallback."
     fdvp9 "$@"
@@ -45,10 +51,15 @@ fdzap(){
 
 # 4. ffzap AV1: Best size via wrapper
 fdzapav1(){
+  local process_file(){
+    local input="$1" out
+    out="${input%.*}_min.mkv"
+    ffzap --output "$out" "$input" -- -c:v libsvtav1 -crf 35 -preset 10 -c:a libopus -b:a 96k
+  }
   if command -v ffzap &>/dev/null; then
     echo "⚡ Minifying with ffzap (AV1)..."
-    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" \
-      -x sh -c 'out="${1%.${1##*.}}_min.mkv"; ffzap --output "$out" "$1" -- -c:v libsvtav1 -crf 35 -preset 10 -c:a libopus -b:a 96k' _ '{}'
+    export -f process_file
+    fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j 1 . "${1:-.}" -x bash -c 'process_file "$0"' {}
   else
     echo "⚠️  ffzap not found (cargo install ffzap). Using AV1 fallback."
     fdav1 "$@"
@@ -65,5 +76,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   # fdzapav1 "$TARGET"
   # fdvp9 "$TARGET"
   # fdav1 "$TARGET"
+  
   echo "✅ Done."
 fi
