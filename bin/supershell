@@ -13,7 +13,9 @@ adb usb
 
 # Detect grep command (prefer rg)
 GREP_CMD='grep'
-has rg && GREP_CMD='rg'
+if has rg; then
+  GREP_CMD='rg'
+fi
 
 # Get the port number from logcat
 timeout 3 logcat | "$GREP_CMD" -E "adbwifi|adb wifi" >~/adbport.txt || :

@@ -9,7 +9,7 @@ img-opt(){
 }
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   TARGET="${1:-.}"
-  echo "🚀 Optimizing images in '$TARGET'..."
+  echo "Optimizing images in '$TARGET'..."
   img-opt "$TARGET"
-  echo "✅ Done."
+  echo "Done."
 fi

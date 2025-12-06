@@ -14,7 +14,7 @@ fdwebp(){
 }
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   TARGET="${1:-.}"
-  echo "🚀 Converting to WebP in '$TARGET'..."
+  echo "Converting to WebP in '$TARGET'..."
   fdwebp "$TARGET"
-  echo "✅ Done."
+  echo "Done."
 fi

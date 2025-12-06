@@ -17,9 +17,16 @@ yes | apt update
 yes | pkg update
 
 run_installer(){
-  has "${1%%-*}" && { log "$1 already installed."; return 0; }
+  if has "${1%%-*}"; then
+    log "$1 already installed."
+    return 0
+  fi
   local s="$cache/$1.sh"
-  curl -fsSL --connect-timeout 10 "$2" -o "$s" && bash "$s" &>>"$logf" || log "Failed: $1"
+  if curl -fsSL --connect-timeout 10 "$2" -o "$s"; then
+    bash "$s" &>>"$logf" || log "Failed: $1"
+  else
+    log "Failed: $1"
+  fi
   rm -f "$s"
 }
 
@@ -54,24 +61,34 @@ install_font(){
   ensure "$HOME/.termux"
 
   # Try Nerd Fonts version first
-  if curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" 2>>"$logf" && \
-     tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null && \
-     mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" 2>/dev/null; then
-    rm -f "$tmp"
-    log "Installed Nerd Font"
-    has termux-reload-settings && termux-reload-settings || :
-    return 0
+  if curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" 2>>"$logf"; then
+    if tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null; then
+      if mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" 2>/dev/null; then
+        rm -f "$tmp"
+        log "Installed Nerd Font"
+        if has termux-reload-settings; then
+          termux-reload-settings || :
+        fi
+        return 0
+      fi
+    fi
   fi
   rm -f "$tmp"
 
   # Fallback to regular JetBrains Mono
-  if curl -fsSL "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp" 2>>"$logf" && \
-     has unzip && unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null && \
-     mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font" 2>/dev/null; then
-    rm -f "$tmp"
-    log "Installed regular JetBrains Mono"
-    has termux-reload-settings && termux-reload-settings || :
-    return 0
+  if curl -fsSL "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp" 2>>"$logf"; then
+    if has unzip; then
+      if unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null; then
+        if mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font" 2>/dev/null; then
+          rm -f "$tmp"
+          log "Installed regular JetBrains Mono"
+          if has termux-reload-settings; then
+            termux-reload-settings || :
+          fi
+          return 0
+        fi
+      fi
+    fi
   fi
   rm -f "$tmp"
   log "Failed to install font"
@@ -80,21 +97,40 @@ install_font(){
 install_rust_tools(){
   step "Rust tools"
   export PATH="$HOME/.cargo/bin:$PATH"
-  has cargo || { log "No cargo"; return 1; }
+  if ! has cargo; then
+    log "No cargo"
+    return 1
+  fi
   run_installer "cargo-binstall" "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh"
-  has cargo-binstall || return 0
+  if ! has cargo-binstall; then
+    return 0
+  fi
   local -a tools=(cargo-update oxipng)
   local -a missing=()
-  for t in "${tools[@]}"; do has "$t" || missing+=("$t"); done
-  ((${#missing[@]})) && { cargo binstall -y "${missing[@]}" &>>"$logf" || cargo install --locked "${missing[@]}" &>>"$logf"; }
+  for t in "${tools[@]}"; do
+    if ! has "$t"; then
+      missing+=("$t")
+    fi
+  done
+  if ((${#missing[@]})); then
+    cargo binstall -y "${missing[@]}" &>>"$logf" || cargo install --locked "${missing[@]}" &>>"$logf"
+  fi
 }
 
 install_third_party(){
   step "3rd party"
   run_installer "bun" "https://bun.sh/install"
   #run_installer "mise" "https://mise.run"
-  has jaq || { curl -fsSL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/.local/bin/jaq" && chmod +x "$HOME/.local/bin/jaq"; } || :
-  has apk.sh || { curl -fsSL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh" && chmod +x "$HOME/.local/bin/apk.sh"; } || :
+  if ! has jaq; then
+    if curl -fsSL "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "$HOME/.local/bin/jaq"; then
+      chmod +x "$HOME/.local/bin/jaq" || :
+    fi
+  fi
+  if ! has apk.sh; then
+    if curl -fsSL "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh"; then
+      chmod +x "$HOME/.local/bin/apk.sh" || :
+    fi
+  fi
 }
 
 install_bat_extras(){
@@ -102,44 +138,81 @@ install_bat_extras(){
   local repo="https://github.com/eth-p/bat-extras.git"
   local dest="$cache/bat-extras" inst="$HOME/bin"
   ensure "$cache"; ensure "$inst"
-  has git || return 0
-  [[ -d $dest/.git ]] && git -C "$dest" pull -q --ff-only &>/dev/null || { rm -rf "$dest"; git clone -q --depth=1 "$repo" "$dest" || return 0; }
+  if ! has git; then
+    return 0
+  fi
+  if [[ -d $dest/.git ]]; then
+    git -C "$dest" pull -q --ff-only &>/dev/null || { rm -rf "$dest"; git clone -q --depth=1 "$repo" "$dest" || return 0; }
+  else
+    rm -rf "$dest"
+    git clone -q --depth=1 "$repo" "$dest" || return 0
+  fi
   (cd "$dest" && bash build.sh --minify=all &>>"$logf") || return 0
-  while IFS= read -r -d '' f; do ln -sf "$f" "$inst/" && chmod +x "$inst/${f##*/}" || :; done < <(find "$dest/bin" -type f -executable -maxdepth 2 -print0)
+  while IFS= read -r -d '' f; do
+    if ln -sf "$f" "$inst/"; then
+      chmod +x "$inst/${f##*/}" || :
+    fi
+  done < <(find "$dest/bin" -type f -executable -maxdepth 2 -print0)
 }
 
 bootstrap_dotfiles(){
   step "Dotfiles"
-  has git || return 1
+  if ! has git; then
+    return 1
+  fi
 
   # Clone/update repo
-  [[ -d $repo_path/.git ]] && git -C "$repo_path" pull --rebase --autostash &>/dev/null || \
+  if [[ -d $repo_path/.git ]]; then
+    git -C "$repo_path" pull --rebase --autostash &>/dev/null || {
+      git clone --depth=1 "$repo_url" "$repo_path" || { log "Failed to sync repo"; return 1; }
+    }
+  else
     git clone --depth=1 "$repo_url" "$repo_path" || { log "Failed to sync repo"; return 1; }
+  fi
 
   # Setup yadm
   if has yadm; then
     if [[ ! -d $HOME/.local/share/yadm/repo.git ]]; then
-      yadm init &>>"$logf" && yadm remote add origin "$repo_url" &>>"$logf"
-      yadm fetch origin &>>"$logf" && (yadm reset --hard origin/main &>>"$logf" || yadm reset --hard origin/master &>>"$logf")
-      yadm checkout . &>>"$logf" && [[ -x $HOME/.yadm/bootstrap ]] && bash "$HOME/.yadm/bootstrap" &>>"$logf" || :
+      if yadm init &>>"$logf"; then
+        yadm remote add origin "$repo_url" &>>"$logf"
+      fi
+      if yadm fetch origin &>>"$logf"; then
+        yadm reset --hard origin/main &>>"$logf" || yadm reset --hard origin/master &>>"$logf"
+      fi
+      if yadm checkout . &>>"$logf"; then
+        if [[ -x $HOME/.yadm/bootstrap ]]; then
+          bash "$HOME/.yadm/bootstrap" &>>"$logf" || :
+        fi
+      fi
     else
       yadm pull --rebase &>>"$logf" || log "Failed to pull yadm updates"
     fi
   fi
 
   # Symlink bin files
-  [[ -d $repo_path/bin ]] && find "$repo_path/bin" -type f -executable -print0 | \
-    while IFS= read -r -d '' s; do ln -sf "$s" "$HOME/bin/${s##*/}" && chmod +x "$HOME/bin/${s##*/}"; done
+  if [[ -d $repo_path/bin ]]; then
+    find "$repo_path/bin" -type f -executable -print0 | while IFS= read -r -d '' s; do
+      if ln -sf "$s" "$HOME/bin/${s##*/}"; then
+        chmod +x "$HOME/bin/${s##*/}"
+      fi
+    done
+  fi
 }
 
 setup_zsh(){
-  has zsh && [[ ${SHELL##*/} != zsh ]] && chsh -s zsh || :
+  if has zsh && [[ ${SHELL##*/} != zsh ]]; then
+    chsh -s zsh || :
+  fi
 }
 
 finalize(){
-  has sheldon && { sheldon lock &>/dev/null || log "Sheldon lock failed"; }
-  has zsh && { zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || log "Zsh recompile failed"; }
-  echo "🚀 Welcome to optimized Termux 🚀" >"$HOME/.welcome.msg"
+  if has sheldon; then
+    sheldon lock &>/dev/null || log "Sheldon lock failed"
+  fi
+  if has zsh; then
+    zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv ~/.p10k.zsh; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || log "Zsh recompile failed"
+  fi
+  echo "Welcome to optimized Termux" >"$HOME/.welcome.msg"
   step "Setup complete."
   printf 'Restart Termux. Logs: %s\n' "$logf"
 
