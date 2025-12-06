@@ -57,7 +57,6 @@ main(){
     av1) enc_av1 "${1:-.}" "${2:-35}";;
     zap) enc_ffzap "${1:-.}" "${2:-vp9}" "${3:-32}";;
     *) die "Unknown: $cmd (use --help)";;
-  esac
-  log "Done."
+  esac; log "Done."
 }
 main "$@"
