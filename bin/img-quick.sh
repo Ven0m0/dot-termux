@@ -1,6 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar
-IFS=$'\n\t' LC_ALL=C LANG=C
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'; LC_ALL=C; LANG=C; DEBIAN_FRONTEND=noninteractive
 has(){ command -v "$1" &>/dev/null; }
 die(){ printf 'ERR: %s\n' "$*" >&2; exit 1; }
 
