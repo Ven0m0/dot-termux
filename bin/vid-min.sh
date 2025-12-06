@@ -6,7 +6,6 @@ has(){ command -v -- "$1" &>/dev/null; }
 die(){ printf 'ERR: %s\n' "$*" >&2; exit 1; }
 log(){ printf '[%(%H:%M:%S)T] %s\n' -1 "$*"; }
 for c in ffmpeg fd; do has "$c" || die "missing: $c"; done
-
 enc_vp9(){
   local d=${1:-.} crf=${2:-32}
   log "Encoding VP9 (crf=$crf, sequential) in $d..."
@@ -27,7 +26,6 @@ enc_ffzap(){
   fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j1 . "$d" -x bash -c \
     'f="$1"; o="${f%.*}_min.mkv"; ffzap -o "$o" "$f" -- -c:v '"$vc"' -crf '"$vcrf"' '"$([[ $vc == libsvtav1 ]]&&printf -- '-preset 10'||printf -- '-b:v 0 -cpu-used 3 -row-mt 1')"' -c:a libopus -b:a 96k&&printf "OK: %s\n" "$o"' _ {}
 }
-
 usage(){
   cat <<'EOF'
 vid-min.sh - Video minification with VP9/AV1
@@ -51,7 +49,6 @@ NOTES:
   - ffzap: Rust wrapper, requires 'cargo install ffzap'
 EOF
 }
-
 main(){
   [[ $# -eq 0 || $1 == -h || $1 == --help ]]&&{ usage; exit 0; }
   local cmd=$1; shift
