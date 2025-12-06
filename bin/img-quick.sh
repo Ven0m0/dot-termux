@@ -55,7 +55,6 @@ main(){
     full)img_full "${1:-.}" "${2:-50}";;
     all)jpg_opt "${1:-.}"; png_opt "${1:-.}";;
     *)die "Unknown: $cmd (use --help)";;
-  esac
-  printf 'Done.\n'
+  esac; printf 'Done.\n'
 }
 main "$@"
