@@ -23,7 +23,9 @@ print_step() { printf '\n%b==>%b %s\n' "$BLU$BLD" "$DEF" "$*"; }
 HAS_ROOT=0
 [[ $EUID -eq 0 ]] && HAS_ROOT=1
 if [[ $HAS_ROOT -eq 0 ]] && has su; then
-  su -c "id" &>/dev/null && HAS_ROOT=1 || :
+  if su -c "id" &>/dev/null; then
+    HAS_ROOT=1
+  fi
 fi
 
 # ============================================================================
@@ -144,44 +146,48 @@ clean_pkg_cache() {
 clean_quick() {
   print_step "Quick cleaning"
   if has pkg || has apt || has apt-get; then
-    [[ $DRY_RUN -eq 1 ]] && {
+    if [[ $DRY_RUN -eq 1 ]]; then
       log "Would clean package cache"
-      :
-    } || clean_pkg_cache
+    else
+      clean_pkg_cache
+    fi
   fi
 
   log "Cleaning shell cache"
-  [[ $DRY_RUN -eq 0 ]] && {
+  if [[ $DRY_RUN -eq 0 ]]; then
     rm -f "$HOME"/.zcompdump* &>/dev/null || :
     rm -f "$HOME"/.bash_history.tmp &>/dev/null || :
     rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}"/.zcompdump* &>/dev/null || :
-  }
+  fi
 
   log "Cleaning temp files"
-  [[ $DRY_RUN -eq 0 ]] && {
+  if [[ $DRY_RUN -eq 0 ]]; then
     for dir in "${HOME}/.cache" "${HOME}/tmp" "/data/data/com.termux/files/home/.cache" \
                "/data/data/com.termux/cache" "/data/data/com.termux/files/home/tmp"; do
       rm_files "$dir"
     done
     rm_files "/data/data/com.termux/files/home" -e bak -e log
-    has fd && fd -tf --owner "$(id -u)" . "${TMPDIR:-/tmp}" -X rm -f &>/dev/null || \
+    if has fd; then
+      fd -tf --owner "$(id -u)" . "${TMPDIR:-/tmp}" -X rm -f &>/dev/null || :
+    else
       find "${TMPDIR:-/tmp}" -type f -user "$(id -u)" -delete &>/dev/null || :
-  }
+    fi
+  fi
 
   log "Cleaning log files"
-  [[ $DRY_RUN -eq 0 ]] && {
+  if [[ $DRY_RUN -eq 0 ]]; then
     rm_files "$HOME" -e log --changed-before 7d
     rm_files "$HOME" -e bak
-  }
+  fi
 
   log "Cleaning empty directories"
-  [[ $DRY_RUN -eq 0 ]] && {
+  if [[ $DRY_RUN -eq 0 ]]; then
     if has fd; then
       fd -td --max-depth 10 . "$HOME" -x rmdir {} &>/dev/null || :
     else
       find -O2 "$HOME" -type d -empty -delete &>/dev/null || :
     fi
-  }
+  fi
 
   info "Quick clean complete"
 }
@@ -196,30 +202,42 @@ clean_deep() {
     find "$PWD" -xtype l -delete &>/dev/null || :
   fi
   log "Cleaning downloads"
-  [[ $DRY_RUN -eq 0 ]] && rm_files "$HOME/storage/shared/Download" --changed-before 60d
+  if [[ $DRY_RUN -eq 0 ]]; then
+    rm_files "$HOME/storage/shared/Download" --changed-before 60d
+  fi
 
   log "Cleaning old files in home"
-  [[ $DRY_RUN -eq 0 ]] && {
+  if [[ $DRY_RUN -eq 0 ]]; then
     rm_files "$HOME" -e tmp
     rm_files "$HOME" -g '*~'
     rm_files "$HOME" -g 'core'
-  }
+  fi
   info "Deep clean complete"
 }
 
 clean_whatsapp() {
   print_step "Cleaning WhatsApp media"
   local storage_path="${HOME}/storage/shared"
-  [[ ! -d $storage_path ]] && { warn "Storage not accessible. Run: termux-setup-storage"; return 1; }
+  if [[ ! -d $storage_path ]]; then
+    warn "Storage not accessible. Run: termux-setup-storage"
+    return 1
+  fi
 
   local -a paths=("$storage_path/WhatsApp/Media/".{Statuses,"WhatsApp "{Documents,Images,Video,Audio}})
   for path in "${paths[@]}"; do
     [[ ! -d $path ]] && continue
     log "Cleaning: $path"
-    [[ $DRY_RUN -eq 1 ]] && {
-      local count=$(has fd && fd -tf --changed-before 30d . "$path" 2>/dev/null | wc -l || find "$path" -type f -mtime +30 2>/dev/null | wc -l)
+    if [[ $DRY_RUN -eq 1 ]]; then
+      local count
+      if has fd; then
+        count=$(fd -tf --changed-before 30d . "$path" 2>/dev/null | wc -l)
+      else
+        count=$(find "$path" -type f -mtime +30 2>/dev/null | wc -l)
+      fi
       info "Would delete $count files from $path"
-    } || rm_files "$path" --changed-before 30d
+    else
+      rm_files "$path" --changed-before 30d
+    fi
   done
   info "WhatsApp cleaning complete"
 }
@@ -227,16 +245,26 @@ clean_whatsapp() {
 clean_telegram() {
   print_step "Cleaning Telegram media"
   local storage_path="${HOME}/storage/shared"
-  [[ ! -d $storage_path ]] && { warn "Storage not accessible. Run: termux-setup-storage"; return 1; }
+  if [[ ! -d $storage_path ]]; then
+    warn "Storage not accessible. Run: termux-setup-storage"
+    return 1
+  fi
 
   local -a paths=("$storage_path/Telegram/Telegram "{Images,Video,Documents,Audio})
   for path in "${paths[@]}"; do
     [[ ! -d $path ]] && continue
     log "Cleaning: $path"
-    [[ $DRY_RUN -eq 1 ]] && {
-      local count=$(has fd && fd -tf --changed-before 30d . "$path" 2>/dev/null | wc -l || find "$path" -type f -mtime +30 2>/dev/null | wc -l)
+    if [[ $DRY_RUN -eq 1 ]]; then
+      local count
+      if has fd; then
+        count=$(fd -tf --changed-before 30d . "$path" 2>/dev/null | wc -l)
+      else
+        count=$(find "$path" -type f -mtime +30 2>/dev/null | wc -l)
+      fi
       info "Would delete $count files from $path"
-    } || rm_files "$path" --changed-before 30d
+    else
+      rm_files "$path" --changed-before 30d
+    fi
   done
   info "Telegram cleaning complete"
 }

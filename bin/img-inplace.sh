@@ -6,20 +6,20 @@ IFS=$'\n\t' LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
 
 # 1. JPEG: Strip metadata, progressive, quality 85
 fdjpg(){
-  echo "📷 Optimizing JPEGs..."
+  echo "Optimizing JPEGs..."
   fd -tf -e jpg -e jpeg . "${1:-.}" -x jpegoptim -s --all-progressive -m85 --quiet || :
 }
 # 2. PNG: Opt level 2, strip metadata, fix errors, clobber
 fdpng(){
-  echo "🎨 Optimizing PNGs..."
+  echo "Optimizing PNGs..."
   fd -tf -e png . "${1:-.}" -x optipng -o5 -strip all -fix -clobber -quiet || :
 }
 
 # Execution block
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   TARGET="${1:-.}"
-  echo "🚀 Running in-place optimization on '$TARGET'..."
+  echo "Running in-place optimization on '$TARGET'..."
   fdjpg "$TARGET"
   fdpng "$TARGET"
-  echo "✅ Done."
+  echo "Done."
 fi
