@@ -1,120 +1,77 @@
-```sh
+```bash
 adb shell cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed
 ```
-
-```sh
+```bash
 adb shell cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed-profile -f
 ```
-
-```sh
+```bash
 adb shell am broadcast -a android.intent.action.ACTION_OPTIMIZE_DEVICE
 ```
-
 ```
 adb shell am broadcast -a com.android.systemui.action.CLEAR_MEMORY
 ```
-
-```sh
+```bash
 adb shell am kill-all
 ```
-
-```sh
+```bash
 adb shell cmd activity kill-all
 ```
-
-```sh
+```bash
 adb shell pm bg-dexopt-job
 ```
-
-```sh
+```bash
 adb shell cmd stats clear-puller-cache
 ```
-
-```sh
+```bash
 adb shell cmd wifi set-verbose-logging disabled
 ```
-
-```sh
+```bash
 adb shell cmd voiceinteraction set-debug-hotword-logging false
 ```
-
-```sh
+```bash
 adb shell cmd looper_stats disable
 ```
-
-```sh
+```bash
 adb shell cmd display ab-logging-disable
 ```
-
-```sh
+```bash
 adb shell cmd display dwb-logging-disable
 ```
-
-```sh
+```bash
 adb shell cmd activity idle-maintenance
 adb shell sm idle-maint run
 ```
-
-```sh
+```bash
 adb shell cmd netpolicy set restrict-background true
 ```
-
-```sh
+```bash
 adb shell cmd content_capture destroy sessions
 ```
-
 ```bash
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
 # Generate SSH key if not exists
 if [ ! -f ~/.ssh/id_rsa ]; then
     ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
     echo "SSH key generated at ~/.ssh/id_rsa"
 fi
-
 # ADB shortcuts
 alias adbs='adb shell'
 alias adbd='adb devices'
 alias adbr='adb reboot'
 alias adbw='adb tcpip 5555'
-
-
 # Function to quickly connect to wireless ADB
-adb-connect() {
-    if [ -z "$1" ]; then
-        echo "Usage: adb-connect <device-ip>"
-        return 1
-    fi
-    adb connect $1:5555
+adb-connect(){
+  [[ -z "$1" ]] && { echo "Usage: adb-connect <ip>:<port>"; return 1; }
+  adb connect "${1}:${2:-5555}"
 }
-
 # Function to start SSH server
-ssh-start() {
-    sshd
-    echo "SSH server started on port 8022"
-    echo "Connect using: ssh -p 8022 $(whoami)@<device-ip>"
+ssh-start(){
+  sshd
+  echo "Connect using: ssh -p 8022 $(id -un)@<device-ip>"
 }
-
 # Function to stop SSH server
-ssh-stop() {
-    pkill sshd
-    echo "SSH server stopped"
-}
-```
-
-```bash
-pkg up -y; pkg upgrade -y
+ssh-stop(){ pkill sshd && echo "SSH server stopped"; }
 ```
 ```bash
-pkg i -y jpegoptim optipng libwebp fd gifsicle
-```
-```bash
-fd . 'storage/shared/Android/media/com.whatsapp/WhatsApp/Media/' -e jpg -e jpeg -x jpegoptim -s --auto-mode -m85
-```
-```bash
-fd -e png -x optipng -o2 -strip all -fix -clobber
-```
-```bash
-fd -e jpg -e png -x sh -c 'cwebp -q 80 "$1" -o "${1%.*}.webp" && rm "$1"' _ {}
+yes | pkg up -y; yes | pkg upgrade -y
 ```
