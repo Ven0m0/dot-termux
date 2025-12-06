@@ -11,7 +11,7 @@ step(){ printf '==> %s\n' "$*"; }
 log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$logf"; }
 ensure(){ [[ -d $1 ]] || mkdir -p "$1"; }
 download(){ curl -fsSL --connect-timeout 10 "$@"; }
-yes | apt update; yes | pkg update
+yes | apt update --fix-missing; yes | pkg up -y; pkg upgrade -y
 run_installer(){
   if has "${1%%-*}"; then log "$1 already installed."; return 0; fi
   local s=$cache/$1.sh
@@ -19,8 +19,7 @@ run_installer(){
     bash "$s" &>>"$logf" || log "Failed: $1"
   else
     log "Failed: $1"
-  fi
-  rm -f "$s"
+  fi; rm -f "$s"
 }
 setup_env(){
   ensure "$HOME/.ssh"; ensure "$HOME/bin"; ensure "$HOME/.termux"
