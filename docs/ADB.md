@@ -2,7 +2,7 @@
 pm compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed
 ```
 ```bash
-cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed-profile -f
+pm compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed-profile -f
 ```
 ```bash
 am broadcast -a android.intent.action.ACTION_OPTIMIZE_DEVICE
