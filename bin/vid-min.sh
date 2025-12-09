@@ -1,79 +1,78 @@
-#!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail
-# -- Config --
-# Filters: Scale to 1080p width, keep aspect ratio
-readonly V_FILT="scale=-2:'min(1080,ih)'"
-readonly A_OPTS="-c:a libopus -b:a 128k"
-
+#!/usr/bin/env bash
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
+# -- Configuration --
+# Video: Scale to max 1920 (landscape/portrait) > Deband
+readonly V_FILT="scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(iw,ih),-2,min(1920,ih))',deband"
+# Audio: Opus 96k Stereo
+readonly A_OPTS="-c:a libopus -b:a 96k -ac 2 -rematrix_maxval 1.0"
+# AV1: 10-bit, Preset 4 (Quality > Speed), Tune 0
+readonly AV1_OPTS="-preset 6 -g 240 -pix_fmt yuv420p10le -svtav1-params tune=0:enable-qm=1"
 # -- Helpers --
 has(){ command -v "$1" &>/dev/null; }
 log(){ printf '\e[32m[OK]\e[0m %s\n' "$*"; }
-
 convert_file(){
   local in="$1" mode="$2" crf="$3"
   local enc opts out tool="ffmpeg"
-  # Detect tool
-  has ffzap && tool="ffzap"
-  # Settings
-  case "$mode" in
-    vp9) enc="libvpx-vp9"; crf="${crf:-32}"; opts="-b:v 0 -cpu-used 3 -row-mt 1" ;;
-    *)   enc="libsvtav1";  crf="${crf:-32}"; opts="-preset 8 -g 240" ;;
-  esac
-  # Output filename: input.av1.mkv
+  # Skip if file looks like a result (prevent loops)
+  if [[ "$in" == *."$mode".mkv ]]; then return; fi
   out="${in%.*}.${mode}.mkv"
   [[ -f "$out" ]] && return
+  # Select Encoder
+  case "$mode" in
+    vp9) enc="libvpx-vp9"; opts="-b:v 0 -cpu-used 3 -row-mt 1" ;;
+    *) enc="libsvtav1";  opts="$AV1_OPTS" ;;
+  esac
+  # Detect ffzap (Background killer protection for Termux)
+  if has ffzap; then tool="ffzap"; fi
   printf "⚡ %s [%s CRF %s]: %s\n" "$tool" "$mode" "$crf" "${in##*/}"
   if [[ "$tool" == "ffzap" ]]; then
-    # ffzap wrapper (redirect stdin to prevent loop breaking)
-    ffzap -o "$out" "$in" -- -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS </dev/null &>/dev/null
+    # ffzap handles the process, we pass flags after --
+    ffzap -o "$out" "$in" -- \
+      -c:v "$enc" -crf "$crf" $opts \
+      -vf "$V_FILT" $A_OPTS \
+      -map_metadata 0 -movflags +faststart \
+      </dev/null &>/dev/null
   else
-    # standard ffmpeg (add -nostdin)
+    # Native ffmpeg
     ffmpeg -nostdin -hide_banner -loglevel error -stats -i "$in" \
-      -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS -y \
-      -movflags +faststart "$out"
+      -c:v "$enc" -crf "$crf" $opts \
+      -vf "$V_FILT" $A_OPTS \
+      -map_metadata 0 -movflags +faststart \
+      -y "$out"
   fi
   log "$out"
 }
 export -f convert_file has log
-usage() {
-  echo "Usage: vid-min [av1|vp9] [crf] [target_dir/file]"
-  echo "Example: vid-min av1 30 ."
-  exit 1
-}
-# -- Main --
+export V_FILT A_OPTS AV1_OPTS
+# -- CLI --
+usage(){ echo "Usage: ${0##*/} [av1|vp9] [crf] [path]" >&2; exit 1; }
 MODE="av1"
-CRF="32"
-TARGET=""
-# Heuristic arg parsing
+CRF="30" # Updated default based on your previous opt check
+TARGET="."
+# Flexible Arg Parsing
 for arg in "$@"; do
-  if [[ "$arg" =~ ^(av1|vp9)$ ]]; then 
-    MODE="$arg"
-  elif [[ "$arg" =~ ^[0-9]+$ ]] && [[ ! -e "$arg" ]]; then 
-    # Only treat as CRF if it's a number AND not an existing filename
-    CRF="$arg"
-  else 
-    TARGET="$arg"
+  if [[ "$arg" =~ ^(av1|vp9)$ ]]; then MODE="$arg"
+  elif [[ "$arg" =~ ^[0-9]+$ ]] && [[ ! -e "$arg" ]]; then CRF="$arg"
+  else TARGET="$arg"
   fi
 done
-[[ -z "$TARGET" ]] && TARGET="."
-# Export config variables so subshells (fd/xargs) can see them
-export V_FILT A_OPTS
-if [[ -f "$TARGET" ]]; then
-  convert_file "$TARGET" "$MODE" "$CRF"
-elif [[ -d "$TARGET" ]]; then
-  # 1. Try using fd (Fastest)
+
+if [[ ! -e "$TARGET" ]]; then
+  echo "Error: Target '$TARGET' not found."
+  exit 1
+fi
+
+# -- Execution --
+# Note: -j1 is mandatory for AV1 preset 4 on mobile to prevent thermal throttling
+if [[ -d "$TARGET" ]]; then
   if has fd; then
-    # -j1 is critical for video encoding on mobile to prevent overheating/OOM
     fd -t f -e mp4 -e mkv -e avi -e mov -e webm . "$TARGET" -j 1 \
-       -x bash -c 'convert_file "$1" "$2" "$3"' _ {} "$MODE" "$CRF"
-  # 2. Fallback to find (Compatible)
+      -x bash -c 'convert_file "$1" "$2" "$3"' _ {} "$MODE" "$CRF"
   else
-    # Standard -name usage is safer than -regextype on limited systems
     find "$TARGET" -type f \( \
-      -name "*.mp4" -o -name "*.mkv" -o -name "*.avi" -o -name "*.mov" -o -name "*.webm" -o -name "*.flv" \
+      -name "*.mp4" -o -name "*.mkv" -o -name "*.avi" -o -name "*.mov" -o -name "*.webm" \
     \) -exec bash -c 'convert_file "$1" "$2" "$3"' _ {} "$MODE" "$CRF" \;
   fi
-else
-  echo "Input not found: $TARGET"
-  exit 1
+elif [[ -f "$TARGET" ]]; then
+  convert_file "$TARGET" "$MODE" "$CRF"
 fi
