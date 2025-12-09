@@ -1,99 +1,104 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # media-opt: Unified image optimization tool
-# Replaces: img-quick.sh, img-webp.sh, img-opt.sh
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'
-export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
+set -euo pipefail
 # -- Config --
-readonly VERSION="2.0.0"
+readonly VERSION="2.1.0"
 JOBS=$(nproc)
+QUALITY=80
+DRY_RUN=0
 # -- Helpers --
-die() { printf '\e[31m[ERROR]\e[0m %s\n' "$*" >&2; exit 1; }
-log() { printf '\e[32m[INFO]\e[0m %s\n' "$*"; }
-has() { command -v "$1" &>/dev/null; }
-usage() {
+die(){ printf '\e[31m[ERROR]\e[0m %s\n' "$*" >&2; exit 1; }
+log(){ printf '\e[32m[INFO]\e[0m %s\n' "$*"; }
+has(){ command -v "$1" &>/dev/null; }
+usage(){
   cat <<EOF
 media-opt v$VERSION
-Usage: media-opt <command> [target_dir] [options]
+Usage: media-opt <command> [target] [options]
 
 Commands:
-  jpg   Optimize JPEGs (lossy/lossless)
-  png   Optimize PNGs (lossless)
-  webp  Convert to WebP (deletes originals)
-  full  Full optimization (slow, requires image-optimizer)
+  jpg   Optimize JPEGs (jpegoptim)
+  png   Optimize PNGs (oxipng)
+  webp  Convert to WebP (cwebp)
   all   Run jpg + png
 
 Options:
-  -j N  Parallel jobs (default: $JOBS)
-  -q N  Quality (webp: 0-100, default: 80)
-  -r    Recursive (implied if using fd)
+  -j N  Jobs (default: $JOBS)
+  -q N  Quality (webp: 0-100)
+  -n    Dry run
 EOF
   exit 0
 }
 # -- Workloads --
-opt_jpg() {
+opt_jpg(){
   has jpegoptim || die "Missing: jpegoptim"
-  log "Optimizing JPEGs..."
-  # -s: strip all, -m85: max quality 85, --all-progressive
+  log "Optimizing JPEGs in $1..."
+  local args=("-s" "--all-progressive" "-m85" "--quiet")
+  [[ $DRY_RUN -eq 1 ]] && args+=("-n")
   if has fd; then
-    fd -0 -t f -e jpg -e jpeg . "$1" -j "$JOBS" -x jpegoptim -s --all-progressive -m85 --quiet
+    # jpegoptim is single-threaded, run in parallel instances
+    fd -0 -t f -e jpg -e jpeg . "$1" -j "$JOBS" -x jpegoptim "${args[@]}"
   else
-    find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' \) -exec jpegoptim -s --all-progressive -m85 --quiet {} +
+    # find doesn't parallelize easily without xargs, running sequential-ish
+    find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' \) -exec jpegoptim "${args[@]}" {} +
   fi
 }
-opt_png() {
-  log "Optimizing PNGs..."
+opt_png(){
+  log "Optimizing PNGs in $1..."
   if has oxipng; then
-    # oxipng is Rust-based and parallel by default, but we control it via fd for file discovery
+    local args=("-o4" "--strip" "safe" "--quiet")
+    [[ $DRY_RUN -eq 1 ]] && args+=("--dry")
     if has fd; then
-      fd -0 -t f -e png . "$1" -j "$JOBS" -x oxipng -o4 --strip safe -i0 -q
+      # oxipng is multi-threaded per file. Pass BATCH (-X) to avoid CPU oversubscription.
+      fd -0 -t f -e png . "$1" -X oxipng "${args[@]}"
     else
-      find "$1" -type f -name '*.png' -exec oxipng -o4 --strip safe -i0 -q {} +
+      find "$1" -type f -name '*.png' -exec oxipng "${args[@]}" {} +
     fi
   elif has optipng; then
     log "Falling back to optipng..."
-    find "$1" -type f -name '*.png' -exec optipng -o5 -strip all -fix -clobber -quiet {} +
+    find "$1" -type f -name '*.png' -exec optipng -o5 -strip all -quiet {} +
   else
     die "Missing: oxipng or optipng"
   fi
 }
-to_webp() {
-  local q="${2:-80}"
+to_webp(){
   has cwebp || die "Missing: cwebp"
-  log "Converting to WebP (q=$q)..."
-  # Conversion logic wrapped for export
-  local cmd='cwebp -q '"$q"' -m 6 -pass 10 -quiet -metadata none "$1" -o "${1%.*}.webp" && rm "$1"'
+  log "Converting to WebP (q=$QUALITY) in $1..."
+  # Command logic: Convert -> Delete original if successful
+  local cmd
+  if [[ $DRY_RUN -eq 1 ]]; then
+    cmd='echo "Convert: $1 -> ${1%.*}.webp"'
+  else
+    cmd='cwebp -q '"$QUALITY"' -m 6 -pass 10 -quiet -mt -metadata none "$1" -o "${1%.*}.webp" && rm "$1"'
+  fi
   if has fd; then
+    # cwebp is single-threaded (mostly), run in parallel instances
     fd -0 -t f -e jpg -e jpeg -e png -E '*.webp' . "$1" -j "$JOBS" -x bash -c "$cmd" _
   else
+    # Robust find fallback
     find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) ! -name '*.webp' \
-      -exec bash -c "f='{}'; $cmd" _ {} \;
+      -exec bash -c "$cmd" _ {} \;
   fi
-}
-opt_full() {
-  has image-optimizer || die "Missing: image-optimizer (cargo install image-optimizer)"
-  log "Running full optimization (this may take a while)..."
-  # image-optimizer handles its own recursion and concurrency
-  image-optimizer --png-optimization-level max -r --zopfli-iterations 50 --max-size 1920 -i "$1"
 }
 # -- Main --
 [[ $# -eq 0 ]] && usage
 CMD=$1; shift
 TARGET="${1:-.}"
 [[ -d $TARGET ]] || TARGET="."
-# Parse remaining args for flags
-while getopts "j:q:" opt; do
+while getopts "j:q:n" opt; do
   case $opt in
     j) JOBS="$OPTARG" ;;
     q) QUALITY="$OPTARG" ;;
+    n) DRY_RUN=1 ;;
     *) usage ;;
   esac
 done
+
 case "$CMD" in
-  jpg) opt_jpg "$TARGET" ;;
-  png) opt_png "$TARGET" ;;
-  webp) to_webp "$TARGET" "${QUALITY:-80}" ;;
-  full) opt_full "$TARGET" ;;
-  all) opt_jpg "$TARGET"; opt_png "$TARGET" ;;
-  *) usage ;;
+  jpg)  opt_jpg "$TARGET" ;;
+  png)  opt_png "$TARGET" ;;
+  webp) to_webp "$TARGET" ;;
+  all)  opt_jpg "$TARGET"; opt_png "$TARGET" ;;
+  *)    usage ;;
 esac
+
 log "Done."
