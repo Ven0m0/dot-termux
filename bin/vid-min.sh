@@ -25,11 +25,12 @@ convert_file(){
   printf "⚡ %s [%s CRF %s]: %s\n" "$tool" "$mode" "$crf" "${in##*/}"
   if [[ "$tool" == "ffzap" ]]; then
     # ffzap wrapper (redirect stdin to prevent loop breaking)
-    ffzap -o "$out" "$in" -- -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS < /dev/null >/dev/null 2>&1
+    ffzap -o "$out" "$in" -- -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS </dev/null &>/dev/null
   else
     # standard ffmpeg (add -nostdin)
     ffmpeg -nostdin -hide_banner -loglevel error -stats -i "$in" \
-      -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS -y "$out"
+      -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS -y \
+      -movflags +faststart "$out"
   fi
   log "$out"
 }
