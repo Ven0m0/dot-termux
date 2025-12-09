@@ -1,32 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
-
-if [ "$#" != "0" ]; then
-	echo 'usage: termux-setup-storage'
-	echo 'Use without arguments to ensure storage permission granted'
-	echo 'and symlinks to storage available in $HOME/storage'
-	exit
+set -euo pipefail
+STORAGE_DIR="$HOME/storage"
+if [[ -d "$STORAGE_DIR" && -w "$STORAGE_DIR/shared" ]]; then
+  echo "Storage already setup and writable."; exit 0
 fi
-
-if [ -d "/data/data/com.termux/files/home/storage" ]; then
-	cat <<- EOF
-
-	It appears that directory '~/storage' already exists.
-	This script is going to rebuild its structure from
-	scratch, wiping all dangling files. The actual storage
-	content IS NOT going to be deleted.
-
-	EOF
-	read -re -p "Do you want to continue? (y/n) " CHOICE
-
-	if ! [[ "${CHOICE}" =~ (Y|y) ]]; then
-		echo "Aborting configuration and leaving directory '~/storage' intact."
-		exit 1
-	fi
+echo "Requesting storage access..."
+# Ensure we have the correct user ID
+USER_ID="0"
+if [[ "${TERMUX__USER_ID:-}" =~ ^[0-9]+$ ]]; then
+  USER_ID="$TERMUX__USER_ID"
 fi
-
-case "${TERMUX__USER_ID:-}" in ''|*[!0-9]*|0[0-9]*) TERMUX__USER_ID=0;; esac
-
-am broadcast --user "$TERMUX__USER_ID" \
-	-a "com.termux.app.reload_style" \
-	--es "com.termux.app.reload_style" "storage" \
-	 "com.termux" > /dev/null
+am broadcast --user "$USER_ID" \
+  -a "com.termux.app.reload_style" \
+  --es "com.termux.app.reload_style" "storage" \
+  "com.termux" >/dev/null
+echo "Please grant permission in the popup dialog."
+echo "If no dialog appears, run 'termux-setup-storage' again."
