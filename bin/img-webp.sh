@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'; LC_ALL=C; LANG=C; DEBIAN_FRONTEND=noninteractive
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
 # WebP converter - converts JPG/PNG to WebP and deletes originals
 # Usage: source img-webp.sh; fdwebp [dir] OR ./img-webp.sh [dir]
 # Dependencies: fd, libwebp
