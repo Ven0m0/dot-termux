@@ -1,76 +1,67 @@
-#!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'; LC_ALL=C; LANG=C; DEBIAN_FRONTEND=noninteractive
-# Video minification with VP9/AV1 encoding
-# Usage: vid-min.sh COMMAND [DIR] [CRF]
+#!/usr/bin/env bash
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'; LC_ALL=C; LANG=C
+# Combined video optimizer: AV1/VP9, 1080p cap, Opus 128k.
+# Usage: media-min [av1|vp9] <input> [crf]
+# --- Config ---
+readonly V_FILT="scale=-2:'min(1080,ih)'"
+readonly A_OPTS="-c:a libopus -b:a 128k"
+readonly EXTS="mp4|mkv|avi|mov|webm|flv"
 has(){ command -v -- "$1" &>/dev/null; }
-die(){ printf '%b[ERROR]%b %s\n' '\e[1;31m' '\e[0m' "$*" >&2; exit 1; }
-log(){ printf '[%(%H:%M:%S)T] %s\n' -1 "$*"; }
-for c in ffmpeg fd; do has "$c" || die "missing: $c"; done
-enc_vp9(){
-  local d=${1:-.} crf=${2:-32}
-  log "Encoding VP9 (crf=$crf, sequential) in $d..."
-  fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j1 . "$d" \
-    -x bash -c 'f="$1"; o="${f%.*}_vp9.mkv"
-      ffmpeg -hide_banner -loglevel error -y -i "$f" \
-        -c:v libvpx-vp9 -b:v 0 -crf '"$crf"' -cpu-used 3 -row-mt 1 \
-        -c:a libopus -b:a 96k "$o" && printf "OK: %s\n" "$o"' _ {}
-}
-enc_av1(){
-  local d=${1:-.} crf=${2:-35}
-  log "Encoding AV1 (crf=$crf, sequential) in $d..."
-  fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j1 . "$d" \
-    -x bash -c 'f="$1"; o="${f%.*}_av1.mkv"
-      ffmpeg -hide_banner -loglevel error -y -i "$f" \
-        -c:v libsvtav1 -crf '"$crf"' -preset 10 \
-        -c:a libopus -b:a 96k "$o" && printf "OK: %s\n" "$o"' _ {}
-}
-enc_ffzap(){
-  local d=${1:-.} codec=${2:-vp9} crf=${3:-32} vc vcrf preset_opts
-  if ! has ffzap; then
-    log "ffzap not found (cargo install ffzap), using fallback"
-    [[ $codec == av1 ]] && enc_av1 "$d" "$crf" || enc_vp9 "$d" "$crf"
-    return
-  fi
-  if [[ $codec == av1 ]]; then
-    vc=libsvtav1; vcrf=${crf:-35}; preset_opts="-preset 10"
+log(){ printf '\e[32m[OK]\e[0m %s\n' "$*"; }
+# --- Encoder ---
+convert(){
+  local in="$1" mode="${2:-av1}" crf="${3:-}"
+  local enc opts out tool="ffmpeg"
+  # Config based on mode
+  case "$mode" in
+    vp9) enc="libvpx-vp9"; crf="${crf:-32}"; opts="-b:v 0 -cpu-used 3 -row-mt 1";;
+    *) enc="libsvtav1";  crf="${crf:-32}"; opts="-preset 8"; mode="av1";;
+  esac
+  # Auto-use ffzap if available
+  has ffzap && tool="ffzap"
+  out="${in%.*}.${mode}.mkv"
+  [[ -f "$out" ]] && return
+  printf "⚡ %s (%s, crf=%s): %s\n" "$tool" "$mode" "$crf" "$in"
+  if [[ "$tool" == "ffzap" ]]; then
+    # ffzap wrapper syntax
+    ffzap -o "$out" "$in" -- -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS >/dev/null 2>&1
   else
-    vc=libvpx-vp9; vcrf=${crf:-32}; preset_opts="-b:v 0 -cpu-used 3 -row-mt 1"
+    # Standard ffmpeg syntax
+    ffmpeg -hide_banner -loglevel error -stats -i "$in" \
+      -c:v "$enc" -crf "$crf" $opts -vf "$V_FILT" $A_OPTS -y "$out"
   fi
-  log "Encoding with ffzap ($codec, crf=$vcrf) in $d..."
-  fd -tf -e mp4 -e mov -e mkv -e avi -e webm -j1 . "$d" \
-    -x bash -c 'f="$1"; o="${f%.*}_min.mkv"
-      ffzap -o "$o" "$f" -- -c:v '"$vc"' -crf '"$vcrf"' '"$preset_opts"' -c:a libopus -b:a 96k \
-        && printf "OK: %s\n" "$o"' _ {}
+  log "$out"
 }
-usage(){
-  cat <<'EOF'
-vid-min.sh - Video minification with VP9/AV1
-USAGE: vid-min.sh COMMAND [DIR] [CRF]
-COMMANDS:
-  vp9 [dir] [crf]         Encode to VP9 (default crf=32)
-  av1 [dir] [crf]         Encode to AV1 (default crf=35)
-  zap [dir] [codec] [crf] Use ffzap wrapper (codec=vp9|av1, default vp9/32)
-EXAMPLES:
-  vid-min.sh vp9 ~/Videos 28
-  vid-min.sh av1 . 33
-  vid-min.sh zap ~/Movies vp9 30
-  vid-min.sh zap . av1 35
-NOTES:
-  - Sequential processing (-j1) to conserve battery/RAM
-  - VP9: Good quality/size, faster encoding
-  - AV1: Best compression, slower encoding
-  - ffzap: Rust wrapper, requires 'cargo install ffzap'
-EOF
+
+# --- Runner ---
+run_batch(){
+  local mode="$1" target="$2" crf="${3:-}"
+  if has fd; then
+    # Sequential (-j1) to prevent OOM
+    fd -t f -e mp4 -e mkv -e avi -e mov -e webm -j1 . "$target" \
+      -x bash -c 'convert "$1" "$2" "$3"' _ {} "$mode" "$crf"
+  else
+    find "$target" -type f -regextype posix-extended -iregex ".*\.($EXTS)$" | \
+    while read -r f; do convert "$f" "$mode" "$crf"; done
+  fi
 }
 main(){
-  [[ $# -eq 0 || $1 == -h || $1 == --help ]] && { usage; exit 0; }
-  local cmd=$1; shift
-  case $cmd in
-    vp9) enc_vp9 "${1:-.}" "${2:-32}";;
-    av1) enc_av1 "${1:-.}" "${2:-35}";;
-    zap) enc_ffzap "${1:-.}" "${2:-vp9}" "${3:-32}";;
-    *) die "Unknown command: $cmd (use --help)";;
-  esac
-  log "Done."
+  export -f convert has log V_FILT A_OPTS
+  # Heuristic argument parsing
+  local mode="av1" target="" crf=""
+  if [[ $# -eq 0 ]]; then printf "Usage: %s [av1|vp9] <file|dir> [crf]\n" "$0"; exit 1; fi
+  # Detect if $1 is a mode keyword
+  if [[ "$1" =~ ^(av1|vp9)$ ]]; then
+    mode="$1"; shift
+  fi
+  target="${1:-}"; crf="${2:-}"
+  [[ -z "$target" ]] && { printf "Error: No input specified.\n" >&2; exit 1; }
+  if [[ -f "$target" ]]; then
+    convert "$target" "$mode" "$crf"
+  elif [[ -d "$target" ]]; then
+    run_batch "$mode" "$target" "$crf"
+  else
+    printf "Error: Invalid input '%s'\n" "$target" >&2; exit 1
+  fi
 }
 main "$@"
