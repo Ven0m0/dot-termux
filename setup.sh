@@ -36,34 +36,17 @@ install_termux_pkgs(){
   pkg install -y "${pkgs[@]}" || log "Some packages failed"
 }
 
-try_install_nerd_font(){
-  local font=$1 tmp=$2
-  download https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz -o "$tmp" 2>>"$logf" || return 1
-  tar -xJf "$tmp" -C "$HOME/.termux/" JetBrainsMonoNerdFont-Regular.ttf 2>/dev/null || return 1
-  mv "$HOME/.termux/JetBrainsMonoNerdFont-Regular.ttf" "$font" 2>/dev/null || return 1
-  rm -f "$tmp"; log "Installed Nerd Font"
-  has termux-reload-settings && termux-reload-settings || :
-}
-
-try_install_regular_font(){
-  local font=$1 tmp=$2
-  has unzip || return 1
-  download "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip" -o "$tmp" 2>>"$logf" || return 1
-  unzip -jo "$tmp" "fonts/ttf/JetBrainsMono-Regular.ttf" -d "$HOME/.termux/" &>/dev/null || return 1
-  mv -f "$HOME/.termux/JetBrainsMono-Regular.ttf" "$font" 2>/dev/null || return 1
-  rm -f "$tmp"; log "Installed regular JetBrains Mono"
-  has termux-reload-settings && termux-reload-settings || :
-}
-
-install_font(){
-  step "Font"
-  local font=$HOME/.termux/font.ttf tmp=$cache/jbm.tar.xz
-  [[ -f $font ]] && { log "Font exists"; return 0; }
-  ensure "$HOME/.termux"
-  try_install_nerd_font "$font" "$tmp" && return 0
-  rm -f "$tmp"
-  try_install_regular_font "$font" "$tmp" && return 0
-  rm -f "$tmp"; log "Font install failed"
+setup_fonts() {
+  step "Installing Fonts"
+  local font_dir="$HOME/.termux"
+  ensure "$font_dir"
+  if [[ ! -f "$font_dir/font.ttf" ]]; then
+    log "Downloading JetBrains Mono Nerd Font..."
+    curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz" \
+      | tar -xJ -C "$font_dir" "JetBrainsMonoNerdFont-Regular.ttf"
+    mv "$font_dir/JetBrainsMonoNerdFont-Regular.ttf" "$font_dir/font.ttf"
+    has termux-reload-settings && termux-reload-settings || true
+  fi
 }
 
 install_zimfw(){
@@ -143,12 +126,6 @@ install_third_party(){
       chmod +x "$HOME/.local/bin/jaq" || :
     fi
   fi
-  if !has apk.sh; then
-    ensure "$HOME/bin"
-    if download "https://raw.githubusercontent.com/ax/apk.sh/main/apk.sh" -o "$HOME/bin/apk.sh"; then
-      chmod +x "$HOME/bin/apk.sh" || :
-    fi
-  fi
 }
 
 bootstrap_dotfiles(){
@@ -211,7 +188,7 @@ main(){
   bootstrap_dotfiles || log "bootstrap_dotfiles failed"
   setup_env || log "setup_env failed"
   install_termux_pkgs || log "install_termux_pkgs failed"
-  install_font || log "install_font failed"
+  setup_fonts || log "setup_fonts failed"
   install_zimfw || log "install_zimfw failed"
   install_third_party || log "install_third_party failed"
   install_debian || log "install_debian failed"
