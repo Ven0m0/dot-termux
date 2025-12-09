@@ -1,25 +1,31 @@
-# Yadm configuration for Termux dotfiles
-# See: https://yadm.io/docs/configuration
-
+# Yadm Configuration for Termux
+# Optimized for performance and security in $HOME
 [yadm]
-	# Automatically bootstrap on clone
-	auto-bootstrap = true
-
-	# Use alt templates for environment-specific configs
-	auto-alt = true
-
+  auto-bootstrap = true
+  auto-alt = true
+  auto-perms = true        # Secure: Enforces 600/700 permissions on .ssh, .gnupg, etc.
 [core]
-	# Use gitignore-style patterns
-	excludesfile = ~/.yadmignore
-
+  excludesfile = ~/.yadmignore
+  # Performance Optimizations
+  untrackedCache = true    # Caches file status to speed up subsequent checks
+  preloadIndex = true      # Parallelizes index operations
+  compression = 1          # Fast compression (matches your .gitconfig)
+  # Safety
+  logAllRefUpdates = true
 [status]
-	# Show untracked files
-	showUntrackedFiles = all
-
+  # CRITICAL OPTIMIZATION: 
+  # 'all' scans your entire internal storage. 'no' makes 'yadm status' instant.
+  # Use 'yadm add -f <file>' to track new files manually.
+  showUntrackedFiles = no  
+  submoduleSummary = true
 [push]
-	# Push to current branch by default
-	default = current
-
+  default = current
 [pull]
-	# Use rebase by default
-	rebase = true
+  rebase = true
+[alias]
+  # Productivity shortcuts
+  s = status -s
+  c = commit -v
+  p = push
+  up = pull --rebase
+  l = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
