@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # clean: Unified system and cache cleaner
 set -euo pipefail
 # -- Config --
