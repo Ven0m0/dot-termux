@@ -1,51 +1,51 @@
 ```bash
-adb shell cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed
+pm compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed
 ```
 ```bash
-adb shell cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed-profile -f
+cmd package compile -p PRIORITY_INTERACTIVE_FAST --force-merge-profile --full -a -r cmdline -m speed-profile -f
 ```
 ```bash
-adb shell am broadcast -a android.intent.action.ACTION_OPTIMIZE_DEVICE
+am broadcast -a android.intent.action.ACTION_OPTIMIZE_DEVICE
 ```
 ```
-adb shell am broadcast -a com.android.systemui.action.CLEAR_MEMORY
-```
-```bash
-adb shell am kill-all
+am broadcast -a com.android.systemui.action.CLEAR_MEMORY
 ```
 ```bash
-adb shell cmd activity kill-all
+am kill-all
 ```
 ```bash
-adb shell pm bg-dexopt-job
+cmd activity kill-all
 ```
 ```bash
-adb shell cmd stats clear-puller-cache
+pm bg-dexopt-job
 ```
 ```bash
-adb shell cmd wifi set-verbose-logging disabled
+cmd stats clear-puller-cache
 ```
 ```bash
-adb shell cmd voiceinteraction set-debug-hotword-logging false
+cmd wifi set-verbose-logging disabled
 ```
 ```bash
-adb shell cmd looper_stats disable
+cmd voiceinteraction set-debug-hotword-logging false
 ```
 ```bash
-adb shell cmd display ab-logging-disable
+cmd looper_stats disable
 ```
 ```bash
-adb shell cmd display dwb-logging-disable
+cmd display ab-logging-disable
 ```
 ```bash
-adb shell cmd activity idle-maintenance
-adb shell sm idle-maint run
+cmd display dwb-logging-disable
 ```
 ```bash
-adb shell cmd netpolicy set restrict-background true
+cmd activity idle-maintenance
+sm idle-maint run
 ```
 ```bash
-adb shell cmd content_capture destroy sessions
+cmd netpolicy set restrict-background true
+```
+```bash
+cmd content_capture destroy sessions
 ```
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
