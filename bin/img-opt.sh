@@ -1,5 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
 # Full image optimization using image-optimizer (Rust tool)
 # Usage: ./img-opt.sh [dir] [zopfli-iterations] [max-size]
 has(){ command -v -- "$1" &>/dev/null; }
