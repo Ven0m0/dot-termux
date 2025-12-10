@@ -1,4 +1,5 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/data/data/com.termux/files/usr/bin/env bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 set -euo pipefail
 STORAGE_DIR="$HOME/storage"
 if [[ -d "$STORAGE_DIR" && -w "$STORAGE_DIR/shared" ]]; then
