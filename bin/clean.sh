@@ -1,6 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/env bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 # clean: Unified system and cache cleaner
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
 # -- Config --
 VERSION="2.1.0"
 DRY_RUN=0
