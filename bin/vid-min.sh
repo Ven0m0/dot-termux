@@ -6,8 +6,8 @@ set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
 readonly V_FILT="scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(iw,ih),-2,min(1920,ih))',deband"
 # Audio: Opus 96k Stereo
 readonly A_OPTS="-c:a libopus -b:a 96k -ac 2 -rematrix_maxval 1.0"
-# AV1: 10-bit, Preset 4 (Quality > Speed), Tune 0
-readonly AV1_OPTS="-preset 6 -g 240 -pix_fmt yuv420p10le -svtav1-params tune=0:enable-qm=1"
+# AV1: 10-bit, Preset 6
+readonly AV1_OPTS="-preset 6 -g 300 -pix_fmt yuv420p10le -svtav1-params film-grain=8:keyint=300:enable-qm=1:qm-min=0"
 # -- Helpers --
 has(){ command -v "$1" &>/dev/null; }
 log(){ printf '\e[32m[OK]\e[0m %s\n' "$*"; }
@@ -31,15 +31,14 @@ convert_file(){
     ffzap -o "$out" "$in" -- \
       -c:v "$enc" -crf "$crf" $opts \
       -vf "$V_FILT" $A_OPTS \
-      -map_metadata 0 -movflags +faststart \
+      -map_metadata 0  \
       </dev/null &>/dev/null
   else
     # Native ffmpeg
     ffmpeg -nostdin -hide_banner -loglevel error -stats -i "$in" \
       -c:v "$enc" -crf "$crf" $opts \
       -vf "$V_FILT" $A_OPTS \
-      -map_metadata 0 -movflags +faststart \
-      -y "$out"
+      -map_metadata 0 -y "$out"
   fi
   log "$out"
 }
@@ -57,12 +56,10 @@ for arg in "$@"; do
   else TARGET="$arg"
   fi
 done
-
 if [[ ! -e "$TARGET" ]]; then
   echo "Error: Target '$TARGET' not found."
   exit 1
 fi
-
 # -- Execution --
 # Note: -j1 is mandatory for AV1 preset 4 on mobile to prevent thermal throttling
 if [[ -d "$TARGET" ]]; then
