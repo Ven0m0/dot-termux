@@ -1,6 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/env bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 # media-opt: Unified image optimization tool
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
 # -- Config --
 readonly VERSION="2.1.0"
 JOBS=$(nproc)
