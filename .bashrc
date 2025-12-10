@@ -1,3 +1,4 @@
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 [[ $- != *i* ]] && return
 
 # --- Helpers (inline for fallback) ---
