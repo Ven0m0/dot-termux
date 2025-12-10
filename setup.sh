@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 # Termux + Debian proot setup - resilient error handling
-set -eo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'; export LC_ALL=C LANG=C DEBIAN_FRONTEND=noninteractive
+set -eo pipefail; shopt -s nullglob globstar; IFS=$'\n\t'; export LC_ALL=C DEBIAN_FRONTEND=noninteractive
 cache=${XDG_CACHE_HOME:-$HOME/.cache}; [[ -d $cache ]] || cache=$HOME
 logf=$HOME/termux_setup.log
 repo_url=https://github.com/Ven0m0/dot-termux.git
