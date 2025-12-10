@@ -1,5 +1,6 @@
-#!/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
+#!/data/data/com.termux/files/usr/bin/env bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
 # -- Configuration --
 # Video: Scale to max 1920 (landscape/portrait) > Deband
 readonly V_FILT="scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(iw,ih),-2,min(1920,ih))',deband"
