@@ -1,5 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
 # vid-min: Video minimizer (AV1/VP9) using ffmpeg/ffzap
 # Usage: vid-min [options] [dir|file]
 # Options:
@@ -7,7 +8,6 @@ set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C LANG=C
 #   -c crf    CRF quality (default: 30)
 #   -r        Replace original files (delete source after success)
 #   -n        Dry run
-
 # -- Config --
 VERSION="2.0.0"
 MODE="av1"
