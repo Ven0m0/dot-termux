@@ -1,16 +1,35 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/usr/bin/env bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
+set -euo pipefail; shopt -s nullglob globstar
+export LC_ALL=C; IFS=$'\n\t'
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
 # WebP converter - converts JPG/PNG to WebP and deletes originals
 # Usage: source img-webp.sh; fdwebp [dir] OR ./img-webp.sh [dir]
-# Dependencies: fd, libwebp
+# Dependencies: cwebp; fd optional for speed
 log(){ printf '[INFO] %s\n' "$*"; }
+die(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+has(){ command -v -- "$1" &>/dev/null; }
+webp_one(){
+  local in=$1 out="${in%.*}.webp"
+  [[ -e $out ]] && { log "Skip (exists): $out"; return 0; }
+  cwebp -q 80 -m 6 -pass 10 -quiet -metadata none "$in" -o "$out"
+  rm -- "$in"
+}
 fdwebp(){
   local d=${1:-.}
-  fd -tf -e jpg -e jpeg -e png -E '*.webp' . "$d" \
-    -x bash -c 'cwebp -q 80 -m 6 -pass 10 -quiet -metadata none "$1" -o "${1%.*}.webp" && rm "$1"' _ {} || :
+  has cwebp || die "cwebp (libwebp) required"
+  if has fd; then
+    fd -tf -e jpg -e jpeg -e png -E '*.webp' . "$d" \
+      -x bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {}
+  else
+    log "fd not found, using find..."
+    find "$d" -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) ! -name "*.webp" \
+      -exec bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {} \;
+  fi
 }
-if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
-  TARGET=${1:-.}; log "Converting to WebP in '$TARGET' (deletes originals)..."
-  fdwebp "$TARGET"; log "Done."
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  target=${1:-.}
+  log "Converting to WebP in '$target' (originals deleted)..."
+  fdwebp "$target"
+  log "Done."
 fi
