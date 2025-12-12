@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 # clean: Unified system and cache cleaner
 set -euo pipefail; shopt -s nullglob globstar
