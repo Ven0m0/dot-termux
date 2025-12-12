@@ -1,7 +1,9 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/usr/bin/env bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 # clean: Unified system and cache cleaner
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
+set -euo pipefail; shopt -s nullglob globstar
+export LC_ALL=C; IFS=$'\n\t'
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
 # -- Config --
 VERSION="2.1.0"
 DRY_RUN=0
@@ -17,25 +19,12 @@ rm_files() {
   [[ -d "$path" ]] || return 0
   local fd_args=()
   local find_args=()
-  # Translate flags for both tools
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -e) # Extension
-        fd_args+=("-e" "$2")
-        find_args+=("-name" "*.$2")
-        shift 2 ;;
-      --changed-before) # Time (days)
-        fd_args+=("--changed-before" "$2")
-        find_args+=("-mtime" "+${2%d}")
-        shift 2 ;;
-      -g) # Glob pattern
-        fd_args+=("-g" "$2")
-        find_args+=("-name" "$2")
-        shift 2 ;;
-      -d|--max-depth) # Depth
-        fd_args+=("--max-depth" "$2")
-        find_args+=("-maxdepth" "$2")
-        shift 2 ;;
+      -e) fd_args+=("-e" "$2"); find_args+=("-name" "*.$2"); shift 2 ;;
+      --changed-before) fd_args+=("--changed-before" "$2"); find_args+=("-mtime" "+${2%d}"); shift 2 ;;
+      -g) fd_args+=("-g" "$2"); find_args+=("-name" "$2"); shift 2 ;;
+      -d|--max-depth) fd_args+=("--max-depth" "$2"); find_args+=("-maxdepth" "$2"); shift 2 ;;
       *) shift ;;
     esac
   done
@@ -47,7 +36,6 @@ rm_files() {
     fi
     return
   fi
-  # Execute delete
   if has fd; then
     fd -tf "${fd_args[@]}" . "$path" -X rm -f 2>/dev/null || :
   else
@@ -68,21 +56,17 @@ clean_pkg() {
 }
 clean_quick() {
   log "Running quick clean..."
-  # Termux/Shell specific
   [[ $DRY_RUN -eq 0 ]] && {
     rm -f "$HOME/.zcompdump"* &>/dev/null || :
     rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump"* &>/dev/null || :
   }
-  # Temp directories
   local tmp_dirs=("${XDG_CACHE_HOME:-$HOME/.cache}" "$HOME/tmp" "/data/data/com.termux/files/usr/tmp")
   for dir in "${tmp_dirs[@]}"; do
-    rm_files "$dir" # Wipe everything in temp
+    rm_files "$dir"
   done
-  # Logs and backups in HOME (Non-recursive to protect projects)
   rm_files "$HOME" -d 1 -e "log"
   rm_files "$HOME" -d 1 -e "bak"
   rm_files "$HOME" -d 1 -g "*~"
-  # Cleanup empty dirs
   if [[ $DRY_RUN -eq 0 ]]; then
     if has fd; then
       fd -td --max-depth 5 -H . "$HOME" -x rmdir 2>/dev/null || :
@@ -94,10 +78,8 @@ clean_quick() {
 clean_deep() {
   clean_quick
   log "Running deep clean..."
-  # Clean downloads > 60 days
   local dl="$HOME/storage/shared/Download"
   rm_files "$dl" --changed-before 60d
-  # Recursive cleanup of standard junk
   rm_files "$HOME" -g "Thumbs.db"
   rm_files "$HOME" -g ".DS_Store"
 }
