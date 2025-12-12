@@ -1,7 +1,9 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/usr/bin/env bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 # media-opt: Unified image optimization tool
-set -euo pipefail; shopt -s nullglob globstar; IFS=$'\n\t' LC_ALL=C
+set -euo pipefail; shopt -s nullglob globstar
+export LC_ALL=C; IFS=$'\n\t'
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
 # -- Config --
 readonly VERSION="2.1.0"
 JOBS=$(nproc)
@@ -36,10 +38,8 @@ opt_jpg(){
   local args=("-s" "--all-progressive" "-m85" "--quiet")
   [[ $DRY_RUN -eq 1 ]] && args+=("-n")
   if has fd; then
-    # jpegoptim is single-threaded, run in parallel instances
     fd -0 -t f -e jpg -e jpeg . "$1" -j "$JOBS" -x jpegoptim "${args[@]}"
   else
-    # find doesn't parallelize easily without xargs, running sequential-ish
     find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' \) -exec jpegoptim "${args[@]}" {} +
   fi
 }
@@ -49,7 +49,6 @@ opt_png(){
     local args=("-o4" "--strip" "safe" "--quiet")
     [[ $DRY_RUN -eq 1 ]] && args+=("--dry")
     if has fd; then
-      # oxipng is multi-threaded per file. Pass BATCH (-X) to avoid CPU oversubscription.
       fd -0 -t f -e png . "$1" -X oxipng "${args[@]}"
     else
       find "$1" -type f -name '*.png' -exec oxipng "${args[@]}" {} +
@@ -64,7 +63,6 @@ opt_png(){
 to_webp(){
   has cwebp || die "Missing: cwebp"
   log "Converting to WebP (q=$QUALITY) in $1..."
-  # Command logic: Convert -> Delete original if successful
   local cmd
   if [[ $DRY_RUN -eq 1 ]]; then
     cmd='echo "Convert: $1 -> ${1%.*}.webp"'
@@ -72,10 +70,8 @@ to_webp(){
     cmd='cwebp -q '"$QUALITY"' -m 6 -pass 10 -quiet -mt -metadata none "$1" -o "${1%.*}.webp" && rm "$1"'
   fi
   if has fd; then
-    # cwebp is single-threaded (mostly), run in parallel instances
     fd -0 -t f -e jpg -e jpeg -e png -E '*.webp' . "$1" -j "$JOBS" -x bash -c "$cmd" _
   else
-    # Robust find fallback
     find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) ! -name '*.webp' \
       -exec bash -c "$cmd" _ {} \;
   fi
@@ -93,7 +89,6 @@ while getopts "j:q:n" opt; do
     *) usage ;;
   esac
 done
-
 case "$CMD" in
   jpg)  opt_jpg "$TARGET" ;;
   png)  opt_png "$TARGET" ;;
