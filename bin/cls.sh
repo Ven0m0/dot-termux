@@ -12,4 +12,9 @@ finder(){
     find "$dir" -type f -name "*.old" -name "*.bak" -name "*.log" -name "*.tmp"  -delete 2>/dev/null || :
   fi
 }
-finder
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  target=${1:-.}
+  echo "Starting cleanup
+  finder "$target"
+  echo "Cleanup finished"
+fi
