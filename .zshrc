@@ -177,3 +177,5 @@ if [[ -o INTERACTIVE && -t 2 ]]; then { has fastfetch && fastfetch || has neofet
   }
   { for f in ~/.zsh{rc,env} ~/.p10k.zsh ~/.config/zsh/*.zsh(N); do compile_if_needed "$f"; done; } &!
 }
+
+alias debon="proot-distro login --user $USER debian"
