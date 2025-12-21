@@ -320,3 +320,5 @@ adb-connect() {
 unset -f ifsource prependpath
 autoload_init # Init lazy loading
 unset -f autoload_init autoload_parse lazyfile
+
+alias debon="proot-distro login --user $USER debian"
