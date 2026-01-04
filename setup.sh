@@ -51,30 +51,13 @@ MIRROR_REGION=${MIRROR_REGION:-europe}
 download(){ curl -fsSL --connect-timeout 10 "$@"; }
 setup_mirrors(){
   step "Configuring mirrors (${MIRROR_REGION})"
-  local mirror_base="/data/data/com.termux/files/usr/etc/termux/mirrors"
-  local link_target="/data/data/com.termux/files/usr/etc/termux/chosen_mirrors"
-  local target=""
-
-  case "$MIRROR_REGION" in
-    all)              target="$mirror_base/all" ;;
-    asia)             target="$mirror_base/asia" ;;
-    chinese_mainland) target="$mirror_base/chinese_mainland" ;;
-    europe)           target="$mirror_base/europe" ;;
-    north_america)    target="$mirror_base/north_america" ;;
-    oceania)          target="$mirror_base/oceania" ;;
-    russia)           target="$mirror_base/russia" ;;
-    *)
-      log "Unknown mirror region: $MIRROR_REGION, using europe"
-      target="$mirror_base/europe"
-      ;;
-  esac
-
-  if [[ -d "$target" ]]; then
-    [[ -L "$link_target" ]] && unlink "$link_target"
-    ln -s "$target" "$link_target"
-    log "Mirror region set to: ${target##*/}"
+  # Assumes bin/termux-change-repo is executable and in the current path context.
+  # The script should be called relative to its location.
+  if ! ./bin/termux-change-repo --"${MIRROR_REGION}" --no-update; then
+    log "Failed to set mirror region '${MIRROR_REGION}', falling back to europe."
+    ./bin/termux-change-repo --europe --no-update || log "Fallback to europe mirror also failed."
   else
-    log "Mirror directory not found: $target (skipping mirror setup)"
+    log "Mirror region set to: ${MIRROR_REGION}"
   fi
 }
 setup_storage(){
