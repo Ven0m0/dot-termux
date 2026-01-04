@@ -195,7 +195,7 @@ bootstrap_dotfiles(){
   if [[ -d $repo_path/.git ]]; then
     git -C "$repo_path" pull --rebase --autostash &>>"$logf" || log "Repo pull failed"
   else
-    git clone --depth=1 --single-branch "$repo_url" "$repo_path" &>>"$logf" || { log "Clone failed"; return 1; }
+    git clone --depth=1 "$repo_url" "$repo_path" &>>"$logf" || { log "Clone failed"; return 1; }
   fi
 
   # Link bin scripts only
