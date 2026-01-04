@@ -67,13 +67,15 @@ setup_storage(){
     log "Storage already configured"
     return 0
   fi
-  # Request storage access non-interactively
-  local user_id="0"
-  [[ "${TERMUX__USER_ID:-}" =~ ^[0-9]+$ ]] && user_id="$TERMUX__USER_ID"
-  am broadcast --user "$user_id" \
-    -a "com.termux.app.reload_style" \
-    --es "com.termux.app.reload_style" "storage" \
-    "com.termux" >/dev/null 2>&1 || log "Storage broadcast failed (may need manual setup)"
+  # Request storage access using official Termux helper
+  if has termux-setup-storage; then
+    log "Invoking termux-setup-storage to configure storage"
+    if ! termux-setup-storage >/dev/null 2>&1; then
+      log "termux-setup-storage failed (storage may need manual setup)"
+    fi
+  else
+    log "termux-setup-storage not found (storage may need manual setup)"
+  fi
 }
 setup_env(){
   ensure "${HOME}/bin" "${HOME}/.termux"
