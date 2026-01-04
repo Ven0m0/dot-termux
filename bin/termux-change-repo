@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 # termux-change-repo: Non-interactive mirror selector
 #
 # USAGE:
@@ -33,21 +33,35 @@ get_mirror_desc() {
   sed -n '2{s/^# //;p;q}' "$1" 2>/dev/null || echo "Unknown"
 }
 
+# Determine the mirror directory for a given region.
+# Prints the target path and returns 0 on success.
+# For unknown regions, falls back to "europe", prints that path,
+# and returns 1 so the caller can log a warning.
+resolve_mirror_target() {
+  local region="$1"
+
+  case "$region" in
+    all|asia|chinese_mainland|europe|north_america|oceania|russia)
+      printf '%s/%s\n' "$MIRROR_BASE" "$region"
+      return 0
+      ;;
+    *)
+      printf '%s/europe\n' "$MIRROR_BASE"
+      return 1
+      ;;
+  esac
+}
+
 # -- Non-interactive region selection --
 select_region() {
   local region="$1"
-  local target=""
+  local target
+  local resolve_status=0
 
-  case "$region" in
-    all)              target="$MIRROR_BASE/all" ;;
-    asia)             target="$MIRROR_BASE/asia" ;;
-    chinese_mainland) target="$MIRROR_BASE/chinese_mainland" ;;
-    europe)           target="$MIRROR_BASE/europe" ;;
-    north_america)    target="$MIRROR_BASE/north_america" ;;
-    oceania)          target="$MIRROR_BASE/oceania" ;;
-    russia)           target="$MIRROR_BASE/russia" ;;
-    *)                die "Unknown region: $region" ;;
-  esac
+  target="$(resolve_mirror_target "$region")" || resolve_status=$?
+  if (( resolve_status != 0 )); then
+    info "Unknown region: $region, using europe"
+  fi
 
   [[ -d "$target" ]] || die "Mirror directory not found: $target"
   unlink_and_link "$target"
