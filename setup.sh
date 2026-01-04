@@ -8,10 +8,14 @@
 # are installed. Optional features can be enabled via environment variables.
 #
 # USAGE:
-#   ./setup.sh                           # Minimal install
+#   ./setup.sh                           # Minimal install (Europe mirrors)
+#   MIRROR_REGION=asia ./setup.sh        # Use Asia mirrors
+#   MIRROR_REGION=all ./setup.sh         # Use all worldwide mirrors
 #   INSTALL_FONTS=1 ./setup.sh           # Include fonts
 #   INSTALL_DEVTOOLS=1 ./setup.sh        # Include dev tools (Python, Node, etc.)
 #   INSTALL_MEDIA_TOOLS=1 ./setup.sh     # Include media tools (ffmpeg, etc.)
+#
+# MIRROR REGIONS: all, asia, chinese_mainland, europe (default), north_america, oceania, russia
 #
 # MINIMAL INSTALL INCLUDES:
 #   - Essential Termux packages: git, zsh, curl, wget, proot-distro
@@ -42,7 +46,52 @@ has(){ command -v -- "$1" &>/dev/null; }
 step(){ printf '==> %s\n' "$*"; }
 log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$logf"; }
 ensure(){ [[ -d $1 ]] || mkdir -p -- "$1"; }
+# Configure Termux mirrors (Europe multi-mirror, non-interactive)
+MIRROR_REGION=${MIRROR_REGION:-europe}
 download(){ curl -fsSL --connect-timeout 10 "$@"; }
+setup_mirrors(){
+  step "Configuring mirrors (${MIRROR_REGION})"
+  local mirror_base="/data/data/com.termux/files/usr/etc/termux/mirrors"
+  local link_target="/data/data/com.termux/files/usr/etc/termux/chosen_mirrors"
+  local target=""
+
+  case "$MIRROR_REGION" in
+    all)              target="$mirror_base/all" ;;
+    asia)             target="$mirror_base/asia" ;;
+    chinese_mainland) target="$mirror_base/chinese_mainland" ;;
+    europe)           target="$mirror_base/europe" ;;
+    north_america)    target="$mirror_base/north_america" ;;
+    oceania)          target="$mirror_base/oceania" ;;
+    russia)           target="$mirror_base/russia" ;;
+    *)
+      log "Unknown mirror region: $MIRROR_REGION, using europe"
+      target="$mirror_base/europe"
+      ;;
+  esac
+
+  if [[ -d "$target" ]]; then
+    [[ -L "$link_target" ]] && unlink "$link_target"
+    ln -s "$target" "$link_target"
+    log "Mirror region set to: ${target##*/}"
+  else
+    log "Mirror directory not found: $target (skipping mirror setup)"
+  fi
+}
+setup_storage(){
+  step "Setting up storage access"
+  local storage_dir="${HOME}/storage"
+  if [[ -d "$storage_dir" && -w "$storage_dir/shared" ]]; then
+    log "Storage already configured"
+    return 0
+  fi
+  # Request storage access non-interactively
+  local user_id="0"
+  [[ "${TERMUX__USER_ID:-}" =~ ^[0-9]+$ ]] && user_id="$TERMUX__USER_ID"
+  am broadcast --user "$user_id" \
+    -a "com.termux.app.reload_style" \
+    --es "com.termux.app.reload_style" "storage" \
+    "com.termux" >/dev/null 2>&1 || log "Storage broadcast failed (may need manual setup)"
+}
 setup_env(){
   ensure "${HOME}/bin" "${HOME}/.termux"
   ensure "${XDG_CONFIG_HOME:-${HOME}/.config}" "${XDG_DATA_HOME:-${HOME}/.local/share}" "${XDG_CACHE_HOME:-${HOME}/.cache}"
@@ -238,12 +287,18 @@ main(){
   : >"$logf"
 
   step "Minimal Termux + Debian Setup"
-  log "INSTALL_FONTS=${INSTALL_FONTS}, INSTALL_DEVTOOLS=${INSTALL_DEVTOOLS}, INSTALL_MEDIA_TOOLS=${INSTALL_MEDIA_TOOLS}"
+  log "MIRROR_REGION=${MIRROR_REGION}, INSTALL_FONTS=${INSTALL_FONTS}, INSTALL_DEVTOOLS=${INSTALL_DEVTOOLS}, INSTALL_MEDIA_TOOLS=${INSTALL_MEDIA_TOOLS}"
+
+  # Configure mirrors first (non-interactive, Europe by default)
+  setup_mirrors || log "setup_mirrors failed"
 
   step "Base tools (minimal)"
   pkg update -y &>/dev/null || log "pkg update failed"
   pkg upgrade -y --with-new-pkgs &>/dev/null || :
   pkg i -y git curl &>/dev/null || log "Base tools partial fail"
+
+  # Setup storage access (non-interactive)
+  setup_storage || log "setup_storage failed"
 
   setup_env || log "setup_env failed"
   bootstrap_dotfiles || log "bootstrap_dotfiles failed"
