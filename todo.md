@@ -1,2 +1,3 @@
 - https://github.com/Graywizard888/Custom-Enhancify-aapt2-binary
 - https://github.com/Graywizard888/Enhancify
+- https://github.com/nozwock/yanu/blob/main/scripts/yanu-bootstrap-termux.sh
