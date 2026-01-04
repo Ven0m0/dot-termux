@@ -46,9 +46,9 @@ has(){ command -v -- "$1" &>/dev/null; }
 step(){ printf '==> %s\n' "$*"; }
 log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$logf"; }
 ensure(){ [[ -d $1 ]] || mkdir -p -- "$1"; }
-# Configure Termux mirrors (Europe multi-mirror, non-interactive)
 MIRROR_REGION=${MIRROR_REGION:-europe}
 download(){ curl -fsSL --connect-timeout 10 "$@"; }
+# Configure Termux mirrors (Europe multi-mirror, non-interactive)
 setup_mirrors(){
   step "Configuring mirrors (${MIRROR_REGION})"
   # Assumes bin/termux-change-repo is executable and in the current path context.
