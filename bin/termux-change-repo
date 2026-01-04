@@ -56,10 +56,8 @@ resolve_mirror_target() {
 select_region() {
   local region="$1"
   local target
-  local resolve_status=0
 
-  target="$(resolve_mirror_target "$region")" || resolve_status=$?
-  if (( resolve_status != 0 )); then
+  if ! target="$(resolve_mirror_target "$region")"; then
     info "Unknown region: $region, using europe"
   fi
 
