@@ -63,9 +63,12 @@ setup_mirrors(){
 setup_storage(){
   step "Setting up storage access"
   local storage_dir="${HOME}/storage"
-  if [[ -d "$storage_dir" && -w "$storage_dir/shared" ]]; then
-    log "Storage already configured"
-    return 0
+  if [[ -d "$storage_dir" ]]; then
+    # Consider storage configured if the storage directory exists and is not empty.
+    if compgen -G "$storage_dir"/* > /dev/null; then
+      log "Storage already configured"
+      return 0
+    fi
   fi
   # Request storage access using official Termux helper
   if has termux-setup-storage; then
