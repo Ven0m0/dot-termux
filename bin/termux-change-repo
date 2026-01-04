@@ -1,6 +1,14 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
-# termux-change-repo: Optimized mirror selector
+# termux-change-repo: Non-interactive mirror selector
+#
+# USAGE:
+#   termux-change-repo                    # Interactive mode (requires dialog)
+#   termux-change-repo --europe           # Non-interactive: Europe mirrors
+#   termux-change-repo --asia             # Non-interactive: Asia mirrors
+#   termux-change-repo --all              # Non-interactive: All mirrors
+#   termux-change-repo --mirror <name>    # Non-interactive: Specific mirror
+#
 set -Eeuo pipefail
 
 # -- Config --
@@ -8,30 +16,60 @@ readonly MIRROR_BASE="/data/data/com.termux/files/usr/etc/termux/mirrors"
 readonly LINK_TARGET="/data/data/com.termux/files/usr/etc/termux/chosen_mirrors"
 readonly TMP_DIR="/data/data/com.termux/files/usr/tmp"
 
-# -- Setup & Cleanup --
-mkdir -p "$TMP_DIR"
-TEMPFILE=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-trap 'rm -f "$TEMPFILE"' EXIT INT TERM
-
 # -- Helpers --
 die() { echo "[!] $*" >&2; exit 1; }
 has() { command -v "$1" &>/dev/null; }
+info() { echo "[*] $*"; }
 
 unlink_and_link() {
   local target="$1"
+  [[ -d "$target" || -f "$target" ]] || die "Mirror path not found: $target"
   [[ -L "$LINK_TARGET" ]] && unlink "$LINK_TARGET"
   ln -s "$target" "$LINK_TARGET"
-  echo "[*] Selected: ${target##*/}"
+  info "Selected: ${target##*/}"
 }
 
 get_mirror_desc() {
-  # Efficiently read line 2
-  sed -n '2{s/^# //;p;q}' "$1"
+  sed -n '2{s/^# //;p;q}' "$1" 2>/dev/null || echo "Unknown"
 }
 
-# -- Logic --
-select_group() {
-  # Map labels to directory names
+# -- Non-interactive region selection --
+select_region() {
+  local region="$1"
+  local target=""
+
+  case "$region" in
+    all)              target="$MIRROR_BASE/all" ;;
+    asia)             target="$MIRROR_BASE/asia" ;;
+    chinese_mainland) target="$MIRROR_BASE/chinese_mainland" ;;
+    europe)           target="$MIRROR_BASE/europe" ;;
+    north_america)    target="$MIRROR_BASE/north_america" ;;
+    oceania)          target="$MIRROR_BASE/oceania" ;;
+    russia)           target="$MIRROR_BASE/russia" ;;
+    *)                die "Unknown region: $region" ;;
+  esac
+
+  [[ -d "$target" ]] || die "Mirror directory not found: $target"
+  unlink_and_link "$target"
+}
+
+# -- Non-interactive mirror selection --
+select_single_mirror() {
+  local name="$1"
+  local path
+
+  # Search for the mirror file
+  path=$(find "$MIRROR_BASE" -name "$name" -type f 2>/dev/null | head -1)
+  [[ -n "$path" ]] || die "Mirror not found: $name"
+  unlink_and_link "$path"
+}
+
+# -- Interactive mode (requires dialog) --
+interactive_select_group() {
+  local tempfile
+  tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
+  trap 'rm -f "$tempfile"' RETURN
+
   declare -A groups=(
     ["All mirrors"]="all"
     ["Mirrors in Asia"]="asia"
@@ -43,72 +81,181 @@ select_group() {
   )
 
   local options=()
-  for k in "${!groups[@]}"; do
-    # Default "All mirrors" to on, others off
+  for k in "All mirrors" "Mirrors in Europe" "Mirrors in Asia" "Mirrors in North America" "Mirrors in Oceania" "Mirrors in Chinese Mainland" "Mirrors in Russia"; do
     [[ $k == "All mirrors" ]] && state="on" || state="off"
-    options+=("$k" "Select group" "$state")
+    options+=("$k" "Select region" "$state")
   done
 
   dialog --title "Mirror Groups" --clear --radiolist \
     "Select region (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$TEMPFILE" || return
+    0 0 0 "${options[@]}" 2> "$tempfile" || return
 
   local choice
-  choice=$(<"$TEMPFILE")
+  choice=$(<"$tempfile")
   [[ -z $choice ]] && return
 
   local dir="${groups[$choice]}"
   [[ -n $dir ]] && unlink_and_link "$MIRROR_BASE/$dir"
 }
 
-select_mirror() {
-  local options=()
-  # Use fd if available for speed, else find
-  local cmd=(find "$MIRROR_BASE" -mindepth 2 -maxdepth 2 -type f ! -name "*.dpkg*")
-  has fd && cmd=(fd -t f -d 2 . "$MIRROR_BASE")
+interactive_select_mirror() {
+  local tempfile
+  tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
+  trap 'rm -f "$tempfile"' RETURN
+
+  local options=("default" "Official Default" "on")
 
   while IFS= read -r m; do
     local name="${m##*/}"
-    [[ $name == "default" || $name == "packages.termux.dev" ]] && continue
+    [[ $name == "default" || $name =~ \.dpkg ]] && continue
     options+=("$name" "$(get_mirror_desc "$m")" "off")
-  done < <("${cmd[@]}")
-
-  # Add defaults at top
-  options=("default" "Official Default" "on" "${options[@]}")
+  done < <(find "$MIRROR_BASE" -mindepth 2 -maxdepth 2 -type f ! -name "*.dpkg*" 2>/dev/null)
 
   dialog --title "Single Mirror" --clear --radiolist \
     "Select mirror (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$TEMPFILE" || return
+    0 0 0 "${options[@]}" 2> "$tempfile" || return
 
   local choice
-  choice=$(<"$TEMPFILE")
+  choice=$(<"$tempfile")
   [[ -z $choice ]] && return
 
-  # Find the full path for the selected mirror
   local path
-  path=$(find "$MIRROR_BASE" -name "$choice" -print -quit)
+  path=$(find "$MIRROR_BASE" -name "$choice" -print -quit 2>/dev/null)
   [[ -n $path ]] && unlink_and_link "$path"
+}
+
+interactive_mode() {
+  has dialog || die "dialog not installed. Use non-interactive flags: --europe, --asia, --all, etc."
+  mkdir -p "$TMP_DIR"
+
+  local tempfile
+  tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
+  trap 'rm -f "$tempfile"' RETURN
+
+  dialog --title "termux-change-repo" --clear --radiolist \
+    "Mode Selection:" 0 0 0 \
+    "Mirror group" "Rotate (Recommended)" "on" \
+    "Single mirror" "Pick specific URL" "off" 2> "$tempfile" || exit
+
+  case $(<"$tempfile") in
+    "Mirror group") interactive_select_group ;;
+    "Single mirror") interactive_select_mirror ;;
+  esac
+}
+
+show_help() {
+  cat <<'EOF'
+termux-change-repo - Change Termux package mirrors
+
+USAGE:
+  termux-change-repo                    Interactive mode (requires dialog)
+  termux-change-repo --europe           Europe mirrors (multi-mirror)
+  termux-change-repo --asia             Asia mirrors (excl. China/Russia)
+  termux-change-repo --all              All worldwide mirrors
+  termux-change-repo --north-america    North America mirrors
+  termux-change-repo --oceania          Oceania mirrors
+  termux-change-repo --china            Chinese Mainland mirrors
+  termux-change-repo --russia           Russia mirrors
+  termux-change-repo --mirror <name>    Specific mirror by name
+
+OPTIONS:
+  -h, --help          Show this help
+  -e, --europe        Select Europe mirror group
+  -a, --all           Select all mirrors worldwide
+  --asia              Select Asia mirrors
+  --north-america     Select North America mirrors
+  --oceania           Select Oceania mirrors
+  --china             Select Chinese Mainland mirrors
+  --russia            Select Russia mirrors
+  -m, --mirror NAME   Select specific mirror by name
+  --update            Run apt update after selection
+  --no-update         Skip apt update (default for non-interactive)
+
+EXAMPLES:
+  termux-change-repo --europe --update
+  termux-change-repo -m packages.termux.dev
+EOF
 }
 
 # -- Main --
 main() {
   has apt || die "apt not found."
-  [[ ${TERMUX_APP_PACKAGE_MANAGER:-} == "pacman" ]] && die "Use pacman config for mirrors."
+  [[ "${TERMUX_APP_PACKAGE_MANAGER:-}" == "pacman" ]] && die "Use pacman config for mirrors."
 
-  # Menu
-  dialog --title "termux-change-repo" --clear --radiolist \
-    "Mode Selection:" 0 0 0 \
-    "Mirror group" "Rotate (Recommended)" "on" \
-    "Single mirror" "Pick specific URL" "off" 2> "$TEMPFILE" || exit
+  local region=""
+  local mirror=""
+  local do_update=0
 
-  case $(<"$TEMPFILE") in
-    "Mirror group") select_group ;;
-    "Single mirror") select_mirror ;;
-  esac
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      -e|--europe)
+        region="europe"
+        shift
+        ;;
+      -a|--all)
+        region="all"
+        shift
+        ;;
+      --asia)
+        region="asia"
+        shift
+        ;;
+      --north-america)
+        region="north_america"
+        shift
+        ;;
+      --oceania)
+        region="oceania"
+        shift
+        ;;
+      --china)
+        region="chinese_mainland"
+        shift
+        ;;
+      --russia)
+        region="russia"
+        shift
+        ;;
+      -m|--mirror)
+        [[ -z "${2:-}" ]] && die "--mirror requires a mirror name"
+        mirror="$2"
+        shift 2
+        ;;
+      --update)
+        do_update=1
+        shift
+        ;;
+      --no-update)
+        do_update=0
+        shift
+        ;;
+      *)
+        die "Unknown option: $1. Use --help for usage."
+        ;;
+    esac
+  done
 
-  # Update
-  echo "[*] Running update..."
-  apt update
+  # Execute based on mode
+  if [[ -n "$region" ]]; then
+    select_region "$region"
+  elif [[ -n "$mirror" ]]; then
+    select_single_mirror "$mirror"
+  else
+    # No arguments: interactive mode
+    interactive_mode
+    do_update=1  # Interactive mode defaults to update
+  fi
+
+  # Update if requested
+  if [[ $do_update -eq 1 ]]; then
+    info "Running apt update..."
+    apt update
+  fi
 }
 
 main "$@"
