@@ -286,7 +286,11 @@ main(){
   pkg i -y git curl &>/dev/null || log "Base tools partial fail"
 
   # Setup storage access (non-interactive)
-  setup_storage || log "setup_storage failed"
+  if ! setup_storage; then
+    log "setup_storage failed"
+    echo "ERROR: Termux storage setup failed. Please run 'termux-setup-storage' manually, then re-run ./setup.sh." >&2
+    exit 1
+  fi
 
   setup_env || log "setup_env failed"
   bootstrap_dotfiles || log "bootstrap_dotfiles failed"
