@@ -54,7 +54,7 @@ install_termux_pkgs(){
   pkg update -y || log "pkg update failed"
   apt-get install -f || :
   # Install only essential repos
-  pkg install -y x11-repo || :
+  pkg install -y x11-repo || log "x11-repo installation failed"
 
   # Core packages (essential only)
   local -a core_pkgs=(
