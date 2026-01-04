@@ -27,12 +27,12 @@ install_termux_pkgs(){
   apt-get install -f || :
   pkg install -y tur-repo glibc-repo root-repo termux-api termux-services x11-repo || :
   local -a pkgs=(
-    stow yadm git gh zsh zsh-completions build-essential parallel
-    ripgrep sd eza bat dust nodejs fzf zoxide shfmt shellcheck
-    procps gawk jq aria2 imagemagick ffmpeg libwebp gifsicle pngquant
+    stow yadm git python gh zsh zsh-completions build-essential parallel
+    ripgrep eza bat dust nodejs fzf zoxide apksigner unzip zip ncurses-utils
+    procps gawk jq aria2 graphicsmagick ffmpeg libwebp gifsicle
     optipng jpegoptim chafa micro mold llvm openjdk-21 python
     aapt2 apksigner android-tools binutils-is-llvm gitoxide
-    proot-distro pulseaudio termux-x11-nightly
+    proot-distro pulseaudio termux-x11-nightly python
   )
   log "Installing ${#pkgs[@]} packages..."
   pkg i -y "${pkgs[@]}" || log "Some packages failed"
@@ -48,6 +48,9 @@ setup_fonts(){
     mv "${font_dir}/JetBrainsMonoNerdFont-Regular.ttf" "${font_dir}/font.ttf"
     has termux-reload-settings && termux-reload-settings || true
   fi
+}
+setup_python(){
+  python -m pip install progressbar
 }
 install_zimfw(){
   step "Zimfw"
