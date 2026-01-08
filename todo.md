@@ -1,7 +1,5 @@
 - https://github.com/Graywizard888/Custom-Enhancify-aapt2-binary
 - https://github.com/Graywizard888/Enhancify
-- https://github.com/nozwock/yanu/blob/main/scripts/yanu-bootstrap-termux.sh
-
 
 ```bash
 err(){ printf >&2 "\e[;91m%s\n\e[0m" "Error: $(if [[ -n "$*" ]]; then echo -e "$*"; else echo 'an error occurred'; fi)"; exit 1; }
