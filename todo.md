@@ -52,3 +52,4 @@ eval "$(curl -s https://get.x-cmd.com)"
 ```
 
 - https://mt2.cn
+- https://maximoff.su/apktool/?lang=en
