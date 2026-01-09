@@ -44,3 +44,9 @@ aapt2 optimize --target-densities xxhdpi -c en --enable-sparse-encoding input.ap
 --collapse-resource-names
 --shorten-resource-paths
 ```
+
+### X-CMD
+
+```bash
+eval "$(curl -s https://get.x-cmd.com)"
+```
