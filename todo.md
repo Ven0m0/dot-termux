@@ -50,3 +50,5 @@ aapt2 optimize --target-densities xxhdpi -c en --enable-sparse-encoding input.ap
 ```bash
 eval "$(curl -s https://get.x-cmd.com)"
 ```
+
+- https://mt2.cn
