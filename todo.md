@@ -1,5 +1,7 @@
 - https://github.com/Graywizard888/Custom-Enhancify-aapt2-binary
 - https://github.com/Graywizard888/Enhancify
+- https://github.com/AbdurazaaqMohammed/apk-modification
+- https://github.com/AbdurazaaqMohammed/discord-no-trackers
 
 ```bash
 err(){ printf >&2 "\e[;91m%s\n\e[0m" "Error: $(if [[ -n "$*" ]]; then echo -e "$*"; else echo 'an error occurred'; fi)"; exit 1; }
