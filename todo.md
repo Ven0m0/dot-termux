@@ -3,7 +3,6 @@
 
 ```bash
 err(){ printf >&2 "\e[;91m%s\n\e[0m" "Error: $(if [[ -n "$*" ]]; then echo -e "$*"; else echo 'an error occurred'; fi)"; exit 1; }
-
 # Runs passed command in proot
 # $1 - command string
 proot(){
@@ -18,14 +17,21 @@ patch_am(){
 }
 termux-setup-storage <<<"Y" || err "Failed to get permission to Internal storage"
 USR_DIR='/data/data/com.termux/files/usr'
-
 proot-distro install debian || :
-
 sh -c 'yes Y | pkg update' || termux-change-repo && sh -c 'yes Y | pkg update' || err "Failed to sync package repos; Changing mirror should help 'termux-change-repo'"
 sh -c 'yes Y | pkg upgrade' || err "Failed to update packages"
 sh -c 'yes Y | pkg in proot-distro termux-api' || err "Failed to install essential packages"
 proot 'yes Y | apt update && apt upgrade' || err "Failed to update packages in proot"
 proot 'apt install git gcc binutils make -y' || err "Failed to install required deps in proot"
 patch_am || err "Failed to patch AM"
+```
 
+### Termuxvoid repo
+
+```bash
+curl -sL https://termuxvoid.github.io/repo/install.sh | bash
+```
+
+```bash
+curl -LO https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-theme.sh && bash termuxvoid-theme.sh
 ```
