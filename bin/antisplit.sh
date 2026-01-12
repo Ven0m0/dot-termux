@@ -9,14 +9,14 @@ echo -e "\tAPK Split Merger auto Signer"
 echo -e "\t\t\t\t@termuxvoid"
 echo
 
-if [ $# -eq 0 ]; then
+if [[ $# -eq 0 ]]; then
     echo "Usage: $0 <input.apks|apkm|xapk>"
     exit 1
 fi
 
 INPUT="$1"
 INPUT_DIR=$(dirname "$INPUT")
-BASE_NAME=$(basename "$INPUT" .${INPUT##*.})
+BASE_NAME=$(basename "$INPUT" ".${INPUT##*.}")
 
 OUTPUT="$INPUT_DIR/$BASE_NAME.apk"
 SIGNED="$INPUT_DIR/${BASE_NAME}_signed.apk"
@@ -24,13 +24,13 @@ SIGNED="$INPUT_DIR/${BASE_NAME}_signed.apk"
 echo "Input: $INPUT"
 echo "Output: $SIGNED"
 
-if [ ! -f "$INPUT" ]; then
+if [[ ! -f "$INPUT" ]]; then
     echo "Error: File not found: $INPUT"
     exit 1
 fi
 
 KEYSTORE="key/antisplit.keystore"
-if [ ! -f "$KEYSTORE" ]; then
+if [[ ! -f "$KEYSTORE" ]]; then
     echo "Error: Keystore not found: $KEYSTORE"
     exit 1
 fi

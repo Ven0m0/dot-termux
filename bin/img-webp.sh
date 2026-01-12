@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 set -euo pipefail; shopt -s nullglob globstar
 export LC_ALL=C; IFS=$'\n\t'
 s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
@@ -10,7 +10,8 @@ log(){ printf '[INFO] %s\n' "$*"; }
 die(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 has(){ command -v -- "$1" &>/dev/null; }
 webp_one(){
-  local in=$1 out="${in%.*}.webp"
+  local in=$1
+  local out="${in%.*}.webp"
   [[ -e $out ]] && { log "Skip (exists): $out"; return 0; }
   cwebp -q 80 -m 6 -pass 10 -quiet -metadata none "$in" -o "$out"
   rm -- "$in"

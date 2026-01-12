@@ -1,8 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/sh
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 # Usage: termux-fix-shebang <files>
 # Optimization: Parallel processing with xargs
-if [ $# -eq 0 ]; then
+if [[ $# -eq 0 ]]; then
   echo "Usage: $0 file1 [file2 ...]"; exit 1
 fi
 # Use xargs to batch-process files with sed
