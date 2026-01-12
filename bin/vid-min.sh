@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 set -euo pipefail; shopt -s nullglob globstar
 export LC_ALL=C; IFS=$'\n\t'
 s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
@@ -50,7 +50,8 @@ collect_inputs(){
   fi
 }
 process_one(){
-  local in=$1 out="${in%.*}.$MODE.mkv"
+  local in=$1
+  local out="${in%.*}.$MODE.mkv"
   [[ $in == *".$MODE".mkv ]] && return 0
   [[ -e $out ]] && { log "Skip (exists): $out"; return 0; }
   local enc opts tool="ffmpeg"
@@ -88,7 +89,7 @@ process_one(){
   else
     echo "[FAIL] $in"
     rm -f -- "$out"
-    return $res
+    return "$res"
   fi
 }
 process_video(){

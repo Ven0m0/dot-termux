@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 set -euo pipefail; shopt -s nullglob globstar
 export LC_ALL=C; IFS=$'\n\t'
 s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
@@ -11,7 +11,8 @@ die(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 # Dependencies: ffmpeg; fd optional for parallelism
 readonly A_OPTS=("-c:a" "libopus" "-b:a" "96k" "-ac" "2" "-rematrix_maxval" "1.0" "-vn")
 encode_one(){
-  local in=$1 out="${in%.*}.opus"
+  local in=$1
+  local out="${in%.*}.opus"
   [[ -e $out ]] && { log "Skip (exists): $out"; return 0; }
   ffmpeg -nostdin -hide_banner -loglevel error -i "$in" "${A_OPTS[@]}" -y "$out"
   rm -- "$in"

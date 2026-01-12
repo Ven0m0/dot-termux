@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t' LC_ALL=C
 has(){ command -v -- "$1" &>/dev/null; }
