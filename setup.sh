@@ -271,7 +271,8 @@ patch_activity_manager(){
   [[ $PATCH_AM -eq 0 ]] && { log "Skipping AM patch (PATCH_AM=0)"; return 0; }
   step "Patching activity manager"
   local am_path="${PREFIX}/bin/am"
-  local pat="app_process" patch="-Xnoimage-dex2oat"
+  local pat="app_process"
+  local patch="-Xnoimage-dex2oat"
   
   [[ ! -f "$am_path" ]] && { log "AM not found, skipping patch"; return 0; }
   

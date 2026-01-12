@@ -28,7 +28,8 @@ proot_run(){
 # https://github.com/termux/termux-api/issues/552#issuecomment-1382722639
 patch_am(){
   local am_path="${PREFIX:-/data/data/com.termux/files/usr}/bin/am"
-  local pat="app_process" patch="-Xnoimage-dex2oat"
+  local pat="app_process"
+  local patch="-Xnoimage-dex2oat"
   
   [[ ! -f "$am_path" ]] && { warn "am not found at $am_path"; return 1; }
   
