@@ -5,6 +5,11 @@
 git clone --depth 1 --filter blob:none https://github.com/yourusername/termux-shizuku-tools.git && cd termux-shizuku-tools; chmod +x setup.sh && bash setup.sh
 ```
 
+### csb
+
+```bash
+curl -sf https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
+```
 
 
 ### X-CMD
