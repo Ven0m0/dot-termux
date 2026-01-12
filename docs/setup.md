@@ -26,3 +26,16 @@ curl -sL https://termuxvoid.github.io/repo/install.sh | bash
 ```bash
 curl -sLO https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-theme.sh && bash termuxvoid-theme.sh
 ```
+
+- https://mt2.cn
+- https://maximoff.su/apktool/?lang=en
+
+### AAPT2
+
+```bash
+aapt2 optimize --target-densities xxhdpi -c en --enable-sparse-encoding input.apk optimized.apk
+
+--collapse-resource-names
+--shorten-resource-paths
+```
+
