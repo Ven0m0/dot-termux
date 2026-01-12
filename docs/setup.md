@@ -24,5 +24,5 @@ eval "$(curl -s https://get.x-cmd.com)"
 curl -sL https://termuxvoid.github.io/repo/install.sh | bash
 ```
 ```bash
-curl -LO https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-theme.sh && bash termuxvoid-theme.sh
+curl -sLO https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-theme.sh && bash termuxvoid-theme.sh
 ```
