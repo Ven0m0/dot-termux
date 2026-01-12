@@ -29,6 +29,11 @@ curl -sLO https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-the
 
 - https://mt2.cn
 - https://maximoff.su/apktool/?lang=en
+- https://github.com/Graywizard888/Custom-Enhancify-aapt2-binary
+- https://github.com/Graywizard888/Enhancify
+- https://github.com/AbdurazaaqMohammed/apk-modification
+- https://github.com/AbdurazaaqMohammed/discord-no-trackers
+- https://abdurazaaqmohammed.github.io/packageremovalhelper
 
 ### AAPT2
 
