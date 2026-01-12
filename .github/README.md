@@ -183,15 +183,51 @@ fix
 curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
 ```
 
-### Media Optimization Scripts
+### Utility Scripts
 
 The repository includes consolidated scripts in the `bin/` directory:
 
-- `media-opt` - Unified media optimization tool (replaces legacy: media.sh, opt-img.sh, img.sh, imgopt)
-- `clean` - Unified cleaning tool (replaces legacy: clean.sh, termux-cleaner.sh, adbcc.sh)
-- `tools` - Shared library with helper functions
-- `supershell` - ADB over WiFi connection utility
-- `rxfetch` - System information display
+**Media & Cleaning:**
+- `media-opt.sh` - Unified media optimization tool (jpg, png, webp)
+- `clean.sh` - Unified cleaning tool (quick/deep clean, app media)
+- `img-opt.sh` - Image optimizer using image-optimizer
+- `img-webp.sh` - Convert images to WebP
+- `audio-opt.sh` - Convert audio to Opus format
+- `vid-min.sh` - Video minimizer (AV1/VP9 encoding)
+- `cls.sh` - Clear cache and temporary files
+
+**System Utilities:**
+- `termux-proot-helper.sh` - Proot-distro utilities (setup, run commands, patch AM)
+- `termux-adb-helper.sh` - ADB optimization (device optimize, clear cache, WiFi setup)
+- `termux-ssh-helper.sh` - SSH management (keygen, start/stop server)
+- `termux-install-tools.sh` - Third-party tool installers (TermuxVoid, X-CMD, Revancify, etc.)
+- `termux-change-repo` - Non-interactive mirror selector
+- `termux-setup-storage` - Storage access helper
+- `termux-fix-shebang.sh` - Fix shebangs for Termux
+- `antisplit.sh` - Merge and sign split APKs
+
+### Using Utility Scripts
+
+```bash
+# Proot utilities
+./bin/termux-proot-helper.sh patch-am              # Patch activity manager
+./bin/termux-proot-helper.sh setup-debian          # Setup Debian proot
+./bin/termux-proot-helper.sh run debian "apt update"
+
+# ADB optimization
+./bin/termux-adb-helper.sh optimize                # Optimize device
+./bin/termux-adb-helper.sh clear-cache             # Clear system caches
+./bin/termux-adb-helper.sh wifi-setup              # Setup ADB over WiFi
+
+# SSH management
+./bin/termux-ssh-helper.sh keygen                  # Generate SSH key
+./bin/termux-ssh-helper.sh start                   # Start SSH server
+
+# Install third-party tools
+./bin/termux-install-tools.sh termuxvoid           # Install TermuxVoid repo
+./bin/termux-install-tools.sh xcmd                 # Install X-CMD
+./bin/termux-install-tools.sh revancify-xisr       # Install Revancify-Xisr
+```
 
 ### ADB over mobile data
 

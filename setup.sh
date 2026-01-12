@@ -14,6 +14,8 @@
 #   INSTALL_FONTS=1 ./setup.sh           # Include fonts
 #   INSTALL_DEVTOOLS=1 ./setup.sh        # Include dev tools (Python, Node, etc.)
 #   INSTALL_MEDIA_TOOLS=1 ./setup.sh     # Include media tools (ffmpeg, etc.)
+#   INSTALL_HELPERS=1 ./setup.sh         # Install utility helper scripts
+#   PATCH_AM=0 ./setup.sh                # Skip activity manager patching
 #
 # MIRROR REGIONS: all, asia, chinese_mainland, europe (default), north_america, oceania, russia
 #
@@ -42,6 +44,8 @@ deb_user="${USER:-user}"
 INSTALL_FONTS=${INSTALL_FONTS:-0}
 INSTALL_DEVTOOLS=${INSTALL_DEVTOOLS:-0}
 INSTALL_MEDIA_TOOLS=${INSTALL_MEDIA_TOOLS:-0}
+PATCH_AM=${PATCH_AM:-1}  # Patch activity manager for performance
+INSTALL_HELPERS=${INSTALL_HELPERS:-0}  # Install utility helpers
 has(){ command -v -- "$1" &>/dev/null; }
 step(){ printf '==> %s\n' "$*"; }
 log(){ printf '[%(%T)T] %s\n' -1 "$*" >>"$logf"; }
@@ -263,6 +267,43 @@ exec proot-distro login debian --shared-tmp -- /bin/bash
 LAUNCHER
   chmod +x "${HOME}/bin/debian"
 }
+patch_activity_manager(){
+  [[ $PATCH_AM -eq 0 ]] && { log "Skipping AM patch (PATCH_AM=0)"; return 0; }
+  step "Patching activity manager"
+  local am_path="${PREFIX}/bin/am"
+  local pat="app_process" patch="-Xnoimage-dex2oat"
+  
+  [[ ! -f "$am_path" ]] && { log "AM not found, skipping patch"; return 0; }
+  
+  if grep -q "$patch" "$am_path"; then
+    log "AM already patched"
+    return 0
+  fi
+  
+  log "Applying performance patch to AM..."
+  sed -i "/$pat/!b; /$patch/b; s/$pat/& $patch/" "$am_path" || { log "AM patch failed"; return 1; }
+  log "AM patched successfully"
+}
+install_helper_scripts(){
+  [[ $INSTALL_HELPERS -eq 0 ]] && { log "Skipping helper scripts (INSTALL_HELPERS=0)"; return 0; }
+  step "Installing helper utilities"
+  
+  # Ensure helpers are executable
+  local helpers=(
+    "termux-proot-helper.sh"
+    "termux-adb-helper.sh"
+    "termux-install-tools.sh"
+    "termux-ssh-helper.sh"
+  )
+  
+  for helper in "${helpers[@]}"; do
+    if [[ -f "${repo_path}/bin/${helper}" ]]; then
+      chmod +x "${repo_path}/bin/${helper}"
+      ln -sf "${repo_path}/bin/${helper}" "${HOME}/bin/${helper}"
+      log "Installed: ${helper}"
+    fi
+  done
+}
 setup_zsh(){ has zsh && [[ ${SHELL##*/} != zsh ]] && chsh -s zsh || :; }
 finalize(){
   has zsh && zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
@@ -275,7 +316,7 @@ main(){
   : >"$logf"
 
   step "Minimal Termux + Debian Setup"
-  log "MIRROR_REGION=${MIRROR_REGION}, INSTALL_FONTS=${INSTALL_FONTS}, INSTALL_DEVTOOLS=${INSTALL_DEVTOOLS}, INSTALL_MEDIA_TOOLS=${INSTALL_MEDIA_TOOLS}"
+  log "MIRROR_REGION=${MIRROR_REGION}, INSTALL_FONTS=${INSTALL_FONTS}, INSTALL_DEVTOOLS=${INSTALL_DEVTOOLS}, INSTALL_MEDIA_TOOLS=${INSTALL_MEDIA_TOOLS}, PATCH_AM=${PATCH_AM}, INSTALL_HELPERS=${INSTALL_HELPERS}"
 
   # Configure mirrors first (non-interactive, Europe by default)
   setup_mirrors || log "setup_mirrors failed"
@@ -301,6 +342,8 @@ main(){
   install_debian || log "install_debian failed"
   configure_debian || log "configure_debian failed"
   install_debian_devtools || log "install_debian_devtools failed"
+  patch_activity_manager || log "patch_activity_manager failed"
+  install_helper_scripts || log "install_helper_scripts failed"
   create_debian_launcher || log "create_debian_launcher failed"
   setup_zsh || log "setup_zsh failed"
   finalize || log "finalize failed"
@@ -314,8 +357,10 @@ main(){
 
   echo; echo "Minimal setup complete. Check $logf for errors."
   echo "To enable optional features, set environment variables:"
-  echo "  INSTALL_FONTS=1 ./setup.sh        # Install fonts"
-  echo "  INSTALL_DEVTOOLS=1 ./setup.sh     # Install dev tools"
-  echo "  INSTALL_MEDIA_TOOLS=1 ./setup.sh  # Install media tools"
+  echo "  INSTALL_FONTS=1 ./setup.sh          # Install fonts"
+  echo "  INSTALL_DEVTOOLS=1 ./setup.sh       # Install dev tools"
+  echo "  INSTALL_MEDIA_TOOLS=1 ./setup.sh    # Install media tools"
+  echo "  INSTALL_HELPERS=1 ./setup.sh        # Install utility helpers"
+  echo "  PATCH_AM=0 ./setup.sh               # Skip AM patching"
 }
 main "$@"
