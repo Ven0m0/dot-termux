@@ -1,10 +1,14 @@
-#!/usr/bin/env bash
-
+#!/data/data/com.termux/files/usr/bin/bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 # AntiSplit - Merge split APK files and sign them
 # Script by: @termuxvoid
-# java -jar apkeditor.jar m -i "$1"
+set -euo pipefail; shopt -s nullglob globstar
+export LC_ALL=C; IFS=$'\n\t'
 
-#figlet -f slant "AntiSplit"
+has(){ command -v -- "$1" &>/dev/null; }
+log(){ printf '[INFO] %s\n' "$*"; }
+err(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+
 echo -e "\tAPK Split Merger auto Signer"
 echo -e "\t\t\t\t@termuxvoid"
 echo
@@ -14,6 +18,9 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
+has apkeditor || err "apkeditor not found"
+has apksigner || err "apksigner not found"
+
 INPUT="$1"
 INPUT_DIR=$(dirname "$INPUT")
 BASE_NAME=$(basename "$INPUT" ".${INPUT##*.}")
@@ -21,38 +28,29 @@ BASE_NAME=$(basename "$INPUT" ".${INPUT##*.}")
 OUTPUT="$INPUT_DIR/$BASE_NAME.apk"
 SIGNED="$INPUT_DIR/${BASE_NAME}_signed.apk"
 
-echo "Input: $INPUT"
-echo "Output: $SIGNED"
+log "Input: $INPUT"
+log "Output: $SIGNED"
 
-if [[ ! -f "$INPUT" ]]; then
-    echo "Error: File not found: $INPUT"
-    exit 1
-fi
+[[ ! -f "$INPUT" ]] && err "File not found: $INPUT"
 
 KEYSTORE="key/antisplit.keystore"
-if [[ ! -f "$KEYSTORE" ]]; then
-    echo "Error: Keystore not found: $KEYSTORE"
-    exit 1
-fi
+[[ ! -f "$KEYSTORE" ]] && err "Keystore not found: $KEYSTORE"
 
-echo "Merging split files..."
+log "Merging split files..."
 if apkeditor m -i "$INPUT" -o "$OUTPUT"; then
-    echo "Merged successfully"
+    log "Merged successfully"
 else
-    echo "Merge failed"
-    exit 1
+    err "Merge failed"
 fi
 
-echo "Signing APK..."
+log "Signing APK..."
 if apksigner sign --ks "$KEYSTORE" --ks-pass "pass:password" \
     --ks-key-alias "antisplit" --key-pass "pass:password" \
     --out "$SIGNED" "$OUTPUT"; then
-    echo "Signed successfully: $SIGNED"
-    
+    log "Signed successfully: $SIGNED"
     rm -f "$OUTPUT" "$INPUT_DIR"/*.idsig 
 else
-    echo "Signing failed"
-    exit 1
+    err "Signing failed"
 fi
 
-echo "All done!"
+log "All done!"
