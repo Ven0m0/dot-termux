@@ -2,7 +2,7 @@
 ### [termux-shizuku-tools](https://github.com/jecis-repos/termux-shizuku-tools)
 
 ```bash
-git clone --depth 1 --filter blob:none https://github.com/yourusername/termux-shizuku-tools.git && cd termux-shizuku-tools; chmod +x setup.sh && bash setup.sh
+git clone --depth 1 --filter blob:none https://github.com/jecis-repos/termux-shizuku-tools.git && cd termux-shizuku-tools; chmod +x setup.sh && bash setup.sh
 ```
 
 ### csb
