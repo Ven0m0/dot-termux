@@ -25,7 +25,6 @@ install_termuxvoid_theme(){
   log "Installing TermuxVoid theme..."
   local script="termuxvoid-theme.sh"
   download -o "$script" https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-theme.sh || err "Download failed"
-  chmod +x "$script"
   bash "$script"
   rm -f "$script"
   log "TermuxVoid theme installed"
