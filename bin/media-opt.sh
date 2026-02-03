@@ -41,7 +41,7 @@ opt_jpg(){
     fd -0 -t f -e jpg -e jpeg . "$1" -j "$JOBS" -x jpegoptim "${args[@]}"
   else
     find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' \) -print0 | \
-      xargs -0 -r -P "$JOBS" -n 10 jpegoptim "${args[@]}"
+      xargs -0 -r -P "$JOBS" -n 1 jpegoptim "${args[@]}"
   fi
 }
 opt_png(){
