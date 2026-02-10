@@ -74,7 +74,7 @@ to_webp(){
     fd -0 -t f -e jpg -e jpeg -e png -E '*.webp' . "$1" -j "$JOBS" -x bash -c "$cmd" _
   else
     find "$1" -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) ! -name '*.webp' \
-      -exec bash -c "$cmd" _ {} \;
+      -print0 | xargs -0 -P "$JOBS" -I {} bash -c "$cmd" _ {}
   fi
 }
 # -- Main --
