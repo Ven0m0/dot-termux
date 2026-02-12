@@ -31,7 +31,6 @@
 #   - No build tools by default
 #   - Removed duplicate packages
 #   - Minimal Debian base (no docs, man pages)
-#
 set -euo pipefail; shopt -s nullglob globstar
 export LC_ALL=C DEBIAN_FRONTEND=noninteractive; IFS=$'\n\t'
 s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
@@ -96,39 +95,33 @@ install_termux_pkgs(){
   apt-get install -f || :
   # Install only essential repos
   pkg install -y x11-repo || log "x11-repo installation failed"
-
   # Core packages (essential only)
   local -a core_pkgs=(
     git zsh zsh-completions curl wget
     proot-distro pulseaudio termux-x11-nightly
-    ncurses-utils unzip zip
+    ncurses-utils unzip zip termux-api termux-services
+    ripgrep eza bat fzf jq uv python nodejs tmux
+    android-tools openssh
   )
-
   # Optional media tools (large)
   local -a media_pkgs=(
     ffmpeg graphicsmagick libwebp gifsicle
     optipng jpegoptim chafa aria2
   )
-
   # Optional dev tools
   local -a dev_pkgs=(
-    python nodejs build-essential
-    ripgrep eza bat fzf jq
+    build-essential
   )
-
   log "Installing ${#core_pkgs[@]} core packages..."
   pkg i -y "${core_pkgs[@]}" || log "Some core packages failed"
-
   if [[ $INSTALL_MEDIA_TOOLS -eq 1 ]]; then
     log "Installing ${#media_pkgs[@]} media packages..."
     pkg i -y "${media_pkgs[@]}" || log "Some media packages failed"
   fi
-
   if [[ $INSTALL_DEVTOOLS -eq 1 ]]; then
     log "Installing ${#dev_pkgs[@]} dev packages..."
     pkg i -y "${dev_pkgs[@]}" || log "Some dev packages failed"
   fi
-
   # Aggressive cleanup
   pkg clean || :
   apt-get clean || :
