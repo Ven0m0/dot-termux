@@ -69,7 +69,7 @@ setup_storage(){
   local storage_dir="${HOME}/storage"
   if [[ -d "$storage_dir" ]]; then
     # Consider storage configured if the storage directory exists and is not empty.
-    if compgen -G "$storage_dir"/* > /dev/null; then
+    if find "$storage_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | grep -q .; then
       log "Storage already configured"
       return 0
     fi
