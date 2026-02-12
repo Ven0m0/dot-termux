@@ -184,7 +184,23 @@ alias nano='nano -/' mi=micro
 # Bat helpers
 bathelp() { "$@" --help 2>&1 | bat -plhelp; }
 
-catt() { for i in "$@"; do [[ -d $i ]] && eza "$i" || bat -p "$i"; done; }
+catt() {
+  local -a files=() dirs=()
+  local type=""
+  for i in "$@"; do
+    if [[ -d $i ]]; then
+      [[ $type == f ]] && { bat -p "${files[@]}"; files=(); }
+      dirs+=("$i")
+      type=d
+    else
+      [[ $type == d ]] && { eza "${dirs[@]}"; dirs=(); }
+      files+=("$i")
+      type=f
+    fi
+  done
+  [[ $type == f ]] && bat -p "${files[@]}"
+  [[ $type == d ]] && eza "${dirs[@]}"
+}
 
 # Open the selected file in the default editor
 fe() {
