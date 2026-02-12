@@ -24,8 +24,9 @@ fdwebp(){
       -x bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {}
   else
     log "fd not found, using find..."
-    find "$d" -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) ! -name "*.webp" \
-      -exec bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {} \;
+    local jobs; jobs=$(nproc 2>/dev/null || echo 4)
+    find "$d" -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) ! -name "*.webp" -print0 | \
+      xargs -0 -P "$jobs" -I {} bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {}
   fi
 }
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
