@@ -199,3 +199,4 @@ apikeys.txt
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
+test_env*
