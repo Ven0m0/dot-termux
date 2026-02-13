@@ -1,0 +1,3 @@
+ffmpeg called with: -nostdin -hide_banner -loglevel error -i test.wav -y test.opus
+ffmpeg called with: -nostdin -hide_banner -loglevel error -i test.wav -y test.opus
+ffmpeg called with: -nostdin -hide_banner -loglevel error -i test.wav -y test.opus

@@ -1,0 +1,1 @@
+ffmpeg called with: -nostdin -hide_banner -loglevel error -i /app/bin/verify_test_dir_fd/test_fd.wav -c:a libopus -b:a 96k -ac 2 -rematrix_maxval 1.0 -vn -y /app/bin/verify_test_dir_fd/test_fd.opus
