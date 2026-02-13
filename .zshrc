@@ -168,7 +168,6 @@ ifsource ~/.p10k.zsh
 has zoxide && eval "$(zoxide init zsh --cmd cd)"
 has thefuck && eval "$(thefuck --alias)"
 has mise && eval "$(mise activate zsh)"
-if [[ -o INTERACTIVE && -t 2 ]]; then { has fastfetch && fastfetch || has neofetch && neofetch; } &>/dev/null; fi >&2
 
 # Smart precompile
 (){ local zcompdir="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcomp"; ensure_dir "$zcompdir"
