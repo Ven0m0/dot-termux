@@ -23,8 +23,8 @@ fdwebp(){
     fd -tf -e jpg -e jpeg -e png -E '*.webp' . "$d" \
       -x bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {}
   else
-    log "fd not found, using find..."
     local jobs; jobs=$(nproc 2>/dev/null || echo 4)
+    log "fd not found, using find with $jobs parallel jobs..."
     find "$d" -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) ! -name "*.webp" -print0 | \
       xargs -0 -P "$jobs" -I {} bash -c 'set -euo pipefail; '"$(declare -f webp_one)"'; webp_one "$1"' _ {}
   fi
