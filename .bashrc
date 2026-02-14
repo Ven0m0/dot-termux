@@ -130,19 +130,22 @@ stty -ixon -ixoff -ixany
 set +H
 
 # Editor
-if has micro; then EDITOR=micro; else EDITOR=nano; fi
-export MICRO_TRUECOLOR=1 VISUAL="$EDITOR" VIEWER="$EDITOR" GIT_EDITOR="$EDITOR" SYSTEMD_EDITOR="$EDITOR" FCEDIT="$EDITOR" SUDO_EDITOR="$EDITOR"
+if has fresh; then
+  export EDITOR=fresh
+elif has micro; then
+  export EDITOR=micro
+fi
+export MICRO_TRUECOLOR=1 VISUAL="$EDITOR" VIEWER="$EDITOR" GIT_EDITOR="$EDITOR"
 
 # Pagers/colors
 export PAGER=bat BATPIPE=color BAT_STYLE=auto LESSQUIET=1 LESSCHARSET='utf-8' LESSHISTFILE=-
-if has vivid; then export LS_COLORS="$(vivid generate molokai)"; elif has dircolors; then eval "$(dircolors -b)" &>/dev/null; fi
-: "${CLICOLOR:=$(tput colors)}"
-export CLICOLOR SYSTEMD_COLORS=1
+has vivid && export LS_COLORS="$(vivid generate molokai 2>/dev/null)"
+export CLICOLOR="$(tput colors)" SYSTEMD_COLORS=1
 
 export CURL_HOME="$HOME" WGETRC="$HOME/.wgetrc"
 
 # Cheat.sh
-export CHEAT_USE_FZF=true CHTSH_CURL_OPTIONS="-sfLZ4 --compressed -m 5 --connect-timeout 3"
+export CHEAT_USE_FZF=true
 cht() {
   local query="${*// /\/}"
   if ! LC_ALL=C curl -sfZ4 --compressed -m 5 --connect-timeout 3 "cht.sh/${query}"; then
@@ -150,10 +153,11 @@ cht() {
   fi
 }
 
-# Python/UV
-export PYTHONOPTIMIZE=2 PYTHONUTF8=1 PYTHONNODEBUGRANGES=1 PYTHON_JIT=1 PYENV_VIRTUALENV_DISABLE_PROMPT=1 PYTHONSTARTUP="$HOME/.pythonstartup" PYTHON_COLORS=1
-unset PYTHONDONTWRITEBYTECODE
-if has uv; then export UV_COMPILE_BYTECODE=1 UV_LINK_MODE=hardlink; fi
+# Python/UV 
+export UV_VENV_SEED=1 UV_NO_MANAGED_PYTHON=1 UV_LINK_MODE=symlink \
+  PYTHONOPTIMIZE=1 PYTHONUTF8=1 PYTHONNODEBUGRANGES=1
+
+[[ -f ~/.venv/bin/activate ]] && source ~/.venv/bin/activat
 
 export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
 
