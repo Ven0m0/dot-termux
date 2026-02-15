@@ -25,7 +25,7 @@ fdaudio(){
       -j "$jobs" -x bash -c 'set -euo pipefail; '"$(declare -f log encode_one)"'; encode_one "$1"' _ {}
   else
     log "fd not found, using find..."
-    find "$d" -type f \( -name "*.mp3" -o -name "*.m4a" -o -name "*.flac" -o -name "*.wav" -o -name "*.ogg" -o -name "*.aac" -o -name "*.wma" \) \
+    find "$d" -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.aac" -o -iname "*.wma" \) \
       -print0 \
       | xargs -0 -P "$jobs" -I {} bash -c 'set -euo pipefail; '"$(declare -f log encode_one)"'; encode_one "$1"' _ {}
   fi
