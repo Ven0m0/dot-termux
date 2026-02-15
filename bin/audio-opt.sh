@@ -9,8 +9,8 @@ die(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 # audio-opt: Convert audio to Opus 96k Stereo (deletes originals)
 # Usage: ./audio-opt.sh [dir]
 # Dependencies: ffmpeg; fd optional for parallelism
-readonly A_OPTS=("-c:a" "libopus" "-b:a" "96k" "-ac" "2" "-rematrix_maxval" "1.0" "-vn")
 encode_one(){
+  local -r A_OPTS=("-c:a" "libopus" "-b:a" "96k" "-ac" "2" "-rematrix_maxval" "1.0" "-vn")
   local in=$1
   local out="${in%.*}.opus"
   [[ -e $out ]] && { log "Skip (exists): $out"; return 0; }
@@ -22,11 +22,12 @@ fdaudio(){
   has nproc && jobs=$(nproc)
   if has fd; then
     fd -tf -e mp3 -e m4a -e flac -e wav -e ogg -e aac -e wma -E '*.opus' . "$d" \
-      -j "$jobs" -x bash -c 'set -euo pipefail; '"$(declare -f encode_one)"'; encode_one "$1"' _ {}
+      -j "$jobs" -x bash -c 'set -euo pipefail; '"$(declare -f log encode_one)"'; encode_one "$1"' _ {}
   else
     log "fd not found, using find..."
-    find "$d" -type f \( -name "*.mp3" -o -name "*.m4a" -o -name "*.flac" -o -name "*.wav" -o -name "*.ogg" -o -name "*.aac" -o -name "*.wma" \) \
-      -exec bash -c 'set -euo pipefail; '"$(declare -f encode_one)"'; encode_one "$1"' _ {} \;
+    find "$d" -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.aac" -o -iname "*.wma" \) \
+      -print0 \
+      | xargs -0 -P "$jobs" -I {} bash -c 'set -euo pipefail; '"$(declare -f log encode_one)"'; encode_one "$1"' _ {}
   fi
 }
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
