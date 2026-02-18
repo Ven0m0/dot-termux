@@ -129,11 +129,6 @@ fcd(){ local root="." q sel preview; [[ $# -gt 0 && -d $1 ]] && { root="$1"; shi
   else sel="$(find "$root" -type d -not -path '*/.git/*' -print 2>/dev/null | fzf --ansi --height "${FZF_HEIGHT:-60%}" --layout=reverse --border --select-1 --exit-0 --preview "$preview" "${q:+--query "$q"}")"; fi
   [[ -n $sel ]] && cd -- "$sel"
 }
-fe(){ local -a files; local q="${*:-}" preview; if (( $+commands[bat] )); then preview='bat -n --style=plain --color=always --line-range=:500 {}'; else preview='head -n 500 {}'; fi
-  if (( $+commands[fzf] )); then files=("${(@f)$(fzf --multi --select-1 --exit-0 ${q:+--query="$q"} --preview "$preview")}"); else print -r -- "fzf not found" >&2; return 127; fi
-  [[ ${#files} -gt 0 ]] && "${EDITOR:-micro}" "${files[@]}"
-}
-h(){ curl -s "cheat.sh/${@:-}"; }
 
 # Quick clean utility
 quick-clean() {
