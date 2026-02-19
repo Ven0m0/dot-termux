@@ -33,7 +33,11 @@ log "Output: $SIGNED"
 
 [[ ! -f "$INPUT" ]] && err "File not found: $INPUT"
 
-KEYSTORE="key/antisplit.keystore"
+# Configuration - customizable via environment variables
+KEYSTORE="${KEYSTORE:-key/antisplit.keystore}"
+KS_PASS="${KS_PASS:-password}"
+KS_ALIAS="${KS_ALIAS:-antisplit}"
+KEY_PASS="${KEY_PASS:-password}"
 [[ ! -f "$KEYSTORE" ]] && err "Keystore not found: $KEYSTORE"
 
 log "Merging split files..."
@@ -44,8 +48,8 @@ else
 fi
 
 log "Signing APK..."
-if apksigner sign --ks "$KEYSTORE" --ks-pass "pass:password" \
-    --ks-key-alias "antisplit" --key-pass "pass:password" \
+if apksigner sign --ks "$KEYSTORE" --ks-pass "pass:$KS_PASS" \
+    --ks-key-alias "$KS_ALIAS" --key-pass "pass:$KEY_PASS" \
     --out "$SIGNED" "$OUTPUT"; then
     log "Signed successfully: $SIGNED"
     rm -f "$OUTPUT" "$INPUT_DIR"/*.idsig 
