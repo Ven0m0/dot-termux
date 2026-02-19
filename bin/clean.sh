@@ -17,29 +17,68 @@ die() { printf '\e[31m[ERROR]\e[0m %s\n' "$*" >&2; exit 1; }
 rm_files() {
   local path="$1"; shift
   [[ -d "$path" ]] || return 0
-  local fd_args=()
-  local find_args=()
+  local fd_opts=()
+  local find_opts=()
+  local patterns=()
+  local regexs=()
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -e) fd_args+=("-e" "$2"); find_args+=("-name" "*.$2"); shift 2 ;;
-      --changed-before) fd_args+=("--changed-before" "$2"); find_args+=("-mtime" "+${2%d}"); shift 2 ;;
-      -g) fd_args+=("-g" "$2"); find_args+=("-name" "$2"); shift 2 ;;
-      -d|--max-depth) fd_args+=("--max-depth" "$2"); find_args+=("-maxdepth" "$2"); shift 2 ;;
+      -e)
+        patterns+=("-name" "*.$2")
+        regexs+=("\.$2$")
+        shift 2 ;;
+      --changed-before)
+        fd_opts+=("--changed-before" "$2")
+        find_opts+=("-mtime" "+${2%d}")
+        shift 2 ;;
+      -g)
+        patterns+=("-name" "$2")
+        local re="$2"
+        re="${re//./\\.}"
+        re="${re//\*/.*}"
+        regexs+=("^$re$")
+        shift 2 ;;
+      -d|--max-depth)
+        fd_opts+=("--max-depth" "$2")
+        find_opts+=("-maxdepth" "$2")
+        shift 2 ;;
       *) shift ;;
     esac
   done
+
+  local find_cmd=("find" "$path" "${find_opts[@]}" "-type" "f")
+  if [[ ${#patterns[@]} -gt 0 ]]; then
+    find_cmd+=("(")
+    for ((i=0; i<${#patterns[@]}; i+=2)); do
+      [[ $i -gt 0 ]] && find_cmd+=("-o")
+      find_cmd+=("${patterns[i]}" "${patterns[i+1]}")
+    done
+    find_cmd+=(")")
+  fi
+
+  local fd_cmd=("fd" "-tf" "${fd_opts[@]}")
+  if [[ ${#regexs[@]} -gt 0 ]]; then
+    local joined_re
+joined_re=$(printf '%s|' "${regexs[@]}")
+fd_cmd+=("(${joined_re%|})" "$path")
+  else
+    fd_cmd+=("." "$path")
+  fi
+
   if [[ $DRY_RUN -eq 1 ]]; then
     if has fd; then
-      fd -tf "${fd_args[@]}" . "$path"
+      "${fd_cmd[@]}"
     else
-      find "$path" -type f "${find_args[@]}" -print
+      "${find_cmd[@]}" -print
     fi
     return
   fi
+
   if has fd; then
-    fd -tf "${fd_args[@]}" . "$path" -X rm -f 2>/dev/null || :
+    "${fd_cmd[@]}" -X rm -f 2>/dev/null || :
   else
-    find "$path" -type f "${find_args[@]}" -delete 2>/dev/null || :
+    "${find_cmd[@]}" -delete 2>/dev/null || :
   fi
 }
 # -- Tasks --
@@ -64,9 +103,7 @@ clean_quick() {
   for dir in "${tmp_dirs[@]}"; do
     rm_files "$dir"
   done
-  rm_files "$HOME" -d 1 -e "log"
-  rm_files "$HOME" -d 1 -e "bak"
-  rm_files "$HOME" -d 1 -g "*~"
+  rm_files "$HOME" -d 1 -e "log" -e "bak" -g "*~"
   if [[ $DRY_RUN -eq 0 ]]; then
     if has fd; then
       fd -td --max-depth 5 -H . "$HOME" -x rmdir 2>/dev/null || :
@@ -80,8 +117,7 @@ clean_deep() {
   log "Running deep clean..."
   local dl="$HOME/storage/shared/Download"
   rm_files "$dl" --changed-before 60d
-  rm_files "$HOME" -g "Thumbs.db"
-  rm_files "$HOME" -g ".DS_Store"
+  rm_files "$HOME" -g "Thumbs.db" -g ".DS_Store"
 }
 clean_app_media() {
   local app="$1" days="${2:-30d}"
