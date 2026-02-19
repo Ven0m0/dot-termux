@@ -60,8 +60,8 @@ rm_files() {
   local fd_cmd=("fd" "-tf" "${fd_opts[@]}")
   if [[ ${#regexs[@]} -gt 0 ]]; then
     local joined_re
-    joined_re=$(IFS="|"; echo "${regexs[*]}")
-    fd_cmd+=("($joined_re)" "$path")
+joined_re=$(printf '%s|' "${regexs[@]}")
+fd_cmd+=("(${joined_re%|})" "$path")
   else
     fd_cmd+=("." "$path")
   fi
