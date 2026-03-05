@@ -1,4 +1,5 @@
-
+- https://github.com/ahmed-alnassif/AndroSH/discussions/6#discussioncomment-15720947
+- https://github.com/ahmed-alnassif/AndroSH/blob/main/Assets/docs/AndroSH_Help.md
 
 ```bash
 pkg i -y uv
