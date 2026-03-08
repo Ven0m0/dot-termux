@@ -96,9 +96,14 @@ process_video(){
   local target=${1:-.}
   log "Starting $MODE (CRF $CRF) in '$target'..."
   [[ $REPLACE -eq 1 ]] && warn "REPLACE MODE ACTIVE: Originals will be deleted!"
-  while IFS= read -r -d '' path; do
-    process_one "$path"
-  done < <(collect_inputs "$target")
+
+  local jobs
+  jobs=$(nproc 2>/dev/null || echo 4)
+
+  collect_inputs "$target" | xargs -0 -r -P "$jobs" -n 1 bash -c '
+    eval "$1"
+    process_one "$2"
+  ' _ "$(declare -f process_one collect_inputs log warn die has; declare -p MODE CRF REPLACE DRY_RUN V_FILT A_OPTS AV1_OPTS VP9_OPTS)"
 }
 TARGET="."
 while getopts "m:c:rnh" opt; do
