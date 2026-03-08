@@ -144,7 +144,7 @@ install_zimfw(){
   step "Zimfw"
   local zim_home=${ZIM_HOME:-${HOME}/.zim}
   [[ -d $zim_home ]] && { log "Zimfw exists"; return 0; }
-  has zsh || { log "Zsh not installed, skipping zimfw"; return 0; }
+  [[ ${HAS_ZSH:-0} -eq 1 ]] || { log "Zsh not installed, skipping zimfw"; return 0; }
   download https://raw.githubusercontent.com/zimfw/install/master/install.zsh | zsh || log "Zimfw install failed"
 }
 install_debian(){
@@ -298,9 +298,9 @@ install_helper_scripts(){
     fi
   done
 }
-setup_zsh(){ has zsh && [[ ${SHELL##*/} != zsh ]] && chsh -s zsh || :; }
+setup_zsh(){ [[ ${HAS_ZSH:-0} -eq 1 ]] && [[ ${SHELL##*/} != zsh ]] && chsh -s zsh || :; }
 finalize(){
-  has zsh && zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
+  [[ ${HAS_ZSH:-0} -eq 1 ]] && zsh -c 'autoload -Uz zrecompile; for f in ~/.zshrc ~/.zshenv; do [[ -f $f ]] && zrecompile -pq "$f"; done' &>/dev/null || :
   echo "Welcome to optimized Termux + Debian" >"${HOME}/.welcome.msg"
   step "Setup complete."; printf 'Restart Termux. Logs: %s\n' "$logf"
   has termux-setup-storage || log "termux-setup-storage unavailable"
@@ -330,6 +330,8 @@ main(){
   setup_env || log "setup_env failed"
   bootstrap_dotfiles || log "bootstrap_dotfiles failed"
   install_termux_pkgs || log "install_termux_pkgs failed"
+  has zsh && HAS_ZSH=1 || HAS_ZSH=0
+  export HAS_ZSH
   setup_fonts || log "setup_fonts failed"
   install_zimfw || log "install_zimfw failed"
   install_third_party || log "install_third_party failed"
