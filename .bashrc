@@ -157,7 +157,7 @@ cht() {
 export UV_VENV_SEED=1 UV_NO_MANAGED_PYTHON=1 UV_LINK_MODE=symlink \
   PYTHONOPTIMIZE=1 PYTHONUTF8=1 PYTHONNODEBUGRANGES=1
 
-[[ -f ~/.venv/bin/activate ]] && source ~/.venv/bin/activat
+[[ -f ~/.venv/bin/activate ]] && source ~/.venv/bin/activate
 
 export ZSTD_NBTHREADS=0 _JAVA_AWT_WM_NONREPARENTING=1
 
