@@ -165,8 +165,6 @@ apt-get update -qq
 # Minimal packages only - no build-essential by default
 apt-get install -y -qq --no-install-recommends \
   sudo locales curl ca-certificates
-# Optional: add git and zsh only if needed
-# apt-get install -y -qq --no-install-recommends git zsh
 sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen en_US.UTF-8 >/dev/null 2>&1
 update-locale LANG=en_US.UTF-8
