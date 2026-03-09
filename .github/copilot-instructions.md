@@ -1,81 +1,136 @@
-# Copilot Master Instructions
+# AI Agent Instructions
 
-## 1. Core Principles
+## TL;DR — Critical Rules
 
-- **Autonomous Execution**: Execute tasks immediately. Edit existing code and configurations without hesitation. Confirm only for large-scale or potentially destructive changes.
-- **Quality & Verification**: Automatically run formatters, linters, and other checks. Verify facts and avoid speculation.
-- **Efficiency**: Prioritize token efficiency and concise communication.
-- **Rethink Before Acting**: If there are multiple viable approaches, list pros and cons before proceeding. Prefer editing existing files over creating new ones.
-- **Debt Elimination**: Aggressively remove unused code, dependencies, and complexity. Less code is less debt.
+> Read this first. These are the highest-priority, non-obvious rules.
 
-## 2. Communication Style
+1. **Execute immediately** — edit existing files without asking. Confirm only for destructive or large-scale changes.
+2. **One source of truth** — prefer editing existing files over creating new ones. Never duplicate logic.
+3. **Separate structural from behavioral** — never mix formatting changes with logic changes in the same commit.
+4. **Verify, don't speculate** — look up facts before stating them. Silence is better than a confident wrong answer.
+5. **Completion password** — when ALL tasks are done with zero errors, output exactly: `May the Force be with you.`
 
-- **Language**: English (Technical)
-- **Style**: Professional, concise, advanced, and blunt.
-- **Token Efficiency**: Use the symbol and abbreviation system defined in `prompts/token-efficiency.prompt.md`.
+---
 
-## 3. Development Practices
+## Core Principles
 
-### Change & Commit Hygiene
+| Principle | Rule |
+|---|---|
+| Autonomy | Start tasks immediately. Minimize confirmation prompts. |
+| Quality | Run formatters, linters, and tests automatically. Zero warnings. |
+| Conciseness | Prefer short, precise output. No padding or filler. |
+| Debt elimination | Remove unused code, dead dependencies, and complexity aggressively. |
+| Safety | Never skip hooks (`--no-verify`). Never force-push without explicit permission. |
 
-- **TDD Workflow**: Follow a Red → Green → Refactor cycle.
-- **Separate Concerns**: Strictly separate structural changes (formatting) from behavioral changes (logic). Never mix them in the same commit.
-- **Atomic Commits**: Commits must be small, frequent, and independent. A commit is ready only when:
-  1. All tests pass.
-  1. Linters produce zero warnings.
-  1. It represents a single, logical unit of work.
-  1. The commit message is clear and concise.
+---
 
-### Code Quality
+## Execution Rules
 
-- **Single Responsibility**: Functions and modules should do one thing well.
-- **Loose Coupling**: Use interfaces and abstractions to reduce dependencies.
-- **Fail Fast**: Use early returns and guard clauses.
-- **DRY**: Eliminate duplicate logic and code immediately.
+### Immediate — No Confirmation Needed
 
-## 4. Language-Specific Guidelines
+- Bug fixes, refactoring, performance improvements
+- Editing existing files (code, config, docs)
+- Adding/updating/removing packages
+- Writing or updating tests (follow TDD cycle)
+- Applying formatters or linters
 
-### **Bash**
+### Requires Confirmation
 
-- **Strict Mode**: `set -Eeuo pipefail`, `shopt -s nullglob globstar`, `IFS=$'\n\t'`, `export LC_ALL=C LANG=C`.
-- **Idioms**: Prefer native bashisms: arrays, `mapfile -t`, `[[...]]`, parameter expansion. Avoid parsing `ls`, `eval`, and backticks.
-- **Tooling**: Prefer modern Rust-based tools (`fd`, `rg`, `bat`, `sd`, `zoxide`) with fallbacks to traditional counterparts (`find`, `grep`, `cat`, `sed`, `cd`).
-- **Structure**: Use the canonical template in `prompts/bash-script.prompt.md`.
-- **Linting**: `shfmt -i 2 -ci -sr`, `shellcheck` (zero warnings), `shellharden`.
+- **Creating new files** — explain necessity first
+- **Deleting important files** — state what will be lost
+- **Structural/architectural changes** — large-scale reorganization
+- **External integrations** — new APIs or third-party libraries
+- **Security features** — auth, authorization, secrets handling
+- **Database changes** — schema changes, migrations
+- **Production/CI changes** — deployment config, environment variables
 
-### **Rust**
+---
 
-- **Error Handling**: Use `Result<T, E>` and the `?` operator. Use `thiserror` or `anyhow` for rich errors. Avoid `unwrap()`/`expect()` in library code.
-- **Style**: Format with `rustfmt`. Lint with `cargo clippy -- -D warnings`.
-- **Patterns**: Use the builder pattern for complex objects, `serde` for serialization, `rayon` for parallelism. Prefer iterators and borrowing over indexing and `clone()`.
-- **API Design**: Implement common traits (`Debug`, `Clone`, `Default`, etc.). Use newtypes for type safety. Public APIs must be documented.
+## Development Practices
 
-### **Python**
+### TDD Cycle
 
-- **Style**: Follow PEP 8. Format with `black` or `ruff format`. Lint with `ruff` or `flake8`.
-- **Typing**: Use type hints (`typing` module) for all functions and variables.
-- **Docstrings**: Follow PEP 257.
-- **Structure**: Break complex functions into smaller, single-purpose units.
+1. **Red** — write the simplest failing test; failure message must be readable
+2. **Green** — implement minimal code to pass; skip elegance at this stage
+3. **Refactor** — clean up only after tests pass; run tests after each step
 
-### **Markdown**
+### Commit Discipline
 
-- **Structure**: Use `##` for H2 and `###` for H3. Limit nesting.
-- **Code Blocks**: Use fenced code blocks with language identifiers.
-- **Line Length**: Soft wrap at 80-100 characters for readability.
+A commit is ready only when all are true:
+- All tests pass
+- Linters produce zero warnings
+- It is a single logical unit of work
+- The commit message is clear and explains *why*, not *what*
 
-## 5. Performance Optimization
+### Change Hygiene
 
-- **Measure First**: Profile and benchmark before optimizing.
-- **Focus on Hot Paths**: Optimize the most frequently executed code.
-- **Caching**: Use in-memory (Redis), DB, and frontend caching where appropriate. Invalidate correctly.
-- **Concurrency**: Use async I/O, thread/worker pools, and batch processing.
-- **Database**: Use indexes, analyze query plans (`EXPLAIN`), and avoid N+1 queries.
+| Type | Definition | Rule |
+|---|---|---|
+| Structural | Formatting, renaming, reorganizing | Never changes behavior |
+| Behavioral | Logic, new features, bug fixes | Always has a test |
 
-## 6. GitHub Actions
+> Never put structural and behavioral changes in the same commit.
 
-- **Security**: Use OIDC for cloud auth, set least-privilege `permissions` for `GITHUB_TOKEN`, and scan for secrets.
-- **Performance**: Use caching for dependencies and build outputs. Use matrix strategies for parallel jobs.
-- **Structure**: Maintain clean, modular workflows. Use composite actions or reusable workflows to reduce duplication.
-- **Testing**: Integrate unit, integration, and E2E tests. Report results clearly.
+---
 
-______________________________________________________________________
+## Language Guidelines
+
+### Bash
+
+```bash
+# Required preamble
+set -Eeuo pipefail
+shopt -s nullglob globstar
+IFS=$'\n\t'
+export LC_ALL=C LANG=C
+```
+
+- Prefer native bashisms: `[[ ]]`, arrays, `mapfile -t`, parameter expansion
+- Prefer modern Rust-based tools: `fd`, `rg`, `bat`, `sd`, `zoxide`
+  - Fallbacks: `find`, `grep`, `cat`, `sed`, `cd`
+- Avoid: `eval`, backticks, parsing `ls`
+- Lint: `shfmt -i 2 -ci -sr`, `shellcheck` (zero warnings), `shellharden`
+- Template: see `prompts/bash-script.prompt.md` if present
+
+### Rust
+
+- Errors: `Result<T, E>` + `?` operator; use `thiserror`/`anyhow`; no `unwrap()`/`expect()` in lib code
+- Style: `rustfmt` + `cargo clippy -- -D warnings`
+- Patterns: builder pattern, `serde`, `rayon`; iterators over indexing; borrow over `clone()`
+- APIs: implement standard traits; use newtypes for type safety; document public APIs
+
+### Python
+
+- Style: PEP 8; format with `ruff format` or `black`; lint with `ruff`/`flake8`
+- Typing: type hints on all functions and variables
+- Docstrings: PEP 257
+- Structure: small, single-purpose functions
+
+### Markdown
+
+- Use `##` for H2, `###` for H3; limit nesting depth
+- Fenced code blocks with language identifiers
+- Soft wrap at 80–100 characters
+
+---
+
+## Performance & Infrastructure
+
+### Optimization Strategy
+
+1. Measure first — profile and benchmark before changing anything
+2. Focus on hot paths — optimize what runs most often
+3. Use caching — in-memory, DB query, and frontend layers; invalidate correctly
+4. Use concurrency — async I/O, worker pools, batch processing
+5. Optimize DB access — indexes, `EXPLAIN` plans, no N+1 queries
+
+### GitHub Actions
+
+- **Security**: OIDC for cloud auth; least-privilege `permissions` for `GITHUB_TOKEN`; scan for secrets
+- **Performance**: cache dependencies and build outputs; matrix strategies for parallel jobs
+- **Structure**: modular workflows; composite actions or reusable workflows to reduce duplication
+- **Testing**: unit + integration + E2E; clear result reporting
+
+---
+
+> For full Claude-specific rules (context management, completion reporting, refactoring patterns), see `CLAUDE.md` / `AGENTS.md`.
