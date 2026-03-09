@@ -9,13 +9,13 @@ echo ""
 
 # Step 1: Update Termux
 echo "📦 Updating Termux..."
-pkg update -y > /dev/null 2>&1
-pkg upgrade -y > /dev/null 2>&1
+pkg update -y >/dev/null 2>&1
+pkg upgrade -y >/dev/null 2>&1
 
 # Step 2: Install proot-distro
 echo "📦 Installing Linux container..."
-pkg install proot-distro -y > /dev/null 2>&1
-proot-distro install debian > /dev/null 2>&1 || true
+pkg i -i proot-distro >/dev/null 2>&1
+proot-distro install debian >/dev/null 2>&1 || true
 
 # Step 3: Setup inside Debian
 echo "⚙️ Setting up development environment..."
@@ -30,10 +30,8 @@ proot-distro login debian -- bash -c '
 
 # Step 4: Create shortcut alias
 echo "🔗 Creating shortcuts..."
-echo 'alias pocketcode="proot-distro login debian"' >> ~/.bashrc
-source ~/.bashrc
-
-# Step 5: Source bashrc to make alias available immediately
+echo 'alias pocketcode="proot-distro login debian --termux-home"' >> ~/.bashrc
+echo 'alias pocketcode="proot-distro login debian --termux-home"' >> ~/.zshrc
 source ~/.bashrc
 
 echo ""
@@ -45,3 +43,10 @@ echo "   Then: opencode (terminal) or opencode-web (browser)"
 echo ""
 echo "📁 To edit files visually, install Acode from Play Store"
 echo ""
+
+# TODO:
+# npm install -g @github/copilot
+# curl -fsSL https://gh.io/copilot-install | bash
+# 
+# curl -fsSL https://claude.ai/install.sh | bash
+# npm install -g @anthropic-ai/claude-code
