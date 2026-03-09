@@ -1,0 +1,40 @@
+[settings]
+experimental = true
+yes = true
+auto_install = true
+lockfile = true
+activate_aggressive = true
+paranoid = false
+raw = false
+gix = true
+go_skip_checksum = true
+
+[settings.python]
+uv_venv_auto = "create|source"
+uv_venv_create_args = ["--system-site-packages", "--seed"]
+
+[settings.cargo]
+binstall = true
+
+[settings.pipx]
+uvx = true
+
+[settings.node]
+ninja = true
+
+[settings.npm]
+package_manager = "bun"
+
+[tools]
+bun = "latest"
+cargo-binstall = "latest"
+"cargo:gitoxide" = "latest"
+gh = "latest"
+uv = "latest"
+"github:lucasgelfond/zerobrew" = "latest"
+jules = "latest"
+"github:MoonshotAI/kimi-cli" = "latest"
+"github:Kilo-Org/kilocode" = "latest"
+"npm:@termly-dev/cli" = "latest"
+"npm:happy-coder" = "latest"
+node = "latest"
