@@ -11,7 +11,7 @@ has(){ command -v -- "$1" &>/dev/null; }
 log(){ printf '%s[INFO]%s %s\n' "$GRN" "$DEF" "$*"; }
 warn(){ printf '%s[WARN]%s %s\n' "$YLW" "$DEF" "$*" >&2; }
 err(){ printf '%s[ERROR]%s %s\n' "$RED" "$DEF" "$*" >&2; exit 1; }
-download(){ curl -fsSL --connect-timeout 10 "$@"; }
+download(){ curl -fsSLZ --http2 --skip-existing --connect-timeout 10 "$@"; }
 
 # Install TermuxVoid repo
 install_termuxvoid(){
@@ -29,25 +29,19 @@ install_termuxvoid_theme(){
   log "TermuxVoid theme installed"
 }
 
+install_enhancify(){
+  log "Insta installing Enhancify..."
+  LC_ALL=C git clone --depth 1 --filter=blob:none -c protocol.version=2 -c http.version="HTTP/2" -c index.version=4 -q https://github.com/Graywizard888/Enhancify.git Enhancify
+  cd Enhancify
+  bash install.sh || err "Setup failed"
+  log "Enhancify installed"
+}
+
 # Install X-CMD
 install_xcmd(){
   log "Installing X-CMD..."
   eval "$(download https://get.x-cmd.com)" || err "X-CMD install failed"
   log "X-CMD installed"
-}
-
-# Install LURE package manager
-install_lure(){
-  log "Installing LURE..."
-  download https://lure.sh/install | bash || err "LURE install failed"
-  log "LURE installed"
-}
-
-# Install Soar package manager
-install_soar(){
-  log "Installing Soar..."
-  download https://soar.qaidvoid.dev/install.sh | sh || err "Soar install failed"
-  log "Soar installed"
 }
 
 # Install cargo-binstall
@@ -69,49 +63,23 @@ install_csb(){
 install_shizuku_tools(){
   log "Installing termux-shizuku-tools..."
   local dir="$HOME/termux-shizuku-tools"
-  
   if [[ -d "$dir" ]]; then
     log "Updating existing installation..."
     git -C "$dir" pull --rebase || warn "Update failed"
   else
-    git clone --depth 1 --filter blob:none https://github.com/jecis-repos/termux-shizuku-tools.git "$dir" || err "Clone failed"
+    LC_ALL=C git clone --depth 1 --filter=blob:none -c protocol.version=2 -c http.version="HTTP/2" -c index.version=4 -q https://github.com/jecis-repos/termux-shizuku-tools.git "$dir" || err "Clone failed"
   fi
-  
   cd "$dir"
   chmod +x setup.sh
   bash setup.sh || err "Setup failed"
   log "termux-shizuku-tools installed"
 }
 
-# Install Revancify-Xisr
-install_revancify_xisr(){
-  log "Installing Revancify-Xisr..."
-  download https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh | bash || err "Revancify-Xisr install failed"
-  log "Revancify-Xisr installed"
-}
-
-# Install Revancify
-install_revancify(){
-  log "Installing Revancify..."
-  download https://raw.githubusercontent.com/decipher3114/Revancify/main/install.sh | bash || err "Revancify install failed"
-  log "Revancify installed"
-}
-
-# Install RVX Builder
-install_rvx_builder(){
-  log "Installing RVX Builder..."
-  local script="rvx-builder.sh"
-  download -o "$script" https://raw.githubusercontent.com/inotia00/rvx-builder/revanced-extended/android-interface.sh || err "Download failed"
-  chmod +x "$script"
-  log "RVX Builder downloaded to $script"
-  log "Run: ./$script"
-}
-
 # Install Simplify
 install_simplify(){
   log "Installing Simplify..."
   pkg update &>/dev/null || :
-  pkg install --only-upgrade apt bash coreutils openssl -y &>/dev/null || :
+  pkg i -y --only-upgrade apt bash coreutils openssl &>/dev/null || :
   download -o "$HOME/.Simplify.sh" "https://raw.githubusercontent.com/arghya339/Simplify/main/Termux/Simplify.sh" || err "Download failed"
   bash "$HOME/.Simplify.sh" || err "Installation failed"
   log "Simplify installed"
