@@ -50,3 +50,6 @@ echo ""
 # 
 # curl -fsSL https://claude.ai/install.sh | bash
 # npm install -g @anthropic-ai/claude-code
+# 
+# https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
+# npm install -g @mariozechner/pi-coding-agent
