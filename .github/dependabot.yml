@@ -72,3 +72,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: "weekly"
