@@ -22,7 +22,11 @@ pkg install -y \
     nmap \
     android-tools \
     termux-api \
-    root-repo
+    root-repo \
+    build-essential
+# vscode server
+npm y -g code-server
+# code-server --auth none
 
 # Copy rish files
 echo ""
