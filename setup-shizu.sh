@@ -24,6 +24,7 @@ pkg install -y \
     termux-api \
     root-repo \
     build-essential
+    cloudflared
 # vscode server
 npm y -g code-server
 # code-server --auth none
