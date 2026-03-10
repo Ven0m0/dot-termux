@@ -1,5 +1,4 @@
 #!/data/data/com.termux/files/usr/bin/env zsh
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 [[ $- != *i* ]] && return
 
 # Instant prompt
