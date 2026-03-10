@@ -5,7 +5,6 @@
 set -euo pipefail
 
 echo "🚀 PocketCode Setup Starting..."
-echo ""
 
 # Step 1: Update Termux
 echo "📦 Updating Termux..."
