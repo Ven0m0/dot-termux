@@ -12,4 +12,4 @@ pip install -r requirememts # uc fails here
 
 - allow installing this whole repo with one bash piped script.
 
-add: https://github.com/jecis-repos/termux-shizuku-tools
+_ add: https://github.com/jecis-repos/termux-shizuku-tools
