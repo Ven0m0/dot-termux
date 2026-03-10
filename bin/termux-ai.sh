@@ -43,13 +43,3 @@ echo "   Then: opencode (terminal) or opencode-web (browser)"
 echo ""
 echo "📁 To edit files visually, install Acode from Play Store"
 echo ""
-
-# TODO:
-# npm install -g @github/copilot
-# curl -fsSL https://gh.io/copilot-install | bash
-# 
-# curl -fsSL https://claude.ai/install.sh | bash
-# npm install -g @anthropic-ai/claude-code
-# 
-# https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
-# npm install -g @mariozechner/pi-coding-agent
