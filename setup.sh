@@ -148,11 +148,21 @@ install_zimfw(){
 }
 install_debian(){
   step "Debian proot"
-  has proot-distro || { log "proot-distro missing"; return 1; }
-  if ! proot-distro list 2>/dev/null | grep -q '^debian'; then
-    proot-distro install debian || { log "Debian install failed"; return 1; }
+  has proot-distro || pkg i -y proot-distro
+  set +e
+  proot-distro list --installed-only 2>/dev/null | grep -q "debian"
+  METHOD1=$?
+  # Method 2: Check if debian directory exists
+  if [[ -d "$PREFIX/var/lib/proot-distro/installed-rootfs/debian" ]]; then
+    METHOD2=0
   else
-    log "Debian already installed"
+    METHOD2=1
+  fi
+  set -e
+  if [ $METHOD1 -eq 0 ] || [ $METHOD2 -eq 0 ]; then
+    log "Debian is already installed"
+  else
+    proot-distro install debian || { log "Debian install failed"; return 1; }
   fi
 }
 configure_debian(){
@@ -160,10 +170,10 @@ configure_debian(){
   proot-distro login debian --shared-tmp -- /bin/bash <<'DEBEOF'
 set -e
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
+apt-get update -qq; apt-get upgrade -y -q -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 # Minimal packages only - no build-essential by default
 apt-get install -y -qq --no-install-recommends \
-  sudo locales curl ca-certificates
+  sudo locales curl ca-certificates git build-essential 
 sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen en_US.UTF-8 >/dev/null 2>&1
 update-locale LANG=en_US.UTF-8
@@ -171,6 +181,7 @@ ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 id -u user &>/dev/null || useradd -m -s /bin/bash user
 echo "user ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/user
 chmod 440 /etc/sudoers.d/user
+echo 'export NODE_OPTIONS="--max-old-space-size=2048"' >> "$HOME/.bashrc"
 # Aggressive cleanup to minimize space
 apt-get autoremove -y -qq
 apt-get clean
@@ -208,27 +219,15 @@ fi
 rm -rf "${HOME}/.cache/"* "${HOME}/.cargo/registry/cache"
 DEVEOF
 }
-install_third_party(){
-  [[ $INSTALL_DEVTOOLS -eq 0 ]] && { log "Skipping 3rd party tools (INSTALL_DEVTOOLS=0)"; return 0; }
-  step "3rd party (Termux)"
-  if ! has jaq; then
-    ensure "${HOME}/.local/bin"
-    if download "https://github.com/01mf02/jaq/releases/latest/download/jaq-$(uname -m)-unknown-linux-musl" -o "${HOME}/.local/bin/jaq"; then
-      chmod +x "${HOME}/.local/bin/jaq" || :
-    fi
-  fi
-}
 bootstrap_dotfiles(){
   step "Dotfiles (minimal)"
   has git || { log "Git not installed, skipping dotfiles"; return 0; }
-
   # Shallow clone for minimal space
   if [[ -d $repo_path/.git ]]; then
     git -C "$repo_path" pull --rebase --autostash &>>"$logf" || log "Repo pull failed"
   else
     git clone --depth=1 "$repo_url" "$repo_path" &>>"$logf" || { log "Clone failed"; return 1; }
   fi
-
   # Link bin scripts only
   if [[ -d $repo_path/bin ]]; then
     ensure "${HOME}/bin"
@@ -237,7 +236,6 @@ bootstrap_dotfiles(){
       chmod +x "${HOME}/bin/${s##*/}"
     done < <(find "$repo_path/bin" -type f -executable -print0)
   fi
-
   # Skip yadm for minimal setup - users can run manually if needed
   log "Skipping yadm for minimal install (run manually if needed)"
 }
