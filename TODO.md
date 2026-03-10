@@ -9,3 +9,7 @@ pkg i -y termux-x11-nightly socat
 git clone --depth 1 https://github.com/ahmed-alnassif/AndroSH.git && cd AndroSH
 pip install -r requirememts # uc fails here
 ```
+
+- allow installing this whole repo with one bash piped script.
+
+add: https://github.com/jecis-repos/termux-shizuku-tools
