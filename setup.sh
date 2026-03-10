@@ -1,5 +1,4 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 #
 # Termux + Debian proot setup - MINIMAL SPACE OPTIMIZED
 #
