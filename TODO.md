@@ -25,3 +25,5 @@ npm install -g @anthropic-ai/claude-code
 npm install -g @mmmbuto/gemini-cli-termux@latest @mmmbuto/nexuscli
 alias claude='node /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code/cli.js'
 ```
+
+- https://github.com/DioNanos/nexuscli
