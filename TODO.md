@@ -13,3 +13,15 @@ pip install -r requirememts # uc fails here
 - allow installing this whole repo with one bash piped script.
 
 _ add: https://github.com/jecis-repos/termux-shizuku-tools
+
+- https://github.com/sabamdarif/chroot-distro
+- https://github.com/vkdatta/bashbasicsbyvk
+
+
+```~/.bashrc```
+
+```bash
+npm install -g @anthropic-ai/claude-code
+npm install -g @mmmbuto/gemini-cli-termux@latest @mmmbuto/nexuscli
+alias claude='node /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code/cli.js'
+```
