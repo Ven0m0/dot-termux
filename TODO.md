@@ -27,3 +27,6 @@ alias claude='node /data/data/com.termux/files/usr/lib/node_modules/@anthropic-a
 ```
 
 - https://github.com/DioNanos/nexuscli
+- https://github.com/DioNanos/qwen-code-termux
+- https://github.com/DioNanos/gemini-cli-termux
+- https://github.com/DioNanos/codex-termux
