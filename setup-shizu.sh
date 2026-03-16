@@ -63,7 +63,7 @@ mkdir -p ~/bin
 # Lucky Patcher tools
 for script in lucky-patcher/*.sh; do
     if [ -f "$script" ]; then
-        name=$(basename "$script")
+        name="${script##*/}"
         ln -sf "$PWD/$script" ~/bin/"$name"
     fi
 done
@@ -71,7 +71,7 @@ done
 # AI tools
 for script in ai-tools/*; do
     if [ -f "$script" ]; then
-        name=$(basename "$script")
+        name="${script##*/}"
         ln -sf "$PWD/$script" ~/bin/"$name"
     fi
 done
@@ -79,7 +79,7 @@ done
 # System tools
 for script in system/*.sh; do
     if [ -f "$script" ]; then
-        name=$(basename "$script")
+        name="${script##*/}"
         ln -sf "$PWD/$script" ~/bin/"$name"
     fi
 done
