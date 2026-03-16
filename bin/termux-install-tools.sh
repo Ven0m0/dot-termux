@@ -30,7 +30,7 @@ install_termuxvoid_theme(){
 }
 
 install_enhancify(){
-  log "Insta installing Enhancify..."
+  log "Installing Enhancify..."
   LC_ALL=C git clone --depth 1 --filter=blob:none -c protocol.version=2 -c http.version="HTTP/2" -c index.version=4 -q https://github.com/Graywizard888/Enhancify.git Enhancify
   cd Enhancify
   bash install.sh || err "Setup failed"
