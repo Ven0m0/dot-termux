@@ -151,7 +151,7 @@ usage(){
 Third-party tool installers for Termux
 
 USAGE:
-  $(basename "$0") <tool>
+  ${0##*/} <tool>
 
 TOOLS:
   termuxvoid          Install TermuxVoid repo
@@ -172,9 +172,9 @@ TOOLS:
   coding-agent        Install Coding Agent
 
 EXAMPLES:
-  $(basename "$0") termuxvoid
-  $(basename "$0") xcmd
-  $(basename "$0") revancify-xisr
+  ${0##*/} termuxvoid
+  ${0##*/} xcmd
+  ${0##*/} revancify-xisr
 EOF
 }
 
