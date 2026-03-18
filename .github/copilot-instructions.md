@@ -1,136 +1,287 @@
-# AI Agent Instructions
+# Copilot Instructions for dot-termux
 
-## TL;DR — Critical Rules
+## Repository Overview
 
-> Read this first. These are the highest-priority, non-obvious rules.
+**dot-termux** is a Termux (Android terminal emulator) dotfiles and toolkit repository.
+It provides:
 
-1. **Execute immediately** — edit existing files without asking. Confirm only for destructive or large-scale changes.
-2. **One source of truth** — prefer editing existing files over creating new ones. Never duplicate logic.
-3. **Separate structural from behavioral** — never mix formatting changes with logic changes in the same commit.
-4. **Verify, don't speculate** — look up facts before stating them. Silence is better than a confident wrong answer.
-5. **Completion password** — when ALL tasks are done with zero errors, output exactly: `May the Force be with you.`
+- Shell configuration (Zsh + Bash) with Zinit/Zimfw plugin manager and Powerlevel10k theme
+- A suite of `bin/` utility scripts for media optimization, system cleaning, APK patching, and ADB operations
+- A `setup.sh` bootstrap script for fresh Termux + Debian proot environments
+- Tests under `tests/` validating script behaviour
 
----
-
-## Core Principles
-
-| Principle | Rule |
-|---|---|
-| Autonomy | Start tasks immediately. Minimize confirmation prompts. |
-| Quality | Run formatters, linters, and tests automatically. Zero warnings. |
-| Conciseness | Prefer short, precise output. No padding or filler. |
-| Debt elimination | Remove unused code, dead dependencies, and complexity aggressively. |
-| Safety | Never skip hooks (`--no-verify`). Never force-push without explicit permission. |
+The target runtime is **Termux on Android** (`/data/data/com.termux/files/usr/bin/bash`).
+Scripts are not intended to run on standard Linux without Termux.
 
 ---
 
-## Execution Rules
+## Repository Structure
 
-### Immediate — No Confirmation Needed
-
-- Bug fixes, refactoring, performance improvements
-- Editing existing files (code, config, docs)
-- Adding/updating/removing packages
-- Writing or updating tests (follow TDD cycle)
-- Applying formatters or linters
-
-### Requires Confirmation
-
-- **Creating new files** — explain necessity first
-- **Deleting important files** — state what will be lost
-- **Structural/architectural changes** — large-scale reorganization
-- **External integrations** — new APIs or third-party libraries
-- **Security features** — auth, authorization, secrets handling
-- **Database changes** — schema changes, migrations
-- **Production/CI changes** — deployment config, environment variables
-
----
-
-## Development Practices
-
-### TDD Cycle
-
-1. **Red** — write the simplest failing test; failure message must be readable
-2. **Green** — implement minimal code to pass; skip elegance at this stage
-3. **Refactor** — clean up only after tests pass; run tests after each step
-
-### Commit Discipline
-
-A commit is ready only when all are true:
-- All tests pass
-- Linters produce zero warnings
-- It is a single logical unit of work
-- The commit message is clear and explains *why*, not *what*
-
-### Change Hygiene
-
-| Type | Definition | Rule |
-|---|---|---|
-| Structural | Formatting, renaming, reorganizing | Never changes behavior |
-| Behavioral | Logic, new features, bug fixes | Always has a test |
-
-> Never put structural and behavioral changes in the same commit.
-
----
-
-## Language Guidelines
-
-### Bash
-
-```bash
-# Required preamble
-set -Eeuo pipefail
-shopt -s nullglob globstar
-IFS=$'\n\t'
-export LC_ALL=C LANG=C
+```
+.
+├── .github/
+│   ├── copilot-instructions.md   # This file
+│   ├── dependabot.yml
+│   └── workflows/
+│       ├── shell.yml             # shellcheck + shfmt linting (runs on push/PR)
+│       └── mega-linter.yml       # MegaLinter (manual trigger only)
+├── bin/                          # Executable utility scripts (symlinked to ~/bin)
+│   ├── clean.sh                  # Unified system/cache cleaner
+│   ├── media-opt.sh              # Unified image/video optimizer
+│   ├── audio-opt.sh              # Audio → Opus converter
+│   ├── antisplit.sh              # Merge & sign split APKs
+│   ├── termux-adb-helper.sh      # ADB device utilities
+│   ├── termux-proot-helper.sh    # proot-distro utilities
+│   ├── termux-install-tools.sh   # Third-party tool installers
+│   ├── termux-ssh-helper.sh      # SSH key management
+│   ├── termux-change-repo        # Mirror selector (no .sh extension)
+│   └── ...
+├── docs/                         # Documentation (ADB, setup, utilities)
+├── tests/
+│   └── test_antisplit_health.sh  # Bash tests for antisplit.sh
+├── .bashrc                       # Interactive Bash config
+├── .zshrc                        # Interactive Zsh config
+├── .zshenv                       # Zsh environment (always sourced)
+├── .profile                      # POSIX sh profile
+├── .shellcheckrc                 # ShellCheck project-wide config
+├── .editorconfig                 # Editor formatting rules
+├── setup.sh                      # Bootstrap script (Termux + Debian proot)
+└── renovate.json                 # Dependency update config
 ```
 
-- Prefer native bashisms: `[[ ]]`, arrays, `mapfile -t`, parameter expansion
-- Prefer modern Rust-based tools: `fd`, `rg`, `bat`, `sd`, `zoxide`
-  - Fallbacks: `find`, `grep`, `cat`, `sed`, `cd`
-- Avoid: `eval`, backticks, parsing `ls`
-- Lint: `shfmt -i 2 -ci -sr`, `shellcheck` (zero warnings), `shellharden`
-- Template: see `prompts/bash-script.prompt.md` if present
+---
 
-### Rust
+## Bash Coding Standards
 
-- Errors: `Result<T, E>` + `?` operator; use `thiserror`/`anyhow`; no `unwrap()`/`expect()` in lib code
-- Style: `rustfmt` + `cargo clippy -- -D warnings`
-- Patterns: builder pattern, `serde`, `rayon`; iterators over indexing; borrow over `clone()`
-- APIs: implement standard traits; use newtypes for type safety; document public APIs
+Every `bin/*.sh` script and setup script **must** follow these standards exactly.
 
-### Python
+### Shebang
 
-- Style: PEP 8; format with `ruff format` or `black`; lint with `ruff`/`flake8`
-- Typing: type hints on all functions and variables
-- Docstrings: PEP 257
-- Structure: small, single-purpose functions
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+```
 
-### Markdown
+Use the Termux-specific path. Never use `/bin/bash` or `/usr/bin/bash`.
 
-- Use `##` for H2, `###` for H3; limit nesting depth
-- Fenced code blocks with language identifiers
-- Soft wrap at 80–100 characters
+### ShellCheck Directive
+
+Place this immediately after the shebang (before the preamble):
+
+```bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
+```
+
+### Standard Preamble
+
+```bash
+set -euo pipefail; shopt -s nullglob globstar
+export LC_ALL=C; IFS=$'\n\t'
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
+```
+
+**Critical notes:**
+- Use `set -euo pipefail` — **not** `set -Eeuo pipefail` (no capital E)
+- Use `export LC_ALL=C` — **not** `LC_ALL=C LANG=C`
+- The self-location line (`s=${BASH_SOURCE[0]}...`) makes scripts runnable from any directory
+- The preamble components are on the **same line**, separated by `;`
+
+### Function Style
+
+```bash
+# Correct: compact brace, no space before {
+has(){ command -v -- "$1" &>/dev/null; }
+log(){ printf '[INFO] %s\n' "$*"; }
+die(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+warn(){ printf '[WARN] %s\n' "$*"; }
+```
+
+Not `func() {` — use `func(){` (no space before `{`).
+
+### Error Handling
+
+```bash
+# Silent error suppression
+some_command &>/dev/null || :
+some_command >/dev/null 2>&1 || :
+
+# Use || : instead of || true
+pkg clean || :
+```
+
+### Tool Preferences
+
+| Prefer | Over | Notes |
+|--------|------|-------|
+| `fd` | `find` | Check availability with `has fd` first |
+| `rg` / `ripgrep` | `grep` | Check availability with `has rg` first |
+| `sd` | `sed` | Only when available |
+| `[[ ]]` | `[ ]` | Always in bash |
+| `(( ))` | `let` / `expr` | For arithmetic |
+| `mapfile -t` | `read` loops | For reading arrays |
+| `command -v` | `which` / `type` | For command existence checks |
+
+Always provide a fallback when using optional tools:
+
+```bash
+if has fd; then
+  fd -tf -e mp3 "$dir"
+else
+  find "$dir" -type f -name "*.mp3"
+fi
+```
+
+### Indentation & Formatting
+
+- **2-space** indentation (enforced by `.editorconfig`)
+- Max line length: 120 characters
+- LF line endings only
+- Final newline required
+
+### Disabled ShellCheck Rules
+
+See `.shellcheckrc` for the full list. Currently disabled:
+`SC1079, SC1078, SC1073, SC1072, SC1083, SC1090, SC1091, SC2002, SC2016, SC2034, SC2154, SC2155, SC2236, SC2250, SC2312`
 
 ---
 
-## Performance & Infrastructure
+## Linting & Testing
 
-### Optimization Strategy
+### ShellCheck
 
-1. Measure first — profile and benchmark before changing anything
-2. Focus on hot paths — optimize what runs most often
-3. Use caching — in-memory, DB query, and frontend layers; invalidate correctly
-4. Use concurrency — async I/O, worker pools, batch processing
-5. Optimize DB access — indexes, `EXPLAIN` plans, no N+1 queries
+```bash
+# Lint a single script
+shellcheck bin/clean.sh
 
-### GitHub Actions
+# Lint all scripts (respects .shellcheckrc)
+shellcheck bin/*.sh setup.sh
+```
 
-- **Security**: OIDC for cloud auth; least-privilege `permissions` for `GITHUB_TOKEN`; scan for secrets
-- **Performance**: cache dependencies and build outputs; matrix strategies for parallel jobs
-- **Structure**: modular workflows; composite actions or reusable workflows to reduce duplication
-- **Testing**: unit + integration + E2E; clear result reporting
+### shfmt
+
+```bash
+# Check formatting
+shfmt -d -i 2 -ci -sr bin/clean.sh
+
+# Apply formatting
+shfmt -w -i 2 -ci -sr bin/clean.sh
+```
+
+Flags: `-i 2` (2-space indent), `-ci` (indent switch cases), `-sr` (space after redirect operators).
+
+### Running Tests
+
+```bash
+# Run antisplit tests
+bash tests/test_antisplit_health.sh
+```
+
+Tests use mock executables in a temp directory; they do not require Termux.
+
+### CI Workflows
+
+- **`shell.yml`** — runs on push/PR for `*.sh`, `*.bash`, `*.bashrc`, `*.profile` files.
+  Calls the shared `Ven0m0/.github` `shell-lint.yml` workflow (shellcheck + shfmt).
+  Excludes `.git/` and `Linux-Settings/`.
+- **`mega-linter.yml`** — manual trigger only (`workflow_dispatch`).
+  Excludes `.github,.git,.cache,go,node_modules,.var,.rustup,.wine,.zim,.void-editor,.vscode,.claude`.
 
 ---
 
-> For full Claude-specific rules (context management, completion reporting, refactoring patterns), see `CLAUDE.md` / `AGENTS.md`.
+## Setup Script (`setup.sh`)
+
+Environment variable toggles (default: `0` / disabled):
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `INSTALL_FONTS` | `0` | Download JetBrains Mono Nerd Font |
+| `INSTALL_DEVTOOLS` | `0` | Install mise, Rust, bun in Debian |
+| `INSTALL_MEDIA_TOOLS` | `0` | Install ffmpeg, graphicsmagick, etc. |
+| `INSTALL_HELPERS` | `0` | Symlink helper scripts to `~/bin` |
+| `PATCH_AM` | `1` | Patch activity manager for performance |
+| `MIRROR_REGION` | `europe` | Termux mirror region |
+
+Usage:
+
+```bash
+INSTALL_DEVTOOLS=1 INSTALL_MEDIA_TOOLS=1 ./setup.sh
+```
+
+---
+
+## Shell Configuration Files
+
+- **`.zshrc`** — Zsh interactive config. Shebang: `#!/data/data/com.termux/files/usr/bin/env zsh`.
+  Uses `setopt`, Zinit/Zimfw plugin manager, Powerlevel10k prompt.
+- **`.bashrc`** — Bash interactive config. Has inline helper functions (`has`, `bname`, `dname`).
+  Sources fragments lazily. Requires `# shellcheck enable=all shell=bash` at top.
+- **`.zshenv`** — Zsh environment (always sourced). Sets `PATH`, `XDG_*`, tool paths.
+- **`.profile`** — POSIX sh profile for login shells.
+
+---
+
+## Key Patterns
+
+### Command Existence Check
+
+```bash
+has(){ command -v -- "$1" &>/dev/null; }
+has ffmpeg || die "ffmpeg is required"
+```
+
+### Parallel Processing with fd
+
+```bash
+if has fd; then
+  fd -tf -e jpg "$dir" -x bash -c 'encode_one "$@"' _ {}
+else
+  find "$dir" -type f -name "*.jpg" | while IFS= read -r f; do
+    encode_one "$f"
+  done
+fi
+```
+
+### Version Constant
+
+```bash
+readonly VERSION="2.1.0"
+```
+
+### Self-Location (for scripts that source relative files)
+
+```bash
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
+```
+
+---
+
+## Common Errors & Workarounds
+
+- **`set -Eeuo pipefail` vs `set -euo pipefail`**: This repo uses the latter. The capital `E` form
+  (`errtrace`) is intentionally omitted to avoid issues with subshell traps in Termux.
+- **`LANG=C` vs `LC_ALL=C`**: Only `LC_ALL=C` is set. Setting `LANG=C` too can override
+  user locale settings unexpectedly in the Termux environment.
+- **`|| true` vs `|| :`**: Always use `|| :` (POSIX built-in, no subprocess overhead).
+- **shellcheck SC1091**: Source files can't be followed statically in Termux paths — disabled
+  globally in `.shellcheckrc`.
+- **ShellCheck SC2154**: Variables set in sourced files are unknown to shellcheck — disabled globally.
+
+---
+
+## Quick Reference
+
+```bash
+# Lint all shell scripts
+shellcheck bin/*.sh setup.sh
+
+# Format check
+shfmt -d -i 2 -ci -sr bin/*.sh
+
+# Run tests
+bash tests/test_antisplit_health.sh
+
+# Install (minimal)
+./setup.sh
+
+# Install with all options
+INSTALL_FONTS=1 INSTALL_DEVTOOLS=1 INSTALL_MEDIA_TOOLS=1 INSTALL_HELPERS=1 ./setup.sh
+```
