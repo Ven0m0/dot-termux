@@ -63,18 +63,19 @@ setup_proot_debian(){
 
 # Show usage
 usage(){
+  local prog="${0##*/}"
   cat <<EOF
 Proot-distro helper utilities
 
 USAGE:
-  $(basename "$0") patch-am              Patch activity manager
-  $(basename "$0") setup-debian          Setup Debian proot
-  $(basename "$0") run <distro> <cmd>    Run command in proot
+  $prog patch-am              Patch activity manager
+  $prog setup-debian          Setup Debian proot
+  $prog run <distro> <cmd>    Run command in proot
 
 EXAMPLES:
-  $(basename "$0") patch-am
-  $(basename "$0") setup-debian
-  $(basename "$0") run debian "apt update && apt upgrade -y"
+  $prog patch-am
+  $prog setup-debian
+  $prog run debian "apt update && apt upgrade -y"
 EOF
 }
 
