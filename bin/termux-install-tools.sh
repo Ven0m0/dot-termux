@@ -30,7 +30,7 @@ install_termuxvoid_theme(){
 }
 
 install_enhancify(){
-  log "Insta installing Enhancify..."
+  log "Installing Enhancify..."
   LC_ALL=C git clone --depth 1 --filter=blob:none -c protocol.version=2 -c http.version="HTTP/2" -c index.version=4 -q https://github.com/Graywizard888/Enhancify.git Enhancify
   cd Enhancify
   bash install.sh || err "Setup failed"
@@ -85,6 +85,66 @@ install_simplify(){
   log "Simplify installed"
 }
 
+# Install LURE
+install_lure(){
+  log "Installing LURE..."
+  download https://lure.sh/install | bash || err "LURE install failed"
+  log "LURE installed"
+}
+
+# Install Soar
+install_soar(){
+  log "Installing Soar..."
+  download https://soar.qaidvoid.dev/install.sh | sh || err "Soar install failed"
+  log "Soar installed"
+}
+
+# Install Revancify-Xisr
+install_revancify_xisr(){
+  log "Installing Revancify-Xisr..."
+  download https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh | bash || err "Revancify-Xisr install failed"
+  log "Revancify-Xisr installed"
+}
+
+# Install Revancify
+install_revancify(){
+  log "Installing Revancify..."
+  download https://raw.githubusercontent.com/decipher3114/Revancify/main/install.sh | bash || err "Revancify install failed"
+  log "Revancify installed"
+}
+
+# Install RVX Builder
+install_rvx_builder(){
+  log "Installing RVX Builder..."
+  download -o rvx-builder.sh https://raw.githubusercontent.com/inotia00/rvx-builder/revanced-extended/android-interface.sh || err "Download failed"
+  chmod +x rvx-builder.sh
+  ./rvx-builder.sh || err "RVX Builder install failed"
+  log "RVX Builder installed"
+}
+
+# Install GitHub Copilot
+install_copilot(){
+  log "Installing GitHub Copilot..."
+  npm install -g @github/copilot || err "npm install failed"
+  download https://gh.io/copilot-install | bash || err "Copilot install failed"
+  log "GitHub Copilot installed"
+}
+
+# Install Anthropic Claude Code
+install_claude(){
+  log "Installing Anthropic Claude Code..."
+  download https://claude.ai/install.sh | bash || err "Claude install failed"
+  npm install -g @anthropic-ai/claude-code || err "npm install failed"
+  log "Anthropic Claude Code installed"
+}
+
+# Install Coding Agent
+install_coding_agent(){
+  log "Installing Coding Agent..."
+  npm install -g @mariozechner/pi-coding-agent || err "npm install failed"
+  log "Coding Agent installed"
+}
+
 # Usage
 usage(){
   cat <<EOF
@@ -96,6 +156,7 @@ USAGE:
 TOOLS:
   termuxvoid          Install TermuxVoid repo
   termuxvoid-theme    Install TermuxVoid theme
+  enhancify           Install Enhancify
   xcmd                Install X-CMD
   lure                Install LURE package manager
   soar                Install Soar package manager
@@ -106,6 +167,9 @@ TOOLS:
   revancify           Install Revancify
   rvx-builder         Install RVX Builder
   simplify            Install Simplify
+  copilot             Install GitHub Copilot
+  claude              Install Anthropic Claude Code
+  coding-agent        Install Coding Agent
 
 EXAMPLES:
   $(basename "$0") termuxvoid
@@ -118,6 +182,7 @@ main(){
   case "${1:-}" in
     termuxvoid) install_termuxvoid ;;
     termuxvoid-theme) install_termuxvoid_theme ;;
+    enhancify) install_enhancify ;;
     xcmd) install_xcmd ;;
     lure) install_lure ;;
     soar) install_soar ;;
@@ -128,6 +193,9 @@ main(){
     revancify) install_revancify ;;
     rvx-builder) install_rvx_builder ;;
     simplify) install_simplify ;;
+    copilot) install_copilot ;;
+    claude) install_claude ;;
+    coding-agent) install_coding_agent ;;
     -h|--help|help) usage ;;
     *) usage; exit 1 ;;
   esac
