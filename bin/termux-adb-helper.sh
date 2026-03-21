@@ -96,7 +96,7 @@ adb_wifi_setup(){
 
 # Connect to ADB over WiFi
 adb_connect(){
-  [[ -z ${1:-} ]] && { echo "Usage: $(basename "$0") connect <ip> [port]"; exit 1; }
+  [[ -z ${1:-} ]] && { echo "Usage: ${0##*/} connect <ip> [port]"; exit 1; }
   local ip="$1" port="${2:-5555}"
   
   log "Connecting to $ip:$port..."
@@ -109,18 +109,18 @@ usage(){
 ADB utilities for Android optimization
 
 USAGE:
-  $(basename "$0") optimize       Optimize device performance
-  $(basename "$0") clear-cache    Clear system caches
-  $(basename "$0") disable-logs   Disable verbose logging
-  $(basename "$0") idle-maint     Run idle maintenance
-  $(basename "$0") wifi-setup     Setup ADB over WiFi
-  $(basename "$0") connect <ip>   Connect to device over WiFi
+  ${0##*/} optimize       Optimize device performance
+  ${0##*/} clear-cache    Clear system caches
+  ${0##*/} disable-logs   Disable verbose logging
+  ${0##*/} idle-maint     Run idle maintenance
+  ${0##*/} wifi-setup     Setup ADB over WiFi
+  ${0##*/} connect <ip>   Connect to device over WiFi
 
 EXAMPLES:
-  $(basename "$0") optimize
-  $(basename "$0") clear-cache
-  $(basename "$0") wifi-setup
-  $(basename "$0") connect 192.168.1.100
+  ${0##*/} optimize
+  ${0##*/} clear-cache
+  ${0##*/} wifi-setup
+  ${0##*/} connect 192.168.1.100
 EOF
 }
 

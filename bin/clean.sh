@@ -14,33 +14,65 @@ log() { printf '\e[32m[INFO]\e[0m %s\n' "$*"; }
 warn() { printf '\e[33m[WARN]\e[0m %s\n' "$*"; }
 die() { printf '\e[31m[ERROR]\e[0m %s\n' "$*" >&2; exit 1; }
 # Unified file removal with fd/find translation
-rm_files() {
+_rm_files_fd() {
   local path="$1"; shift
-  [[ -d "$path" ]] || return 0
   local fd_opts=()
-  local find_opts=()
-  local patterns=()
   local regexs=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -e)
-        patterns+=("-name" "*.$2")
         regexs+=("\.$2$")
         shift 2 ;;
       --changed-before)
         fd_opts+=("--changed-before" "$2")
-        find_opts+=("-mtime" "+${2%d}")
         shift 2 ;;
       -g)
-        patterns+=("-name" "$2")
         local re="$2"
-        re="${re//./\\.}"
+        re="${re//./\.}"
         re="${re//\*/.*}"
         regexs+=("^$re$")
         shift 2 ;;
       -d|--max-depth)
         fd_opts+=("--max-depth" "$2")
+        shift 2 ;;
+      *) shift ;;
+    esac
+  done
+
+  local fd_cmd=("fd" "-tf" "${fd_opts[@]}")
+  if [[ ${#regexs[@]} -gt 0 ]]; then
+    local joined_re
+    joined_re=$(IFS='|'; echo "${regexs[*]}")
+    fd_cmd+=("($joined_re)" "$path")
+  else
+    fd_cmd+=("." "$path")
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    "${fd_cmd[@]}"
+  else
+    "${fd_cmd[@]}" -X rm -f 2>/dev/null || :
+  fi
+}
+
+_rm_files_find() {
+  local path="$1"; shift
+  local find_opts=()
+  local patterns=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -e)
+        patterns+=("-name" "*.$2")
+        shift 2 ;;
+      --changed-before)
+        find_opts+=("-mtime" "+${2%d}")
+        shift 2 ;;
+      -g)
+        patterns+=("-name" "$2")
+        shift 2 ;;
+      -d|--max-depth)
         find_opts+=("-maxdepth" "$2")
         shift 2 ;;
       *) shift ;;
@@ -57,28 +89,21 @@ rm_files() {
     find_cmd+=(")")
   fi
 
-  local fd_cmd=("fd" "-tf" "${fd_opts[@]}")
-  if [[ ${#regexs[@]} -gt 0 ]]; then
-    local joined_re
-joined_re=$(printf '%s|' "${regexs[@]}")
-fd_cmd+=("(${joined_re%|})" "$path")
-  else
-    fd_cmd+=("." "$path")
-  fi
-
   if [[ $DRY_RUN -eq 1 ]]; then
-    if has fd; then
-      "${fd_cmd[@]}"
-    else
-      "${find_cmd[@]}" -print
-    fi
-    return
-  fi
-
-  if has fd; then
-    "${fd_cmd[@]}" -X rm -f 2>/dev/null || :
+    "${find_cmd[@]}" -print
   else
     "${find_cmd[@]}" -delete 2>/dev/null || :
+  fi
+}
+
+rm_files() {
+  local path="$1"; shift
+  [[ -d "$path" ]] || return 0
+
+  if has fd; then
+    _rm_files_fd "$path" "$@"
+  else
+    _rm_files_find "$path" "$@"
   fi
 }
 # -- Tasks --
