@@ -1,284 +1,301 @@
-# AI Agent Execution Guidelines
+# AI Agent Guidelines — dot-termux
 
-**Most Important**: Judge and execute autonomously. Minimize confirmations.
+## Project Context
 
-## Core Principles
+**dot-termux** is a Termux (Android terminal emulator) dotfiles and toolkit repository.
+Target runtime: **Termux on Android** (`/data/data/com.termux/files/usr/bin/bash`).
+Scripts are not intended to run on standard Linux without Termux.
 
-- **Immediate Execution** — Start editing existing files without hesitation
-- **Confirm Only for Large Changes** — Only when the scope of impact is wide
-- **Maintain Quality and Consistency** — Implement thorough automatic checks
-- **Verify Facts** — Verify information sources yourself and do not state speculation as fact
-- **Prioritize Existing Files** — Prioritize editing existing files over creating new ones
+### Key Entry Points
 
-## Basic Settings
+- `setup.sh` — Bootstrap script (Termux + Debian proot)
+- `bin/` — Executable utility scripts (symlinked to `~/bin` on install)
+- `tests/` — Bash test suites (no Termux required)
+- `docs/` — Documentation (ADB, setup, utilities)
 
-- Language: English (with technical terminology)
-- Style: Professional and concise
-- Emojis: Avoid excessive use
+---
 
-### Abbreviation Interpretations
+## Repository Structure
 
-- `y` = Yes
-- `n` = No
-- `c` = Continue
-- `r` = Review
-- `u` = Undo
-
-## Execution Rules
-
-### Immediate Execution (No Confirmation Needed)
-
-- **Code Operations**: Bug fixes, refactoring, performance improvements
-- **File Editing**: Modification/updating of existing files
-- **Documentation**: Updates to README, specifications (create new only when requested)
-- **Dependencies**: Package addition/updating/removal
-- **Tests**: Implementing unit/integration tests (follow TDD cycle)
-- **Settings**: Configuration value changes, format application
-
-### Confirmation Required
-
-- **New File Creation**: Explain necessity and confirm
-- **File Deletion**: Deletion of important files
-- **Structural Changes**: Large-scale changes to architecture, folder structure
-- **External Integration**: Introduction of new APIs, external libraries
-- **Security**: Implementing authentication/authorization features
-- **Database**: Schema changes, migrations
-- **Production Environment**: Deployment settings, environment variable changes
-
-## Execution Flow
-
-```text
-1. Task reception
-   ↓
-2. Determine immediate execution or confirmation request
-   ↓
-3. Execute (following existing patterns)
-   ↓
-4. Completion report
+```
+.
+├── .github/
+│   ├── copilot-instructions.md
+│   ├── dependabot.yml
+│   └── workflows/
+│       ├── shell.yml                   # shellcheck + shfmt (runs on push/PR)
+│       ├── mega-linter.yml             # MegaLinter (manual trigger only)
+│       ├── img-opt.yml                 # Image optimization workflow
+│       ├── jules-cleanup.yml
+│       └── jules-performance-improver.yml
+├── bin/
+│   ├── antisplit.sh                    # Merge & sign split APKs
+│   ├── audio-opt.sh                    # Audio → Opus converter
+│   ├── clean.sh                        # Unified system/cache cleaner
+│   ├── cls.sh                          # Clear cache and temporary files
+│   ├── img-opt.sh                      # Image optimizer
+│   ├── img-webp.sh                     # Image → WebP converter
+│   ├── media-opt.sh                    # Unified image/video optimizer
+│   ├── termux-adb-helper.sh            # ADB device utilities
+│   ├── termux-ai.sh                    # AI tool helpers
+│   ├── termux-change-repo              # Mirror selector (no .sh extension)
+│   ├── termux-fix-shebang.sh           # Fix shebangs for Termux
+│   ├── termux-install-tools.sh         # Third-party tool installers
+│   ├── termux-proot-helper.sh          # proot-distro utilities
+│   ├── termux-setup-storage            # Storage access helper (no .sh extension)
+│   ├── termux-ssh-helper.sh            # SSH key management
+│   └── vid-min.sh                      # Video minimizer (AV1/VP9)
+├── docs/
+│   ├── ADB.md
+│   ├── setup.md
+│   └── utilities.md
+├── tests/
+│   ├── test_antisplit_health.sh
+│   ├── test_install_tools_logic.sh
+│   └── test_termux_change_repo.sh
+├── .bashrc                             # Interactive Bash config
+├── .zshrc                              # Interactive Zsh config (Zinit + Powerlevel10k)
+├── .zshenv                             # Zsh environment (PATH, XDG_*, tool paths)
+├── .profile                            # POSIX sh profile for login shells
+├── .shellcheckrc                       # ShellCheck project-wide config
+├── .editorconfig                       # Editor formatting rules
+├── setup.sh                            # Bootstrap script
+└── renovate.json                       # Dependency update config
 ```
 
-## Context Management
+---
 
-### Pure Task Isolation
+## File Discovery
 
-Break complex tasks into "pure tasks" where only the result matters, executing them independently to keep the main context clean.
+Use `rg` (ripgrep) for all searches — it respects `.gitignore` and is faster than `grep`/`find`.
 
-- **Pure task examples**: Bug fixes, test execution, code generation
-- **Context cleanup**: When context grows large during extensive work, using the `/compact` command is recommended
+```bash
+# Find files containing a pattern
+rg 'pattern' bin/
+rg -l 'set -euo pipefail' --type sh
 
-## Rules for Work Completion Reports
+# List all shell scripts
+rg --files bin/ | grep '\.sh$'
+rg --files --glob '*.sh'
 
-### Types of Completion Reports
+# Search with context lines
+rg -C3 'die(' bin/clean.sh
 
-#### 1. Password for Complete Completion
+# Find TODO/FIXME across repo
+rg 'TODO|FIXME' --type sh
 
-When work is completely finished and there are no more tasks to continue, report exactly the following:
+# Prefer fd for file listing when available
+fd -e sh bin/
+fd -tf . tests/
+```
 
-```text
+---
+
+## Bash Coding Standards
+
+Every `bin/*.sh` script and `setup.sh` must follow these standards exactly.
+
+### Shebang
+
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+```
+
+Never use `/bin/bash` or `/usr/bin/bash`.
+
+### ShellCheck Directive
+
+Place immediately after the shebang:
+
+```bash
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
+```
+
+### Standard Preamble
+
+```bash
+set -euo pipefail; shopt -s nullglob globstar
+export LC_ALL=C; IFS=$'\n\t'
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
+```
+
+### Function Style
+
+```bash
+has(){ command -v -- "$1" &>/dev/null; }
+log(){ printf '[INFO] %s\n' "$*"; }
+die(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+warn(){ printf '[WARN] %s\n' "$*"; }
+```
+
+Use `func(){` — no space before `{`.
+
+### Error Handling
+
+```bash
+some_command &>/dev/null || :   # || : not || true
+```
+
+### Tool Preferences
+
+| Prefer | Over | Notes |
+|--------|------|-------|
+| `rg` / ripgrep | `grep` | Check with `has rg` first; fallback to `grep` |
+| `fd` | `find` | Check with `has fd` first; fallback to `find` |
+| `sd` | `sed` | Only when available |
+| `[[ ]]` | `[ ]` | Always in Bash |
+| `(( ))` | `let` / `expr` | Arithmetic |
+| `mapfile -t` | `read` loops | Reading into arrays |
+| `command -v` | `which` / `type` | Command existence checks |
+
+Always provide a fallback when using optional tools:
+
+```bash
+if has rg; then
+  rg -l 'pattern' "$dir"
+else
+  grep -rl 'pattern' "$dir"
+fi
+```
+
+### Formatting
+
+- **2-space** indentation (enforced by `.editorconfig`)
+- Max line length: 120 characters
+- LF line endings, final newline required
+
+### Disabled ShellCheck Rules
+
+See `.shellcheckrc` for the authoritative list. Currently disabled:
+`SC1079, SC1078, SC1073, SC1072, SC1083, SC1090, SC1091, SC2002, SC2016, SC2034, SC2154, SC2155, SC2236, SC2250, SC2312`
+
+---
+
+## Linting & Testing
+
+```bash
+# Lint
+shellcheck bin/*.sh setup.sh
+shfmt -d -i 2 -ci -sr bin/*.sh        # check formatting
+shfmt -w -i 2 -ci -sr bin/*.sh        # apply formatting
+
+# Run all tests
+bash tests/test_antisplit_health.sh
+bash tests/test_termux_change_repo.sh
+bash tests/test_install_tools_logic.sh
+```
+
+Tests use mock executables in a temp directory and do not require Termux.
+
+---
+
+## Common Pitfalls
+
+| Wrong | Correct | Reason |
+|-------|---------|--------|
+| `set -Eeuo pipefail` | `set -euo pipefail` | Capital `E` (errtrace) causes subshell trap issues in Termux |
+| `LC_ALL=C LANG=C` | `export LC_ALL=C` | `LANG=C` can override user locale unexpectedly |
+| `\|\| true` | `\|\| :` | `true` spawns a subprocess; `:` is a POSIX built-in |
+| `#!/bin/bash` | `#!/data/data/com.termux/files/usr/bin/bash` | Termux uses non-standard paths |
+| `func() {` | `func(){` | shfmt enforces no-space style in this repo |
+
+---
+
+## Agent Execution Rules
+
+### Autonomous (No Confirmation Needed)
+
+- Bug fixes, refactoring, performance improvements
+- Editing existing files
+- Documentation updates (README, specs)
+- Dependency addition/update/removal
+- Unit/integration tests (follow TDD cycle)
+- Configuration changes
+
+### Require Confirmation
+
+- **New file creation** — explain necessity first
+- **File deletion** — especially important files
+- **Architecture changes** — large-scale restructuring
+- **New external dependencies** — new APIs or libraries
+- **Security features** — auth/authorization implementation
+- **Production changes** — deployment config, environment variables
+
+### Commit Discipline
+
+Only commit when all conditions are met:
+
+- All tests pass
+- Zero shellcheck/shfmt warnings
+- Single logical unit of work
+- Commit message explains the "why"
+
+Keep structural changes (renaming, formatting, reordering) separate from behavioral changes (logic, bug fixes, new features).
+
+### TDD Cycle
+
+1. **Red** — Write the simplest failing test; name it to describe the behavior
+2. **Green** — Implement minimal code to pass; no optimization yet
+3. **Refactor** — Clean up after tests pass; run tests after each step
+
+### Context Management
+
+For complex tasks, break work into isolated subtasks where only the result matters. Use `/compact` when the context grows large during extended sessions.
+
+### Error Handling
+
+- Cannot execute: Present 3 concrete alternatives
+- Partial execution possible: Execute what is possible; clearly report what remains
+
+---
+
+## Common Patterns
+
+```bash
+# Command existence check
+has(){ command -v -- "$1" &>/dev/null; }
+has ffmpeg || die "ffmpeg is required"
+
+# File discovery with rg
+rg --files bin/ | sort
+rg -l 'TODO' --type sh
+
+# Parallel processing (fd preferred, find as fallback)
+if has fd; then
+  fd -tf -e jpg "$dir" -x bash -c 'encode_one "$@"' _ {}
+else
+  find "$dir" -type f -name "*.jpg" | while IFS= read -r f; do
+    encode_one "$f"
+  done
+fi
+
+# Version constant
+readonly VERSION="2.1.0"
+
+# Self-location (makes scripts runnable from any directory)
+s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
+```
+
+---
+
+## Completion Signal
+
+When all tasks are 100% complete (zero errors, empty TODO list, no continuation possible without new instructions), report exactly:
+
+```
 May the Force be with you.
 ```
 
-**Usage Conditions (must meet all)**:
+Do not use this phrase if any tasks remain or if you plan to continue work.
 
-- ✅ All tasks are 100% complete
-- ✅ All TODO items are completed (TODO list managed by TodoWrite tool is empty)
-- ✅ Zero errors
-- ✅ No tasks that can continue unless new instructions are given
-
-**Prohibited Items**:
-
-- ❌ If there are incomplete tasks in the TODO list
-- ❌ If you describe plans to continue such as "next steps", "remaining tasks", or "current remaining main tasks:"
-- ❌ If there are incomplete phases in step-by-step work
-- ❌ If you specify a concrete list of remaining work in your answer
-
-#### 2. Report for Partial Completion
-
-When work is partially completed and there are continuing tasks, use the following template:
+For partial completion, use:
 
 ```markdown
 ## Execution Complete
 
 ### Changes
-
-- [Specific changes]
+- [specific changes made]
 
 ### Next Steps
-
-- [Recommended next work]
+- [recommended next actions]
 ```
-
-### Actions When Continuation is Needed
-
-If conditions for the password are not met:
-
-- Do not use the password
-- Clearly indicate progress and next actions
-- Clearly communicate if there are remaining tasks
-
-## Development Methods
-
-### TDD Cycle
-
-Follow the Test-Driven Development (TDD) cycle during development:
-
-1. **Red (Failure)**
-
-   - Write the simplest failing test
-   - Test name clearly describes behavior
-   - Ensure failure message is understandable
-
-1. **Green (Success)**
-
-   - Implement minimal code to pass the test
-   - Do not consider optimization or beauty at this stage
-   - Focus solely on passing the test
-
-1. **Refactor (Improvement)**
-
-   - Refactor only after tests pass
-   - Eliminate duplication and clarify intent
-   - Run tests after each refactoring
-
-### Change Management
-
-Clearly separate changes into two types:
-
-- **Structural Changes**
-
-  - Code arrangement, organization, formatting
-  - Do not change behavior at all
-  - Examples: Method reordering, import organization, variable name changes
-
-- **Behavioral Changes**
-
-  - Addition, modification, deletion of functions
-  - Changes that alter test results
-  - Examples: New feature addition, bug fixes, logic changes
-
-**Important**: Do not include structural and behavioral changes in the same commit
-
-### Commit Discipline
-
-Execute commits only when all the following conditions are met:
-
-- ✅ All tests pass
-- ✅ Zero compiler/linter warnings
-- ✅ Represents a single logical unit of work
-- ✅ Commit message clearly explains the change
-
-**Recommendations**:
-
-- Small, frequent commits
-- Each commit has independent meaning
-- Granularity that makes history easy to follow later
-
-### Refactoring Rules
-
-Strict rules for refactoring:
-
-1. **Prerequisites**
-
-   - Start only when all tests pass
-   - Do not mix behavior changes with refactoring
-
-1. **Execution Steps**
-
-   - Use established refactoring patterns
-   - Make only one change at a time
-   - Always run tests after each step
-   - Immediately revert if failed
-
-1. **Frequently Used Patterns**
-
-   - Extract Method
-   - Rename
-   - Move Method
-   - Extract Variable
-
-### Implementation Approach
-
-Priorities for efficient implementation:
-
-1. **First Step**
-
-   - Start with the simplest case
-   - Prioritize "working" above all else
-   - Value progress over perfection
-
-1. **Code Quality Principles**
-
-   - Immediately eliminate duplication when found
-   - Write code with clear intent
-   - Make dependencies explicit
-   - Keep methods small and single-responsible
-
-1. **Gradual Improvement**
-
-   - First create something that works
-   - Cover with tests
-   - Then optimize
-
-1. **Handling Edge Cases**
-
-   - Consider after basic cases work
-   - Add tests for each edge case
-   - Gradually improve robustness
-
-## Quality Assurance
-
-### Design Principles
-
-- Follow single responsibility principle
-- Loose coupling through interfaces
-- Improve readability with early returns
-- Avoid excessive abstraction
-
-### Efficiency Optimization
-
-- Automatically eliminate duplicate work
-- Actively utilize batch processing
-- Minimize context switches
-
-### Consistency Maintenance
-
-- Automatically inherit existing code style
-- Automatically apply project conventions
-- Automatically enforce naming convention consistency
-
-### Automatic Quality Management
-
-- Perform behavior confirmation before and after changes
-- Implement with edge cases in mind
-- Synchronously update documentation
-
-### Eliminate Redundancy
-
-- Always functionize repetitive processes
-- Unify common error handling
-- Actively utilize utility functions
-- Immediately abstract duplicate logic
-
-### Prohibit Hardcoding
-
-- Constantize magic numbers
-- Move URLs and paths to configuration files
-- Manage environment-dependent values with environment variables
-- Separate business logic and configuration values
-
-### Error Handling
-
-- When execution is impossible: Present 3 alternatives
-- When partial execution is possible: Execute possible parts first and clarify remaining issues
-
-## Execution Examples
-
-- **Bug Fix**: Discover `TypeError` → Immediately fix type error
-- **Refactoring**: Detect duplicate code → Create common function
-- **DB Change**: Schema update needed → Request confirmation "Shall I change the table structure?"
-
-## Continuous Improvement
-
-- New pattern detection → Immediately learn and apply
-- Feedback → Automatically reflect in next execution
-- Best practices → Update as needed

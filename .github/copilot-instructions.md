@@ -8,7 +8,7 @@ It provides:
 - Shell configuration (Zsh + Bash) with Zinit/Zimfw plugin manager and Powerlevel10k theme
 - A suite of `bin/` utility scripts for media optimization, system cleaning, APK patching, and ADB operations
 - A `setup.sh` bootstrap script for fresh Termux + Debian proot environments
-- Tests under `tests/` validating script behaviour
+- Tests under `tests/` validating script behaviour (no Termux required to run them)
 
 The target runtime is **Termux on Android** (`/data/data/com.termux/files/usr/bin/bash`).
 Scripts are not intended to run on standard Linux without Termux.
@@ -20,33 +20,67 @@ Scripts are not intended to run on standard Linux without Termux.
 ```
 .
 ├── .github/
-│   ├── copilot-instructions.md   # This file
+│   ├── copilot-instructions.md           # This file
 │   ├── dependabot.yml
 │   └── workflows/
-│       ├── shell.yml             # shellcheck + shfmt linting (runs on push/PR)
-│       └── mega-linter.yml       # MegaLinter (manual trigger only)
-├── bin/                          # Executable utility scripts (symlinked to ~/bin)
-│   ├── clean.sh                  # Unified system/cache cleaner
-│   ├── media-opt.sh              # Unified image/video optimizer
-│   ├── audio-opt.sh              # Audio → Opus converter
-│   ├── antisplit.sh              # Merge & sign split APKs
-│   ├── termux-adb-helper.sh      # ADB device utilities
-│   ├── termux-proot-helper.sh    # proot-distro utilities
-│   ├── termux-install-tools.sh   # Third-party tool installers
-│   ├── termux-ssh-helper.sh      # SSH key management
-│   ├── termux-change-repo        # Mirror selector (no .sh extension)
-│   └── ...
-├── docs/                         # Documentation (ADB, setup, utilities)
+│       ├── shell.yml                     # shellcheck + shfmt linting (runs on push/PR)
+│       ├── mega-linter.yml               # MegaLinter (manual trigger only)
+│       ├── img-opt.yml                   # Image optimization workflow
+│       ├── jules-cleanup.yml
+│       └── jules-performance-improver.yml
+├── bin/                                  # Executable utility scripts (symlinked to ~/bin)
+│   ├── antisplit.sh                      # Merge & sign split APKs
+│   ├── audio-opt.sh                      # Audio → Opus converter
+│   ├── clean.sh                          # Unified system/cache cleaner
+│   ├── cls.sh                            # Clear cache and temporary files
+│   ├── img-opt.sh                        # Image optimizer (image-optimizer)
+│   ├── img-webp.sh                       # Convert images to WebP
+│   ├── media-opt.sh                      # Unified image/video optimizer
+│   ├── termux-adb-helper.sh              # ADB device utilities
+│   ├── termux-ai.sh                      # AI tool helpers
+│   ├── termux-change-repo                # Mirror selector (no .sh extension)
+│   ├── termux-fix-shebang.sh             # Fix shebangs for Termux
+│   ├── termux-install-tools.sh           # Third-party tool installers
+│   ├── termux-proot-helper.sh            # proot-distro utilities
+│   ├── termux-setup-storage              # Storage access helper (no .sh extension)
+│   ├── termux-ssh-helper.sh              # SSH key management
+│   └── vid-min.sh                        # Video minimizer (AV1/VP9 encoding)
+├── docs/                                 # Documentation
+│   ├── ADB.md
+│   ├── setup.md
+│   └── utilities.md
 ├── tests/
-│   └── test_antisplit_health.sh  # Bash tests for antisplit.sh
-├── .bashrc                       # Interactive Bash config
-├── .zshrc                        # Interactive Zsh config
-├── .zshenv                       # Zsh environment (always sourced)
-├── .profile                      # POSIX sh profile
-├── .shellcheckrc                 # ShellCheck project-wide config
-├── .editorconfig                 # Editor formatting rules
-├── setup.sh                      # Bootstrap script (Termux + Debian proot)
-└── renovate.json                 # Dependency update config
+│   ├── test_antisplit_health.sh          # Tests for antisplit.sh
+│   ├── test_install_tools_logic.sh       # Tests for termux-install-tools.sh
+│   └── test_termux_change_repo.sh        # Tests for termux-change-repo
+├── .bashrc                               # Interactive Bash config
+├── .zshrc                                # Interactive Zsh config (Zinit + Powerlevel10k)
+├── .zshenv                               # Zsh environment (PATH, XDG_*, tool paths)
+├── .profile                              # POSIX sh profile for login shells
+├── .shellcheckrc                         # ShellCheck project-wide config
+├── .editorconfig                         # Editor formatting rules
+├── setup.sh                              # Bootstrap script (Termux + Debian proot)
+├── AGENTS.md                             # AI agent execution guidelines (symlinked as CLAUDE.md)
+└── renovate.json                         # Dependency update config
+```
+
+---
+
+## File Discovery
+
+Prefer `rg` (ripgrep) for searching — it respects `.gitignore` and is significantly faster than `grep`.
+
+```bash
+# Search file contents
+rg 'pattern' bin/
+rg -l 'set -euo pipefail' --type sh
+
+# List shell scripts
+rg --files bin/ | grep '\.sh$'
+
+# Prefer fd for file listing when available
+fd -e sh bin/
+fd -tf . tests/
 ```
 
 ---
@@ -83,7 +117,7 @@ s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
 - Use `set -euo pipefail` — **not** `set -Eeuo pipefail` (no capital E)
 - Use `export LC_ALL=C` — **not** `LC_ALL=C LANG=C`
 - The self-location line (`s=${BASH_SOURCE[0]}...`) makes scripts runnable from any directory
-- The preamble components are on the **same line**, separated by `;`
+- Preamble components are on the **same line**, separated by `;`
 
 ### Function Style
 
@@ -112,12 +146,12 @@ pkg clean || :
 
 | Prefer | Over | Notes |
 |--------|------|-------|
+| `rg` / ripgrep | `grep` | Check availability with `has rg` first |
 | `fd` | `find` | Check availability with `has fd` first |
-| `rg` / `ripgrep` | `grep` | Check availability with `has rg` first |
 | `sd` | `sed` | Only when available |
-| `[[ ]]` | `[ ]` | Always in bash |
+| `[[ ]]` | `[ ]` | Always in Bash |
 | `(( ))` | `let` / `expr` | For arithmetic |
-| `mapfile -t` | `read` loops | For reading arrays |
+| `mapfile -t` | `read` loops | For reading into arrays |
 | `command -v` | `which` / `type` | For command existence checks |
 
 Always provide a fallback when using optional tools:
@@ -139,7 +173,7 @@ fi
 
 ### Disabled ShellCheck Rules
 
-See `.shellcheckrc` for the full list. Currently disabled:
+See `.shellcheckrc` for the authoritative list. Currently disabled:
 `SC1079, SC1078, SC1073, SC1072, SC1083, SC1090, SC1091, SC2002, SC2016, SC2034, SC2154, SC2155, SC2236, SC2250, SC2312`
 
 ---
@@ -171,19 +205,22 @@ Flags: `-i 2` (2-space indent), `-ci` (indent switch cases), `-sr` (space after 
 ### Running Tests
 
 ```bash
-# Run antisplit tests
 bash tests/test_antisplit_health.sh
+bash tests/test_termux_change_repo.sh
+bash tests/test_install_tools_logic.sh
 ```
 
 Tests use mock executables in a temp directory; they do not require Termux.
 
 ### CI Workflows
 
-- **`shell.yml`** — runs on push/PR for `*.sh`, `*.bash`, `*.bashrc`, `*.profile` files.
+- **`shell.yml`** — Runs on push/PR for `*.sh`, `*.bash`, `*.bashrc`, `*.profile` files.
   Calls the shared `Ven0m0/.github` `shell-lint.yml` workflow (shellcheck + shfmt).
   Excludes `.git/` and `Linux-Settings/`.
-- **`mega-linter.yml`** — manual trigger only (`workflow_dispatch`).
+- **`mega-linter.yml`** — Manual trigger only (`workflow_dispatch`).
   Excludes `.github,.git,.cache,go,node_modules,.var,.rustup,.wine,.zim,.void-editor,.vscode,.claude`.
+- **`img-opt.yml`** — Image optimization automation.
+- **`jules-cleanup.yml`** / **`jules-performance-improver.yml`** — Automated maintenance workflows.
 
 ---
 
@@ -256,10 +293,10 @@ s=${BASH_SOURCE[0]}; [[ $s != /* ]] && s=$PWD/$s; cd -P -- "${s%/*}"
 
 ## Common Errors & Workarounds
 
-- **`set -Eeuo pipefail` vs `set -euo pipefail`**: This repo uses the latter. The capital `E` form
-  (`errtrace`) is intentionally omitted to avoid issues with subshell traps in Termux.
-- **`LANG=C` vs `LC_ALL=C`**: Only `LC_ALL=C` is set. Setting `LANG=C` too can override
-  user locale settings unexpectedly in the Termux environment.
+- **`set -Eeuo pipefail` vs `set -euo pipefail`**: This repo uses the latter. Capital `E` (`errtrace`)
+  is intentionally omitted to avoid issues with subshell traps in Termux.
+- **`LANG=C` vs `LC_ALL=C`**: Only `LC_ALL=C` is set. Adding `LANG=C` can override user locale
+  settings unexpectedly in the Termux environment.
 - **`|| true` vs `|| :`**: Always use `|| :` (POSIX built-in, no subprocess overhead).
 - **shellcheck SC1091**: Source files can't be followed statically in Termux paths — disabled
   globally in `.shellcheckrc`.
@@ -276,8 +313,10 @@ shellcheck bin/*.sh setup.sh
 # Format check
 shfmt -d -i 2 -ci -sr bin/*.sh
 
-# Run tests
+# Run all tests
 bash tests/test_antisplit_health.sh
+bash tests/test_termux_change_repo.sh
+bash tests/test_install_tools_logic.sh
 
 # Install (minimal)
 ./setup.sh
