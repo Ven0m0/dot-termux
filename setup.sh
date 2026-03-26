@@ -328,7 +328,6 @@ main(){
   export HAS_ZSH
   setup_fonts || log "setup_fonts failed"
   install_zimfw || log "install_zimfw failed"
-  install_third_party || log "install_third_party failed"
   install_debian || log "install_debian failed"
   configure_debian || log "configure_debian failed"
   install_debian_devtools || log "install_debian_devtools failed"
