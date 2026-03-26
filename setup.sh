@@ -144,7 +144,14 @@ install_zimfw(){
   local zim_home=${ZIM_HOME:-${HOME}/.zim}
   [[ -d $zim_home ]] && { log "Zimfw exists"; return 0; }
   [[ ${HAS_ZSH:-0} -eq 1 ]] || { log "Zsh not installed, skipping zimfw"; return 0; }
-  download https://raw.githubusercontent.com/zimfw/install/master/install.zsh | zsh || log "Zimfw install failed"
+  local tmp_zim; tmp_zim=$(mktemp)
+  if download https://raw.githubusercontent.com/zimfw/install/master/install.zsh > "$tmp_zim"; then
+    zsh "$tmp_zim" || log "Zimfw install failed"
+    rm -f "$tmp_zim"
+  else
+    log "Zimfw download failed"
+    rm -f "$tmp_zim"
+  fi
 }
 install_debian(){
   step "Debian proot"
@@ -173,7 +180,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq; apt-get upgrade -y -q -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 # Minimal packages only - no build-essential by default
 apt-get install -y -qq --no-install-recommends \
-  sudo locales curl ca-certificates git build-essential 
+  sudo locales curl ca-certificates git build-essential gnupg wget
 sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen en_US.UTF-8 >/dev/null 2>&1
 update-locale LANG=en_US.UTF-8
@@ -197,10 +204,13 @@ set -e
 export HOME=/home/user
 export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:$PATH"
 mkdir -p "${HOME}/.local/bin"
-# mise
+# mise (secure apt install)
 if ! command -v mise &>/dev/null; then
-  curl -fsSL https://mise.run | sh
-  export PATH="${HOME}/.local/bin:$PATH"
+  sudo install -dm 755 /etc/apt/keyrings
+  wget -qO - https://mise.jdx.dev/gpg-key.pub | gpg --dearmor | sudo tee /etc/apt/keyrings/mise-archive-keyring.gpg > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/mise-archive-keyring.gpg arch=$(dpkg --print-architecture)] https://mise.jdx.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/mise.list
+  sudo apt-get update
+  sudo apt-get install -y mise
 fi
 # rust via mise
 if ! command -v cargo &>/dev/null && command -v mise &>/dev/null; then
