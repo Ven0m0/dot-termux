@@ -80,7 +80,7 @@ select_single_mirror() {
 interactive_select_group() {
   local tempfile
   tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-  trap 'rm -f "$tempfile"' RETURN
+  trap 'rm -f "$tempfile"' EXIT
 
   declare -A groups=(
     ["All mirrors"]="all"
@@ -100,10 +100,17 @@ interactive_select_group() {
 
   dialog --title "Mirror Groups" --clear --radiolist \
     "Select region (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$tempfile" || return
+    0 0 0 "${options[@]}" 2> "$tempfile" || {
+    rm -f "$tempfile"
+    trap - EXIT
+    return
+  }
 
   local choice
   choice=$(<"$tempfile")
+  rm -f "$tempfile"
+  trap - EXIT
+
   [[ -z $choice ]] && return
 
   local dir="${groups[$choice]}"
@@ -113,7 +120,7 @@ interactive_select_group() {
 interactive_select_mirror() {
   local tempfile
   tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-  trap 'rm -f "$tempfile"' RETURN
+  trap 'rm -f "$tempfile"' EXIT
 
   local options=("default" "Official Default" "on")
 
@@ -125,10 +132,17 @@ interactive_select_mirror() {
 
   dialog --title "Single Mirror" --clear --radiolist \
     "Select mirror (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$tempfile" || return
+    0 0 0 "${options[@]}" 2> "$tempfile" || {
+    rm -f "$tempfile"
+    trap - EXIT
+    return
+  }
 
   local choice
   choice=$(<"$tempfile")
+  rm -f "$tempfile"
+  trap - EXIT
+
   [[ -z $choice ]] && return
 
   local path
@@ -142,14 +156,19 @@ interactive_mode() {
 
   local tempfile
   tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-  trap 'rm -f "$tempfile"' RETURN
+  trap 'rm -f "$tempfile"' EXIT
 
   dialog --title "termux-change-repo" --clear --radiolist \
     "Mode Selection:" 0 0 0 \
     "Mirror group" "Rotate (Recommended)" "on" \
     "Single mirror" "Pick specific URL" "off" 2> "$tempfile" || exit
 
-  case $(<"$tempfile") in
+  local mode
+  mode=$(<"$tempfile")
+  rm -f "$tempfile"
+  trap - EXIT
+
+  case "$mode" in
     "Mirror group") interactive_select_group ;;
     "Single mirror") interactive_select_mirror ;;
   esac
