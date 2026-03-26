@@ -144,7 +144,9 @@ install_zimfw(){
   local zim_home=${ZIM_HOME:-${HOME}/.zim}
   [[ -d $zim_home ]] && { log "Zimfw exists"; return 0; }
   [[ ${HAS_ZSH:-0} -eq 1 ]] || { log "Zsh not installed, skipping zimfw"; return 0; }
-  download https://raw.githubusercontent.com/zimfw/install/master/install.zsh | zsh || log "Zimfw install failed"
+  local tmp_zsh; tmp_zsh=$(mktemp)
+  download https://raw.githubusercontent.com/zimfw/install/master/install.zsh > "$tmp_zsh" && zsh "$tmp_zsh" || log "Zimfw install failed"
+  rm -f "$tmp_zsh"
 }
 install_debian(){
   step "Debian proot"
@@ -199,7 +201,9 @@ export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:$PATH"
 mkdir -p "${HOME}/.local/bin"
 # mise
 if ! command -v mise &>/dev/null; then
-  curl -fsSL https://mise.run | sh
+  tmp_sh=$(mktemp)
+  curl -fsSL https://mise.run > "$tmp_sh" && sh "$tmp_sh"
+  rm -f "$tmp_sh"
   export PATH="${HOME}/.local/bin:$PATH"
 fi
 # rust via mise
