@@ -80,7 +80,7 @@ select_single_mirror() {
 interactive_select_group() {
   local tempfile
   tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-  trap 'rm -f "$tempfile"' RETURN
+  trap 'rm -f "$tempfile"' EXIT
 
   declare -A groups=(
     ["All mirrors"]="all"
@@ -100,20 +100,22 @@ interactive_select_group() {
 
   dialog --title "Mirror Groups" --clear --radiolist \
     "Select region (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$tempfile" || return
+    0 0 0 "${options[@]}" 2> "$tempfile" || { rm -f "$tempfile"; trap - EXIT; return; }
 
   local choice
   choice=$(<"$tempfile")
-  [[ -z $choice ]] && return
+  [[ -z $choice ]] && { rm -f "$tempfile"; trap - EXIT; return; }
 
   local dir="${groups[$choice]}"
   [[ -n $dir ]] && unlink_and_link "$MIRROR_BASE/$dir"
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 interactive_select_mirror() {
   local tempfile
   tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-  trap 'rm -f "$tempfile"' RETURN
+  trap 'rm -f "$tempfile"' EXIT
 
   local options=("default" "Official Default" "on")
 
@@ -125,15 +127,17 @@ interactive_select_mirror() {
 
   dialog --title "Single Mirror" --clear --radiolist \
     "Select mirror (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$tempfile" || return
+    0 0 0 "${options[@]}" 2> "$tempfile" || { rm -f "$tempfile"; trap - EXIT; return; }
 
   local choice
   choice=$(<"$tempfile")
-  [[ -z $choice ]] && return
+  [[ -z $choice ]] && { rm -f "$tempfile"; trap - EXIT; return; }
 
   local path
   path=$(find "$MIRROR_BASE" -name "$choice" -print -quit 2>/dev/null)
   [[ -n $path ]] && unlink_and_link "$path"
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 interactive_mode() {
@@ -142,17 +146,19 @@ interactive_mode() {
 
   local tempfile
   tempfile=$(mktemp "$TMP_DIR/mirror.XXXXXX")
-  trap 'rm -f "$tempfile"' RETURN
+  trap 'rm -f "$tempfile"' EXIT
 
   dialog --title "termux-change-repo" --clear --radiolist \
     "Mode Selection:" 0 0 0 \
     "Mirror group" "Rotate (Recommended)" "on" \
-    "Single mirror" "Pick specific URL" "off" 2> "$tempfile" || exit
+    "Single mirror" "Pick specific URL" "off" 2> "$tempfile" || { rm -f "$tempfile"; trap - EXIT; exit 1; }
 
   case $(<"$tempfile") in
     "Mirror group") interactive_select_group ;;
     "Single mirror") interactive_select_mirror ;;
   esac
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 show_help() {
