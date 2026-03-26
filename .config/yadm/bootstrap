@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # Yadm bootstrap script for Termux dotfiles setup
 # This script runs automatically after 'yadm clone --bootstrap'
 set -eo pipefail

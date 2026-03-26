@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t' LC_ALL=C DEBIAN_FRONTEND=noninteractive
