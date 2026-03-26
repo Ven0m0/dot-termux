@@ -66,17 +66,17 @@ process_one(){
     printf 'DRY: %s -> %s\n' "$in" "$out"
     return 0
   fi
+  local shared_args=(
+    -c:v "$enc" -crf "$CRF" "${opts[@]}"
+    -vf "$V_FILT" "${A_OPTS[@]}"
+    -map_metadata 0 -movflags +faststart
+  )
+
   if [[ $tool == "ffzap" ]]; then
-    ffzap -o "$out" "$in" -- \
-      -c:v "$enc" -crf "$CRF" "${opts[@]}" \
-      -vf "$V_FILT" "${A_OPTS[@]}" \
-      -map_metadata 0 -movflags +faststart \
-      </dev/null &>/dev/null
+    ffzap -o "$out" "$in" -- "${shared_args[@]}" </dev/null &>/dev/null
   else
     ffmpeg -nostdin -hide_banner -loglevel error -stats -i "$in" \
-      -c:v "$enc" -crf "$CRF" "${opts[@]}" \
-      -vf "$V_FILT" "${A_OPTS[@]}" \
-      -map_metadata 0 -movflags +faststart \
+      "${shared_args[@]}" \
       -y "$out"
   fi
   local res=$?
