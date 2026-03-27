@@ -23,7 +23,7 @@ end_time=$(date +%s%N)
 expansion_time=$(( (end_time - start_time) / 1000000 ))
 echo "parameter expansion: ${expansion_time}ms"
 
-if [ "$expansion_time" -lt "$basename_time" ]; then
+if [[ "$expansion_time" -lt "$basename_time" ]]; then
     improvement=$(awk "BEGIN {print ($basename_time - $expansion_time) / $basename_time * 100}")
     echo "Improvement: ${improvement}%"
 else
