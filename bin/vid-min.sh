@@ -73,7 +73,9 @@ process_one(){
   )
 
   if [[ $tool == "ffzap" ]]; then
-    ffzap -o "$out" "$in" -- "${shared_args[@]}" </dev/null &>/dev/null
+    ffzap -o "$out" "$in" -- \
+      "${shared_args[@]}" \
+      </dev/null &>/dev/null
   else
     ffmpeg -nostdin -hide_banner -loglevel error -stats -i "$in" \
       "${shared_args[@]}" \
