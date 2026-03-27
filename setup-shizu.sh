@@ -60,29 +60,11 @@ echo ""
 echo "[5/7] Creating tool symlinks..."
 mkdir -p ~/bin
 
-# Lucky Patcher tools
-for script in lucky-patcher/*.sh; do
-    if [ -f "$script" ]; then
-        name="${script##*/}"
-        ln -sf "$PWD/$script" ~/bin/"$name"
-    fi
-done
+# Lucky Patcher and System tools
+find "$PWD"/lucky-patcher "$PWD"/system -maxdepth 1 -name "*.sh" -type f -print0 2>/dev/null | xargs -0 -r ln -sf -t ~/bin/
 
 # AI tools
-for script in ai-tools/*; do
-    if [ -f "$script" ]; then
-        name="${script##*/}"
-        ln -sf "$PWD/$script" ~/bin/"$name"
-    fi
-done
-
-# System tools
-for script in system/*.sh; do
-    if [ -f "$script" ]; then
-        name="${script##*/}"
-        ln -sf "$PWD/$script" ~/bin/"$name"
-    fi
-done
+find "$PWD"/ai-tools -maxdepth 1 ! -name ".*" -type f -print0 2>/dev/null | xargs -0 -r ln -sf -t ~/bin/
 
 # Add bin to PATH if not already there
 if ! grep -q "export PATH=\$PATH:~/bin" ~/.bashrc; then
