@@ -100,21 +100,16 @@ interactive_select_group() {
 
   dialog --title "Mirror Groups" --clear --radiolist \
     "Select region (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$tempfile" || {
-    rm -f "$tempfile"
-    trap - EXIT
-    return
-  }
+    0 0 0 "${options[@]}" 2> "$tempfile" || { rm -f "$tempfile"; trap - EXIT; return; }
 
   local choice
   choice=$(<"$tempfile")
-  rm -f "$tempfile"
-  trap - EXIT
-
-  [[ -z $choice ]] && return
+  [[ -z $choice ]] && { rm -f "$tempfile"; trap - EXIT; return; }
 
   local dir="${groups[$choice]}"
   [[ -n $dir ]] && unlink_and_link "$MIRROR_BASE/$dir"
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 interactive_select_mirror() {
@@ -132,22 +127,17 @@ interactive_select_mirror() {
 
   dialog --title "Single Mirror" --clear --radiolist \
     "Select mirror (Space to select, Enter to confirm):" \
-    0 0 0 "${options[@]}" 2> "$tempfile" || {
-    rm -f "$tempfile"
-    trap - EXIT
-    return
-  }
+    0 0 0 "${options[@]}" 2> "$tempfile" || { rm -f "$tempfile"; trap - EXIT; return; }
 
   local choice
   choice=$(<"$tempfile")
-  rm -f "$tempfile"
-  trap - EXIT
-
-  [[ -z $choice ]] && return
+  [[ -z $choice ]] && { rm -f "$tempfile"; trap - EXIT; return; }
 
   local path
   path=$(find "$MIRROR_BASE" -name "$choice" -print -quit 2>/dev/null)
   [[ -n $path ]] && unlink_and_link "$path"
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 interactive_mode() {
@@ -161,7 +151,7 @@ interactive_mode() {
   dialog --title "termux-change-repo" --clear --radiolist \
     "Mode Selection:" 0 0 0 \
     "Mirror group" "Rotate (Recommended)" "on" \
-    "Single mirror" "Pick specific URL" "off" 2> "$tempfile" || exit
+    "Single mirror" "Pick specific URL" "off" 2> "$tempfile" || { rm -f "$tempfile"; trap - EXIT; exit 1; }
 
   local mode
   mode=$(<"$tempfile")
@@ -172,6 +162,8 @@ interactive_mode() {
     "Mirror group") interactive_select_group ;;
     "Single mirror") interactive_select_mirror ;;
   esac
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 show_help() {
