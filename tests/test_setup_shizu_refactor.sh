@@ -24,7 +24,7 @@ create_symlinks() {
     local pattern="$1"
     # shellcheck disable=SC2086
     for script in $pattern; do
-        if [ -f "$script" ]; then
+        if [[ -f $script ]]; then
             name=$(basename "$script")
             ln -sf "$PWD/$script" "$HOME/bin/$name"
         fi
