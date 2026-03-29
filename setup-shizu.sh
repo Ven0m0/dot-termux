@@ -60,29 +60,20 @@ echo ""
 echo "[5/7] Creating tool symlinks..."
 mkdir -p ~/bin
 
-# Lucky Patcher tools
-for script in lucky-patcher/*.sh; do
-    if [ -f "$script" ]; then
-        name=$(basename "$script")
-        ln -sf "$PWD/$script" ~/bin/"$name"
-    fi
-done
+create_symlinks() {
+    local script name
+    # shellcheck disable=SC2086
+    for script in $1; do
+        if [ -f "$script" ]; then
+            name=$(basename "$script")
+            ln -sf "$PWD/$script" ~/bin/"$name"
+        fi
+    done
+}
 
-# AI tools
-for script in ai-tools/*; do
-    if [ -f "$script" ]; then
-        name=$(basename "$script")
-        ln -sf "$PWD/$script" ~/bin/"$name"
-    fi
-done
-
-# System tools
-for script in system/*.sh; do
-    if [ -f "$script" ]; then
-        name=$(basename "$script")
-        ln -sf "$PWD/$script" ~/bin/"$name"
-    fi
-done
+create_symlinks "lucky-patcher/*.sh"
+create_symlinks "ai-tools/*"
+create_symlinks "system/*.sh"
 
 # Add bin to PATH if not already there
 if ! grep -q "export PATH=\$PATH:~/bin" ~/.bashrc; then
