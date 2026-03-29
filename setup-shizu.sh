@@ -61,12 +61,13 @@ echo "[5/7] Creating tool symlinks..."
 mkdir -p ~/bin
 
 create_symlinks() {
+    local pattern="$1"
     local script name
     # shellcheck disable=SC2086
-    for script in $1; do
+    for script in $pattern; do
         if [ -f "$script" ]; then
             name=$(basename "$script")
-            ln -sf "$PWD/$script" ~/bin/"$name"
+            ln -sf "$PWD/$script" "$HOME/bin/$name"
         fi
     done
 }
