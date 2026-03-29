@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/bash
 # PocketCode Setup Script
 # https://github.com/rajbreno/PocketCode
 # One command to setup AI coding agents on Android

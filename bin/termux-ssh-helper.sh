@@ -85,15 +85,15 @@ usage(){
 SSH utilities for Termux
 
 USAGE:
-  $(basename "$0") keygen    Generate SSH key
-  $(basename "$0") start     Start SSH server
-  $(basename "$0") stop      Stop SSH server
-  $(basename "$0") status    Check SSH server status
+  ${0##*/} keygen    Generate SSH key
+  ${0##*/} start     Start SSH server
+  ${0##*/} stop      Stop SSH server
+  ${0##*/} status    Check SSH server status
 
 EXAMPLES:
-  $(basename "$0") keygen
-  $(basename "$0") start
-  $(basename "$0") status
+  ${0##*/} keygen
+  ${0##*/} start
+  ${0##*/} status
 EOF
 }
 

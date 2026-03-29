@@ -37,7 +37,6 @@ cache=${XDG_CACHE_HOME:-${HOME}/.cache}; [[ -d $cache ]] || cache=${HOME}
 logf=${HOME}/termux_setup.log
 repo_url=https://github.com/Ven0m0/dot-termux.git
 repo_path=${HOME}/dot-termux
-deb_user="${USER:-user}"
 # Optional features (set to 1 to enable)
 INSTALL_FONTS=${INSTALL_FONTS:-0}
 INSTALL_DEVTOOLS=${INSTALL_DEVTOOLS:-0}
@@ -198,7 +197,7 @@ DEBEOF
 install_debian_devtools(){
   [[ $INSTALL_DEVTOOLS -eq 0 ]] && { log "Skipping debian devtools (INSTALL_DEVTOOLS=0)"; return 0; }
   step "Debian dev tools (mise, rust, bun)"
-  proot-distro login debian --shared-tmp --user "$deb_user" -- /bin/bash <<'DEVEOF'
+  proot-distro login debian --shared-tmp --user "${USER:-user}" -- /bin/bash <<'DEVEOF'
 set -e
 export HOME=/home/user
 export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:$PATH"
@@ -338,7 +337,6 @@ main(){
   export HAS_ZSH
   setup_fonts || log "setup_fonts failed"
   install_zimfw || log "install_zimfw failed"
-  install_third_party || log "install_third_party failed"
   install_debian || log "install_debian failed"
   configure_debian || log "configure_debian failed"
   install_debian_devtools || log "install_debian_devtools failed"
