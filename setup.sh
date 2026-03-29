@@ -145,12 +145,11 @@ install_zimfw(){
   [[ -d $zim_home ]] && { log "Zimfw exists"; return 0; }
   [[ ${HAS_ZSH:-0} -eq 1 ]] || { log "Zsh not installed, skipping zimfw"; return 0; }
   local tmp_zim; tmp_zim=$(mktemp)
+  trap 'rm -f "$tmp_zim"' RETURN
   if download https://raw.githubusercontent.com/zimfw/install/master/install.zsh > "$tmp_zim"; then
     zsh "$tmp_zim" || log "Zimfw install failed"
-    rm -f "$tmp_zim"
   else
     log "Zimfw download failed"
-    rm -f "$tmp_zim"
   fi
 }
 install_debian(){
