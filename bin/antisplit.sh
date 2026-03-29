@@ -22,8 +22,11 @@ has apkeditor || err "apkeditor not found"
 has apksigner || err "apksigner not found"
 
 INPUT="$1"
-INPUT_DIR=$(dirname "$INPUT")
-BASE_NAME=$(basename "$INPUT" ".${INPUT##*.}")
+INPUT_DIR="${INPUT%/*}"
+[[ "$INPUT_DIR" == "$INPUT" ]] && INPUT_DIR="."
+[[ -z "$INPUT_DIR" ]] && INPUT_DIR="/"
+BASE_NAME="${INPUT##*/}"
+BASE_NAME="${BASE_NAME%.*}"
 
 OUTPUT="$INPUT_DIR/$BASE_NAME.apk"
 SIGNED="$INPUT_DIR/${BASE_NAME}_signed.apk"
