@@ -60,7 +60,7 @@ echo ""
 echo "[5/7] Creating tool symlinks..."
 mkdir -p ~/bin
 
-create_symlinks() {
+create_symlinks(){
     local pattern="$1"
     local script name
     # shellcheck disable=SC2086
