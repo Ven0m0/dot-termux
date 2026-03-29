@@ -149,11 +149,11 @@ revancify() {
   else
     local tmp_revancify; tmp_revancify=$(mktemp)
     if curl -sL https://github.com/Xisrr1/Revancify-Xisr/raw/main/install.sh -o "$tmp_revancify"; then
-        bash "$tmp_revancify"
-        rm -f "$tmp_revancify"
+      bash "$tmp_revancify"
+      rm -f "$tmp_revancify"
     else
-        echo "Revancify download failed"
-        rm -f "$tmp_revancify"
+      echo "Revancify download failed"
+      rm -f "$tmp_revancify"
     fi
   fi
 }
