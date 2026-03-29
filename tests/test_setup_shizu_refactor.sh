@@ -19,17 +19,10 @@ touch lucky-patcher/lp1.sh lucky-patcher/lp2.sh lucky-patcher/not_a_script.txt
 touch ai-tools/ai1 ai-tools/ai2.py
 touch system/sys1.sh
 
-# Function to be tested
-create_symlinks() {
-    local pattern="$1"
-    # shellcheck disable=SC2086
-    for script in $pattern; do
-        if [[ -f $script ]]; then
-            name=$(basename "$script")
-            ln -sf "$PWD/$script" "$HOME/bin/$name"
-        fi
-    done
-}
+# Source the real create_symlinks implementation from setup-shizu.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../setup-shizu.sh
+. "$SCRIPT_DIR/../setup-shizu.sh"
 
 # Run the function with patterns
 create_symlinks "lucky-patcher/*.sh"
