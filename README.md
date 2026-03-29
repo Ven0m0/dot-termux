@@ -5,10 +5,15 @@ Optimized Termux environment with Android toolkit for APK patching, filesystem c
 ## 🚀 Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh | bash
+# Recommended: Download then execute
+curl -fsSL https://raw.githubusercontent.com/Ven0m0/dot-termux/main/setup.sh -o setup.sh
+bash setup.sh
 ```
+
 ```bash
-curl -s https://raw.githubusercontent.com/bbk14/TermuxDebian/main/Termux/installation.sh | bash
+# Secondary method
+curl -s https://raw.githubusercontent.com/bbk14/TermuxDebian/main/Termux/installation.sh -o install_debian.sh
+bash install_debian.sh
 ```
 
 After installation, restart Termux for all changes to take effect.
@@ -156,31 +161,37 @@ curl -sLo rvx-builder.sh https://raw.githubusercontent.com/inotia00/rvx-builder/
 Revancify
 
 ```bash
-curl -sL https://raw.githubusercontent.com/decipher3114/Revancify/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/decipher3114/Revancify/main/install.sh -o install.sh && bash install.sh
 ```
 
 Revancify-Xisr
 
 ```bash
-curl -sL https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh -o install.sh && bash install.sh
 ```
 
-curl -fsSL lure.sh/install | bash
+```bash
+curl -fsSL https://lure.sh/install -o install.sh && bash install.sh
+```
 
-eval "$(curl <https://get.x-cmd.com>)"
+```bash
+curl -fsSL https://get.x-cmd.com -o install.sh && bash install.sh
+```
 
-curl -fsSL <https://soar.qaidvoid.dev/install.sh> | sh
+```bash
+curl -fsSL https://soar.qaidvoid.dev/install.sh -o install.sh && sh install.sh
+```
 
 Cargo binstall
 
-```bahs
-curl -sL --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+```bash
+curl -sL --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o install.sh && bash install.sh
 ```
 
 fix
 
 ```bash
-curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
+curl -s https://raw.githubusercontent.com/ConzZah/csb/main/csb -o install.sh && bash install.sh
 ```
 
 ### Utility Scripts
