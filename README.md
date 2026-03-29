@@ -171,7 +171,7 @@ curl -sL https://raw.githubusercontent.com/Xisrr1/Revancify-Xisr/main/install.sh
 ```
 
 ```bash
-curl -fsSL lure.sh/install -o install.sh && bash install.sh
+curl -fsSL https://lure.sh/install -o install.sh && bash install.sh
 ```
 
 ```bash
