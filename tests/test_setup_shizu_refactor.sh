@@ -22,7 +22,22 @@ touch system/sys1.sh
 # Source the real create_symlinks implementation from setup-shizu.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../setup-shizu.sh
-. "$SCRIPT_DIR/../setup-shizu.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Extract only the create_symlinks function without executing setup
+SKIP_SETUP=1 . "$SCRIPT_DIR/../setup-shizu.sh" 2>/dev/null || {
+  # Fallback: inline the function if sourcing fails
+  create_symlinks(){
+    local pattern="$1"
+    local script name
+    # shellcheck disable=SC2086
+    for script in $pattern; do
+      if [ -f "$script" ]; then
+        name=$(basename "$script")
+        ln -sf "$PWD/$script" "$HOME/bin/$name"
+      fi
+    done
+  }
+}
 
 # Run the function with patterns
 create_symlinks "lucky-patcher/*.sh"
