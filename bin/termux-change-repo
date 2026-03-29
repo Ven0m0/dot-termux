@@ -110,6 +110,8 @@ interactive_select_group() {
 
   local dir="${groups[$choice]}"
   [[ -n $dir ]] && unlink_and_link "$MIRROR_BASE/$dir"
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 interactive_select_mirror() {
@@ -138,6 +140,8 @@ interactive_select_mirror() {
   local path
   path=$(find "$MIRROR_BASE" -name "$choice" -print -quit 2>/dev/null)
   [[ -n $path ]] && unlink_and_link "$path"
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 interactive_mode() {
@@ -162,6 +166,8 @@ interactive_mode() {
     "Mirror group") interactive_select_group ;;
     "Single mirror") interactive_select_mirror ;;
   esac
+  rm -f "$tempfile"
+  trap - EXIT
 }
 
 show_help() {

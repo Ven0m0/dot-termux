@@ -8,20 +8,20 @@ git clone --depth 1 --filter blob:none https://github.com/jecis-repos/termux-shi
 ### csb
 
 ```bash
-curl -sf https://raw.githubusercontent.com/ConzZah/csb/main/csb | bash
+curl -sf https://raw.githubusercontent.com/ConzZah/csb/main/csb -o install.sh && bash install.sh
 ```
 
 
 ### X-CMD
 
 ```bash
-eval "$(curl -s https://get.x-cmd.com)"
+curl -s https://get.x-cmd.com -o install.sh && bash install.sh
 ```
 
 ### Termuxvoid repo
 
 ```bash
-curl -sL https://termuxvoid.github.io/repo/install.sh | bash
+curl -sL https://termuxvoid.github.io/repo/install.sh -o install.sh && bash install.sh
 ```
 ```bash
 curl -sLO https://github.com/termuxvoid/TermuxVoid-Theme/raw/main/termuxvoid-theme.sh && bash termuxvoid-theme.sh

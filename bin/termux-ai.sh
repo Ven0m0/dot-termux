@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/bash
 # PocketCode Setup Script
 # https://github.com/rajbreno/PocketCode
 # One command to setup AI coding agents on Android
@@ -21,9 +21,27 @@ echo "⚙️ Setting up development environment..."
 proot-distro login debian -- bash -c '
   apt update > /dev/null 2>&1
   apt install curl git build-essential python3 -y > /dev/null 2>&1
-  curl -fsSL https://deb.nodesource.com/setup_20.x 2>/dev/null | bash - > /dev/null 2>&1
-  apt install nodejs -y > /dev/null 2>&1
-  curl -fsSL https://opencode.ai/install 2>/dev/null | bash > /dev/null 2>&1
+
+  # Secure NodeSource installation
+  NODE_SETUP_TMP=$(mktemp)
+  if curl -fsSL https://deb.nodesource.com/setup_20.x -o "$NODE_SETUP_TMP" 2>/dev/null; then
+    bash "$NODE_SETUP_TMP" > /dev/null 2>&1
+    rm -f "$NODE_SETUP_TMP"
+    apt install nodejs -y > /dev/null 2>&1
+  else
+    echo "❌ NodeSource setup download failed"
+    rm -f "$NODE_SETUP_TMP"
+  fi
+
+  # Secure OpenCode installation
+  OPENCODE_SETUP_TMP=$(mktemp)
+  if curl -fsSL https://opencode.ai/install -o "$OPENCODE_SETUP_TMP" 2>/dev/null; then
+    bash "$OPENCODE_SETUP_TMP" > /dev/null 2>&1
+    rm -f "$OPENCODE_SETUP_TMP"
+  else
+    echo "❌ OpenCode setup download failed"
+    rm -f "$OPENCODE_SETUP_TMP"
+  fi
   echo "alias opencode-web=\"opencode web --hostname 127.0.0.1 --port 4096\"" >> ~/.bashrc
 '
 
