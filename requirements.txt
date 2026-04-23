@@ -1,7 +1,7 @@
 termcolor==3.3.0
-pydantic==2.12.5
+pydantic==2.13.3
 google-genai>=1.40.0
 playwright==1.58.0
-browserbase==1.7.0
+browserbase==1.8.0
 rich
 pytest
