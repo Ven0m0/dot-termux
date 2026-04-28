@@ -3,5 +3,5 @@
 
 #  vscode server
 pkg i nodejs-lts build-essential python3
-npm y -g code-server
+npm i -g code-server
 code-server --auth none
