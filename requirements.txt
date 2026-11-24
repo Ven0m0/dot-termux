@@ -1,6 +1,6 @@
 termcolor==3.3.0
 pydantic==2.14.4
-google-genai>=3.0.0
+google-genai>=3.6.1
 playwright==1.65.2
 browserbase==1.28.0
 rich
